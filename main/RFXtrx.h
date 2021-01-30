@@ -423,7 +423,9 @@ SDK version 4.9
 #define trxType315 0x51
 #define recType43392 0x52
 #define trxType43392 0x53
+#define trxType43342 0x54
 #define trxType868 0x55
+#define trxType43450 0x5F
 
 #define FWtyperec 0x0
 #define FWtype1 0x1
@@ -1361,8 +1363,8 @@ typedef union tRBUF {
 		BYTE	X10enabled : 1; //note: keep this order
 
 		//BYTE    msg6;
-        BYTE    MSG6Reserved7 : 1;
-        BYTE    MSG6Reserved6 : 1;
+        BYTE    FUNKBUSEnabled : 1;
+        BYTE    MCZEnabled : 1;
         BYTE    MSG6Reserved5 : 1;
         BYTE    MSG6Reserved4 : 1;
         BYTE    MSG6Reserved3 : 1;
@@ -1407,8 +1409,8 @@ typedef union tRBUF {
         BYTE    MSG6Reserved3 : 1;
         BYTE    MSG6Reserved4 : 1;
         BYTE    MSG6Reserved5 : 1;
-        BYTE    MSG6Reserved6 : 1;
-        BYTE    MSG6Reserved7 : 1;
+        BYTE    MCZEnabled : 1;
+        BYTE    FUNKBUSEnabled : 1;
 #endif
 
 		BYTE	msg7;

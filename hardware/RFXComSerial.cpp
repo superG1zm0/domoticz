@@ -987,12 +987,13 @@ namespace http {
 				Response.IRESPONSE.IMAGINTRONIXenabled = (request::findValue(&req, "ImaginTronix") == "on") ? 1 : 0;
 				Response.IRESPONSE.KEELOQenabled = (request::findValue(&req, "Keeloq") == "on") ? 1 : 0;
 				Response.IRESPONSE.HCEnabled = (request::findValue(&req, "HC") == "on") ? 1 : 0;
+				Response.IRESPONSE.MCZEnabled = (request::findValue(&req, "MCZ") == "on") ? 1 : 0;
+				Response.IRESPONSE.FUNKBUSEnabled = (request::findValue(&req, "Funkbus") == "on") ? 1 : 0;
 
 				CDomoticzHardwareBase *pHardware = m_mainworker.GetHardware(atoi(idx.c_str()));
 				if (pHardware)
 				{
 					CRFXBase *pBase = reinterpret_cast<CRFXBase *>(pHardware);
-					pBase->SetRFXCOMHardwaremodes(Response.ICMND.freqsel, Response.ICMND.xmitpwr, Response.ICMND.msg3, Response.ICMND.msg4, Response.ICMND.msg5, Response.ICMND.msg6);
 
 					if (pBase->m_Version.find("Pro XL") != std::string::npos)
 					{
@@ -1001,7 +1002,29 @@ namespace http {
 							AsyncMode = "0";
 						result = m_sql.safe_query("UPDATE Hardware SET Extra='%q' WHERE (ID='%q')", AsyncMode.c_str(), idx.c_str());
 						pBase->SetAsyncType((CRFXBase::_eRFXAsyncType)atoi(AsyncMode.c_str()));
+
+						int RecFreq = atoi(request::findValue(&req, "combo_rfx_xl_rec_freq").c_str());
+
+						switch (RecFreq)
+						{
+						case 0:
+							Response.ICMND.freqsel = trxType43342;
+							break;
+						case 1:
+							Response.ICMND.freqsel = trxType43392;
+							break;
+						case 2:
+							Response.ICMND.freqsel = trxType43450;
+							break;
+						default:
+							Response.ICMND.freqsel = trxType43392;
+							break;
+						}
 					}
+
+					bool save = (request::findValue(&req, "save") == "true") ? true : false;
+
+					pBase->SetRFXCOMHardwaremodes(Response.ICMND.freqsel, Response.ICMND.xmitpwr, Response.ICMND.msg3, Response.ICMND.msg4, Response.ICMND.msg5, Response.ICMND.msg6, save);
 				}
 			}
 			else

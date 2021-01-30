@@ -2575,6 +2575,12 @@ void MainWorker::decode_InterfaceMessage(const CDomoticzHardwareBase* pHardware,
 			case trxType868:
 				WriteMessage("Receiver type     = 868.00MHz");
 				break;
+			case trxType43342:
+				WriteMessage("Receiver type     = 433.42MHz");
+				break;
+			case trxType43450:
+				WriteMessage("Receiver type     = 434.50MHz");
+				break;
 			default:
 				WriteMessage("Receiver type     = unknown");
 				break;
@@ -2604,7 +2610,9 @@ void MainWorker::decode_InterfaceMessage(const CDomoticzHardwareBase* pHardware,
 
 			if (
 				(pResponse->IRESPONSE.msg1 == recType43392) ||
-				(pResponse->IRESPONSE.msg1 == trxType43392)
+				(pResponse->IRESPONSE.msg1 == trxType43392) ||
+				(pResponse->IRESPONSE.msg1 == trxType43342) ||
+				(pResponse->IRESPONSE.msg1 == trxType43450)
 				)
 			{
 				WriteMessage("Firmware type     = ", false);
@@ -2796,6 +2804,16 @@ void MainWorker::decode_InterfaceMessage(const CDomoticzHardwareBase* pHardware,
 					WriteMessage("Home Confort      enabled");
 				else
 					WriteMessage("Home Confort      disabled");
+
+				if (pResponse->IRESPONSE.MCZEnabled)
+					WriteMessage("MCZ               enabled");
+				else
+					WriteMessage("MCZ               disabled");
+
+				if (pResponse->IRESPONSE.FUNKBUSEnabled)
+					WriteMessage("Funkbus           enabled");
+				else
+					WriteMessage("Funkbus           disabled");
 			}
 			else
 			{

@@ -29,7 +29,7 @@ class CRFXBase : public P1MeterBase
 	std::string m_Version;
 	_eRFXAsyncType m_AsyncType;
 	int m_NoiseLevel;
-	bool SetRFXCOMHardwaremodes(unsigned char Mode1, unsigned char Mode2, unsigned char Mode3, unsigned char Mode4, unsigned char Mode5, unsigned char Mode6);
+	bool SetRFXCOMHardwaremodes(unsigned char Mode1, unsigned char Mode2, unsigned char Mode3, unsigned char Mode4, unsigned char Mode5, unsigned char Mode6, bool save);
 	void SendResetCommand();
 	bool WriteToHardware(const char *pdata, unsigned char length) override = 0;
 	void SetAsyncType(_eRFXAsyncType AsyncType);

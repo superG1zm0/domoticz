@@ -276,7 +276,7 @@ void CRFXBase::SendCommand(const unsigned char Cmd)
 	WriteToHardware((const char*)&cmd, sizeof(cmd.ICMND));
 }
 
-bool CRFXBase::SetRFXCOMHardwaremodes(const unsigned char Mode1, const unsigned char Mode2, const unsigned char Mode3, const unsigned char Mode4, const unsigned char Mode5, const unsigned char Mode6)
+bool CRFXBase::SetRFXCOMHardwaremodes(const unsigned char Mode1, const unsigned char Mode2, const unsigned char Mode3, const unsigned char Mode4, const unsigned char Mode5, const unsigned char Mode6, bool save)
 {
 	tRBUF Response;
 	Response.ICMND.packetlength = sizeof(Response.ICMND) - 1;
@@ -293,8 +293,12 @@ bool CRFXBase::SetRFXCOMHardwaremodes(const unsigned char Mode1, const unsigned 
 	if (!WriteToHardware((const char*)&Response, sizeof(Response.ICMND)))
 		return false;
 	m_mainworker.PushAndWaitRxMessage(this, (const unsigned char *)&Response, nullptr, -1, m_Name.c_str());
-	//Save it also
-	SendCommand(cmdSAVE);
+
+	if (save)
+	{
+		SendCommand(cmdSAVE);
+		Log(LOG_STATUS, "Modes saved");
+	}
 
 	m_rxbufferpos = 0;
 

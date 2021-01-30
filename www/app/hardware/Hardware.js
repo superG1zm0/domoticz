@@ -2727,9 +2727,33 @@ define(['app'], function (app) {
 			$('#hardwarecontent').html(GetBackbuttonHTMLTable('ShowHardware') + htmlcontent);
 			$('#hardwarecontent').i18n();
 
+			$('#hardwarecontent #combo_rfx_xl_rec_freq').change(function () {
+				var RecFreq = $(this).val();
+				if (RecFreq == 0) {
+					$(".433_42").show();
+					$(".433_92").hide();
+					$(".434_50").hide();
+					$('#hardwarecontent #MCZ').prop('checked', false);
+				} else if (RecFreq == 2) {
+					$(".433_42").hide();
+					$(".433_92").hide();
+					$(".434_50").show();
+					$('#hardwarecontent #Funkbus').prop('checked', false);
+				} else {
+					$(".433_42").hide();
+					$(".433_92").show();
+					$(".434_50").hide();
+					$('#hardwarecontent #Funkbus').prop('checked', false);
+					$('#hardwarecontent #MCZ').prop('checked', false);
+				}
+			});
 			$('#hardwarecontent #submitbutton').click(function (e) {
 				e.preventDefault();
-				SetRFXCOMMode();
+				SetRFXCOMMode(false);
+			});
+			$('#hardwarecontent #savebutton').click(function (e) {
+				e.preventDefault();
+				SetRFXCOMMode(true);
 			});
 			$('#hardwarecontent #firmwarebutton').click(function (e) {
 				e.preventDefault();
@@ -2738,6 +2762,8 @@ define(['app'], function (app) {
 			});
 
 			$('#hardwarecontent #idx').val(idx);
+			$('#hardwarecontent #MCZ').prop('checked', ((Mode6 & 0x40) != 0));
+			$('#hardwarecontent #Funkbus').prop('checked', ((Mode6 & 0x80) != 0));
 			$('#hardwarecontent #Keeloq').prop('checked', ((Mode6 & 0x01) != 0));
 			$('#hardwarecontent #HC').prop('checked', ((Mode6 & 0x02) != 0));
 			$('#hardwarecontent #undecon').prop('checked', ((Mode3 & 0x80) != 0));
@@ -2776,9 +2802,33 @@ define(['app'], function (app) {
 			}
 			$('#hardwarecontent #combo_rfx_xl_async_type').val(ASyncType);
 
+			var RecFreq = 1;
+			if (Mode1 == 0x54) {
+				RecFreq = 0;
+				$(".433_42").show();
+				$(".433_92").hide();
+				$(".434_50").hide();
+			}
+			else if (Mode1 == 0x5F) {
+				RecFreq = 2;
+				$(".433_42").hide();
+				$(".433_92").hide();
+				$(".434_50").show();
+			}
+			else {
+				$(".433_42").hide();
+				$(".433_92").show();
+				$(".434_50").hide();
+			}
+
+			$('#hardwarecontent #combo_rfx_xl_rec_freq').val(RecFreq);
+
 			$('#hardwarecontent #defaultbutton').click(function (e) {
 				e.preventDefault();
 				$('#hardwarecontent #combo_rfx_xl_async_type').val(0);
+				$('#hardwarecontent #combo_rfx_xl_rec_freq').val(1);
+				$('#hardwarecontent #MCZ').prop('checked', false);
+				$('#hardwarecontent #Funkbus').prop('checked', false);
 				$('#hardwarecontent #Keeloq').prop('checked', false);
 				$('#hardwarecontent #HC').prop('checked', false);
 				$('#hardwarecontent #undecon').prop('checked', false);
@@ -3147,8 +3197,10 @@ define(['app'], function (app) {
 			$("#hardwarecontent #combooutsidesensor").val(Mode1);
 		}
 
-		SetRFXCOMMode = function () {
-			$.post("setrfxcommode.webem", $("#hardwarecontent #settings").serialize(), function (data) {
+		SetRFXCOMMode = function (save) {
+			var settings = $("#hardwarecontent #settings").serializeArray();
+			settings.push( {name:'save', value:save} );
+			$.post("setrfxcommode.webem", settings, function (data) {
 				SwitchLayout('Dashboard');
 			});
 		}
