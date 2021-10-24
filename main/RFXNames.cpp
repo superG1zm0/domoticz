@@ -3546,6 +3546,10 @@ bool GetLightCommand(
 		{
 			cmd = thermostat4_sOff;
 		}
+		else if (switchcmd == "On")
+		{
+			cmd = thermostat4_sOn;
+		}
 		else if (switchcmd == "Manual")
 		{
 			cmd = thermostat4_sManual;
@@ -3560,7 +3564,7 @@ bool GetLightCommand(
 		}
 		else
 		{
-			cmd = thermostat3_sOff;
+			cmd = thermostat4_sOff;
 		}
 		return true;
 	}

@@ -8721,7 +8721,7 @@ void MainWorker::decode_Thermostat4(const CDomoticzHardwareBase* pHardware, cons
 			break;
 		}
 
-		sprintf(szTmp, "Signal level  = %d", pResponse->THERMOSTAT3.rssi);
+		sprintf(szTmp, "Signal level  = %d", pResponse->THERMOSTAT4.rssi);
 		WriteMessage(szTmp);
 		WriteMessageEnd();
 	}
@@ -12197,7 +12197,7 @@ bool MainWorker::SwitchLightInt(const std::vector<std::string>& sd, std::string 
 		_log.Log(LOG_ERROR, "Thermostat 4 not implemented yet!");
 		/*
 		tRBUF lcmd;
-		lcmd.THERMOSTAT4.packetlength = sizeof(lcmd.THERMOSTAT3) - 1;
+		lcmd.THERMOSTAT4.packetlength = sizeof(lcmd.THERMOSTAT4) - 1;
 		lcmd.THERMOSTAT4.packettype = dType;
 		lcmd.THERMOSTAT4.subtype = dSubType;
 		lcmd.THERMOSTAT4.unitcode1 = ID2;

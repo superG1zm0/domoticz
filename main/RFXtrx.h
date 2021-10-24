@@ -1055,6 +1055,7 @@ SDK version 4.9
 #define sTypeMCZ2 0x1	//MCZ 2 fan model
 #define sTypeMCZ3 0x2	//MCZ 3 fan model
 #define thermostat4_sOff 0x0
+#define thermostat4_sOn 0x1
 #define thermostat4_sManual 0x1
 #define thermostat4_sAuto 0x2
 #define thermostat4_sEco 0x3
