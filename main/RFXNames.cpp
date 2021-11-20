@@ -1951,21 +1951,10 @@ void GetLightStatus(
 		}
 		break;
 	case pTypeThermostat4:
-		switch (nValue)
-		{
-		case thermostat4_sOff:
+		if(nValue)
+			lstatus = "On";
+		else
 			lstatus = "Off";
-			break;
-		case thermostat4_sManual:
-			lstatus = "Manual";
-			break;
-		case thermostat4_sAuto:
-			lstatus = "Auto";
-			break;
-		case thermostat4_sEco:
-			lstatus = "Eco";
-			break;
-		}
 		break;
 	case pTypeRadiator1:
 		switch (nValue)

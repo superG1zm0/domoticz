@@ -8629,6 +8629,7 @@ void MainWorker::decode_Thermostat3(const CDomoticzHardwareBase* pHardware, cons
 void MainWorker::decode_Thermostat4(const CDomoticzHardwareBase* pHardware, const tRBUF* pResponse, _tRxMessageProcessingResult& procResult)
 {
 	char szTmp[100];
+	std::string sTmp;
 	uint8_t devType = pTypeThermostat4;
 	uint8_t subType = pResponse->THERMOSTAT4.subtype;
 	std::string ID;
@@ -8646,9 +8647,102 @@ void MainWorker::decode_Thermostat4(const CDomoticzHardwareBase* pHardware, cons
 		pResponse->THERMOSTAT4.mode
 	);
 
-	uint64_t DevRowIdx = m_sql.UpdateValue(pHardware->m_HwdID, ID.c_str(), Unit, devType, subType, SignalLevel, BatteryLevel, szTmp, procResult.DeviceName);
+	uint64_t DevRowIdx;
+
+	std::vector<std::vector<std::string> > result;
+
+	sTmp = "Beep";
+	result = m_sql.safe_query("SELECT ID FROM DeviceStatus WHERE (HardwareID=%d AND DeviceID='%q' AND Unit=%d AND Type=%d AND SubType=%d)", pHardware->m_HwdID,
+		ID.c_str(), 0, devType, subType);
+	DevRowIdx = m_sql.UpdateValue(pHardware->m_HwdID, ID.c_str(), 0, devType, subType, SignalLevel, BatteryLevel, pResponse->THERMOSTAT4.beep, "beep", sTmp);
 	if (DevRowIdx == (uint64_t)-1)
 		return;
+	if (result.empty())
+	{
+		m_sql.safe_query(
+			"UPDATE DeviceStatus SET CustomImage=%d WHERE (ID == %" PRIu64 ")",
+			8, DevRowIdx);
+	}
+	sOnDeviceReceived(pHardware->m_HwdID, DevRowIdx, sTmp, reinterpret_cast<const uint8_t*>(pResponse));
+
+	sTmp = "Fan 1";
+	sprintf(szTmp, "%d", pResponse->THERMOSTAT4.fan1_speed*10);
+	result = m_sql.safe_query("SELECT ID FROM DeviceStatus WHERE (HardwareID=%d AND DeviceID='%q' AND Unit=%d AND Type=%d AND SubType=%d)", pHardware->m_HwdID,
+		ID.c_str(), 1, devType, subType);
+	DevRowIdx = m_sql.UpdateValue(pHardware->m_HwdID, ID.c_str(), 1, devType, subType, SignalLevel, BatteryLevel, pResponse->THERMOSTAT4.fan1_speed, szTmp, sTmp);
+	if (DevRowIdx == (uint64_t)-1)
+		return;
+	if (result.empty())
+	{
+		m_sql.safe_query(
+			"UPDATE DeviceStatus SET SwitchType=%d, CustomImage=%d WHERE (ID == %" PRIu64 ")",
+			STYPE_Selector, 7, DevRowIdx);
+		m_sql.SetDeviceOptions(DevRowIdx, m_sql.BuildDeviceOptions("SelectorStyle:0;LevelNames:Off|1|2|3|4|5|Auto", false));
+	}
+	sOnDeviceReceived(pHardware->m_HwdID, DevRowIdx, sTmp, reinterpret_cast<const uint8_t*>(pResponse));
+
+	sTmp = "Fan 2";
+	sprintf(szTmp, "%d", pResponse->THERMOSTAT4.fan2_speed*10);
+	result = m_sql.safe_query("SELECT ID FROM DeviceStatus WHERE (HardwareID=%d AND DeviceID='%q' AND Unit=%d AND Type=%d AND SubType=%d)", pHardware->m_HwdID,
+		ID.c_str(), 2, devType, subType);
+	DevRowIdx = m_sql.UpdateValue(pHardware->m_HwdID, ID.c_str(), 2, devType, subType, SignalLevel, BatteryLevel, pResponse->THERMOSTAT4.fan2_speed, szTmp, sTmp);
+	if (DevRowIdx == (uint64_t)-1)
+		return;
+	if (result.empty())
+	{
+		m_sql.safe_query(
+			"UPDATE DeviceStatus SET SwitchType=%d, CustomImage=%d WHERE (ID == %" PRIu64 ")",
+			STYPE_Selector, 7, DevRowIdx);
+		m_sql.SetDeviceOptions(DevRowIdx, m_sql.BuildDeviceOptions("SelectorStyle:0;LevelNames:Off|1|2|3|4|5|Auto", false));
+	}
+	sOnDeviceReceived(pHardware->m_HwdID, DevRowIdx, sTmp, reinterpret_cast<const uint8_t*>(pResponse));
+
+	sTmp = "Fan 3";
+	sprintf(szTmp, "%d", pResponse->THERMOSTAT4.fan3_speed*10);
+	result = m_sql.safe_query("SELECT ID FROM DeviceStatus WHERE (HardwareID=%d AND DeviceID='%q' AND Unit=%d AND Type=%d AND SubType=%d)", pHardware->m_HwdID,
+		ID.c_str(), 3, devType, subType);
+	DevRowIdx = m_sql.UpdateValue(pHardware->m_HwdID, ID.c_str(), 3, devType, subType, SignalLevel, BatteryLevel, pResponse->THERMOSTAT4.fan3_speed, szTmp, sTmp);
+	if (DevRowIdx == (uint64_t)-1)
+		return;
+	if (result.empty())
+	{
+		m_sql.safe_query(
+			"UPDATE DeviceStatus SET SwitchType=%d, CustomImage=%d WHERE (ID == %" PRIu64 ")",
+			STYPE_Selector, 7, DevRowIdx);
+		m_sql.SetDeviceOptions(DevRowIdx, m_sql.BuildDeviceOptions("SelectorStyle:0;LevelNames:Off|1|2|3|4|5|Auto", false));
+	}
+	sOnDeviceReceived(pHardware->m_HwdID, DevRowIdx, sTmp, reinterpret_cast<const uint8_t*>(pResponse));
+
+	sTmp = "Flame Power";
+	sprintf(szTmp, "%d", pResponse->THERMOSTAT4.flame_power*10);
+	result = m_sql.safe_query("SELECT ID FROM DeviceStatus WHERE (HardwareID=%d AND DeviceID='%q' AND Unit=%d AND Type=%d AND SubType=%d)", pHardware->m_HwdID,
+		ID.c_str(), 4, devType, subType);
+	DevRowIdx = m_sql.UpdateValue(pHardware->m_HwdID, ID.c_str(), 4, devType, subType, SignalLevel, BatteryLevel, pResponse->THERMOSTAT4.flame_power, szTmp, sTmp);
+	if (DevRowIdx == (uint64_t)-1)
+		return;
+	if (result.empty())
+	{
+		m_sql.safe_query(
+			"UPDATE DeviceStatus SET SwitchType=%d, CustomImage=%d WHERE (ID == %" PRIu64 ")",
+			STYPE_Selector, 10, DevRowIdx);
+		m_sql.SetDeviceOptions(DevRowIdx, m_sql.BuildDeviceOptions("SelectorStyle:0;LevelNames:0|1|2|3|4|Max", false));
+	}
+	sOnDeviceReceived(pHardware->m_HwdID, DevRowIdx, sTmp, reinterpret_cast<const uint8_t*>(pResponse));
+
+	sTmp = "Mode";
+	sprintf(szTmp, "%d", pResponse->THERMOSTAT4.mode*10);
+	result = m_sql.safe_query("SELECT ID FROM DeviceStatus WHERE (HardwareID=%d AND DeviceID='%q' AND Unit=%d AND Type=%d AND SubType=%d)", pHardware->m_HwdID,
+		ID.c_str(), 5, devType, subType);
+	DevRowIdx = m_sql.UpdateValue(pHardware->m_HwdID, ID.c_str(), 5, devType, subType, SignalLevel, BatteryLevel, pResponse->THERMOSTAT4.mode, szTmp, sTmp);
+	if (DevRowIdx == (uint64_t)-1)
+		return;
+	if (result.empty())
+	{
+		m_sql.safe_query(
+			"UPDATE DeviceStatus SET SwitchType=%d, CustomImage=%d WHERE (ID == %" PRIu64 ")",
+			STYPE_Selector, 9, DevRowIdx);
+		m_sql.SetDeviceOptions(DevRowIdx, m_sql.BuildDeviceOptions("SelectorStyle:0;LevelNames:Off|Manual|Auto|Eco", false));
+	}
 
 	if (_log.IsDebugLevelEnabled(DEBUG_RECEIVED))
 	{
@@ -12194,8 +12288,6 @@ bool MainWorker::SwitchLightInt(const std::vector<std::string>& sd, std::string 
 	break;
 	case pTypeThermostat4:
 	{
-		_log.Log(LOG_ERROR, "Thermostat 4 not implemented yet!");
-		/*
 		tRBUF lcmd;
 		lcmd.THERMOSTAT4.packetlength = sizeof(lcmd.THERMOSTAT4) - 1;
 		lcmd.THERMOSTAT4.packettype = dType;
@@ -12204,18 +12296,71 @@ bool MainWorker::SwitchLightInt(const std::vector<std::string>& sd, std::string 
 		lcmd.THERMOSTAT4.unitcode2 = ID3;
 		lcmd.THERMOSTAT4.unitcode3 = ID4;
 		lcmd.THERMOSTAT4.seqnbr = m_hardwaredevices[hindex]->m_SeqNr++;
-		if (!GetLightCommand(dType, dSubType, switchtype, switchcmd, lcmd.THERMOSTAT4.mode, options))
-		return false;
-		level = 15;
+		std::vector<std::vector<std::string> > result;
+		int val = level/10;
+
+		result = m_sql.safe_query(
+			"SELECT nValue FROM DeviceStatus WHERE (HardwareID=%d AND DeviceID='%q' AND Unit=%d AND Type=%d AND SubType=%d)", HardwareID, sd[1].c_str(), 0, int(dType), int(dSubType));
+		if (result.size() != 1)
+			lcmd.THERMOSTAT4.beep = 0;
+		else
+			lcmd.THERMOSTAT4.beep = atoi(result[0][0].c_str());
+
+		result = m_sql.safe_query(
+			"SELECT nValue FROM DeviceStatus WHERE (HardwareID=%d AND DeviceID='%q' AND Unit=%d AND Type=%d AND SubType=%d)", HardwareID, sd[1].c_str(), 1, int(dType), int(dSubType));
+		if (result.size() != 1)
+			lcmd.THERMOSTAT4.fan1_speed = 6;
+		else
+			lcmd.THERMOSTAT4.fan1_speed = atoi(result[0][0].c_str());
+
+		result = m_sql.safe_query(
+			"SELECT nValue FROM DeviceStatus WHERE (HardwareID=%d AND DeviceID='%q' AND Unit='%d' AND Type=%d AND SubType=%d)", HardwareID, sd[1].c_str(), 2, int(dType), int(dSubType));
+		if (result.size() != 1)
+			lcmd.THERMOSTAT4.fan2_speed = 6;
+		else
+			lcmd.THERMOSTAT4.fan2_speed = atoi(result[0][0].c_str());
+
+		result = m_sql.safe_query(
+			"SELECT nValue FROM DeviceStatus WHERE (HardwareID=%d AND DeviceID='%q' AND Unit=%d AND Type=%d AND SubType=%d)", HardwareID, sd[1].c_str(), 3, int(dType), int(dSubType));
+		if (result.size() != 1)
+			lcmd.THERMOSTAT4.fan3_speed = 6;
+		else
+			lcmd.THERMOSTAT4.fan3_speed = atoi(result[0][0].c_str());
+
+		result = m_sql.safe_query(
+			"SELECT nValue FROM DeviceStatus WHERE (HardwareID=%d AND DeviceID='%q' AND Unit=%d AND Type=%d AND SubType=%d)", HardwareID, sd[1].c_str(), 4, int(dType), int(dSubType));
+		if (result.size() != 1)
+			lcmd.THERMOSTAT4.flame_power = 0;
+		else
+			lcmd.THERMOSTAT4.flame_power = atoi(result[0][0].c_str());
+
+		result = m_sql.safe_query(
+			"SELECT nValue FROM DeviceStatus WHERE (HardwareID=%d AND DeviceID='%q' AND Unit=%d AND Type=%d AND SubType=%d)", HardwareID, sd[1].c_str(), 5, int(dType), int(dSubType));
+		if (result.size() != 1)
+			lcmd.THERMOSTAT4.mode = thermostat4_sOff;
+		else
+			lcmd.THERMOSTAT4.mode = atoi(result[0][0].c_str());
+
+		if(Unit == 0)
+			lcmd.THERMOSTAT4.beep = (switchcmd == "On") ? 1 : 0;
+		else if(Unit == 1)
+			lcmd.THERMOSTAT4.fan1_speed = val;
+		else if(Unit == 2)
+			lcmd.THERMOSTAT4.fan2_speed = val;
+		else if(Unit == 3)
+			lcmd.THERMOSTAT4.fan3_speed = val;
+		else if(Unit == 4)
+			lcmd.THERMOSTAT4.flame_power = val;
+		else if(Unit == 5)
+			lcmd.THERMOSTAT4.mode = val;
 		lcmd.THERMOSTAT4.filler = 0;
 		lcmd.THERMOSTAT4.rssi = 12;
 		if (!WriteToHardware(HardwareID, (const char*)&lcmd, sizeof(lcmd.THERMOSTAT4)))
-		return false;
+			return false;
 		if (!IsTesting) {
-		//send to internal for now (later we use the ACK)
-		PushAndWaitRxMessage(m_hardwaredevices[hindex], (const uint8_t *)&lcmd, NULL, -1);
+			//send to internal for now (later we use the ACK)
+			PushAndWaitRxMessage(m_hardwaredevices[hindex], (const uint8_t *)&lcmd, nullptr, -1, User.c_str());
 		}
-		*/
 		return true;
 	}
 	break;

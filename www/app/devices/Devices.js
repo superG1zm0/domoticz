@@ -23,7 +23,7 @@ define(['app', 'livesocket'], function(app) {
                 $ctrl.isSaving = true;
                 var mainDevice = $ctrl.isMainDevice ? undefined : $ctrl.mainDevice;
 
-                deviceApi.includeDevice($ctrl.device.idx, $ctrl.device.Name, mainDevice)
+                deviceApi.includeDevice($ctrl.device.idx, $ctrl.device.Name, mainDevice, $ctrl.device.CustomImage)
                     .then($scope.$close);
             }
         }

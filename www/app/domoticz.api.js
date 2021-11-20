@@ -146,11 +146,12 @@ define(['app.permissions', 'livesocket'], function(appPermissionsModule, websock
             }).then(domoticzApi.errorHandler);
         }
 
-        function includeDevice(deviceIdx, name, mainDeviceIdx) {
+        function includeDevice(deviceIdx, name, mainDeviceIdx, customimage) {
             return domoticzApi.sendRequest({
                 idx: deviceIdx,
                 type: 'setused',
                 name: name,
+                customimage: customimage,
                 used: true,
                 maindeviceidx: mainDeviceIdx || ''
             }).then(domoticzApi.errorHandler);
