@@ -275,6 +275,7 @@ static const STR_TABLE_SINGLE HardwareTypeTable[] = {
 	{ HTYPE_OctoPrint, "OctoPrint (MQTT/Gina Haussge) with LAN interface", "OctoPrint" },
 	{ HTYPE_Meteorologisk, "Meteorologisk institutt Norway (Weather Lookup)", "Meteorologisk" },
 	{ HTYPE_AirconWithMe, "AirconWithMe Wifi Airco module", "AirconWithMe" },
+	{ HTYPE_TeleinfoMeterTCP, "Teleinfo EDF with LAN interface", "TeleInfo" },
 	{ 0, nullptr, nullptr },
 };
 
@@ -312,6 +313,8 @@ const char* Switch_Type_Desc(const _eSwitchType sType)
 		{ STYPE_Selector, "Selector" },
 		{ STYPE_DoorLock, "Door Lock" },
 		{ STYPE_DoorLockInverted, "Door Lock Inverted" },
+		{ STYPE_BlindsPercentageWithStop, "Blinds + Stop" },
+		{ STYPE_BlindsPercentageInvertedWithStop, "Blinds Inverted + Stop" },
 		{ 0, nullptr, nullptr },
 	};
 	return findTableIDSingle1(Table, sType);
@@ -1631,6 +1634,9 @@ void GetLightStatus(
 			break;
 		case Color_LedOn:
 			lstatus = "On";
+			break;
+		case Color_LedNight:
+			lstatus = "Night";
 			break;
 		case Color_SetBrightnessLevel:
 			sprintf(szTmp, "Set Level: %d %%", llevel);
@@ -3943,6 +3949,7 @@ bool IsNetworkDevice(const _eHardwareTypes htype)
 	case HTYPE_TTN_MQTT:
 	case HTYPE_S0SmartMeterTCP:
 	case HTYPE_OctoPrint:
+	case HTYPE_TeleinfoMeterTCP:
 		return true;
 	default:
 		return false;

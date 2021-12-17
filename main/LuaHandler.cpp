@@ -52,8 +52,7 @@ int CLuaHandler::l_domoticz_updateDevice(lua_State* lua_state)
 			{
 				batterylevel = (int)lua_tointeger(lua_state, 5);
 			}
-			_log.Log(LOG_NORM, "CLuaHandler (updateDevice from LUA) : idx=%d nvalue=%s svalue=%s invalue=%d signallevel=%d batterylevel=%d", ideviceId, nvalue.c_str(), svalue.c_str(), invalue, signallevel, batterylevel);
-
+			_log.Debug(DEBUG_EVENTSYSTEM, "CLuaHandler (updateDevice from LUA) : idx=%d nvalue=%s svalue=%s invalue=%d signallevel=%d batterylevel=%d", ideviceId, nvalue.c_str(), svalue.c_str(), invalue, signallevel, batterylevel);
 			m_mainworker.UpdateDevice(ideviceId, invalue, svalue, "EventSystem", signallevel, batterylevel);
 		}
 		else
@@ -187,7 +186,7 @@ bool CLuaHandler::executeLuaScript(const std::string &script, const std::string 
 	if (status == 0)
 	{
 		lua_sethook(lua_state, luaStop, LUA_MASKCOUNT, 10000000);
-		boost::thread aluaThread(boost::bind(&CLuaHandler::luaThread, this, lua_state, fullfilename));
+		boost::thread aluaThread([this, lua_state, fullfilename] { luaThread(lua_state, fullfilename); });
 		SetThreadName(aluaThread.native_handle(), "aluaThread");
 		aluaThread.timed_join(boost::posix_time::seconds(10));
 		return true;

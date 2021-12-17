@@ -23,7 +23,7 @@ define(['app', 'livesocket'], function(app) {
                 $ctrl.isSaving = true;
                 var mainDevice = $ctrl.isMainDevice ? undefined : $ctrl.mainDevice;
 
-                deviceApi.includeDevice($ctrl.device.idx, $ctrl.device.Name, mainDevice, $ctrl.device.CustomImage)
+                deviceApi.setDeviceUsed($ctrl.device.idx, true, $ctrl.device.Name, mainDevice, $ctrl.device.CustomImage)
                     .then($scope.$close);
             }
         }
@@ -132,7 +132,7 @@ define(['app', 'livesocket'], function(app) {
 
                     bootbox.confirm('Are you sure to remove this Device from your used devices?')
                         .then(function() {
-                            return deviceApi.excludeDevice(row.idx);
+                            return deviceApi.setDeviceUsed(row.idx, false);
                         })
                         .then($ctrl.onUpdate);
 
@@ -625,8 +625,17 @@ define(['app', 'livesocket'], function(app) {
                     if (response.result !== undefined) {
                         $ctrl.devices = response.result
                             .map(function(item) {
-                                var isScene = ['Group', 'Scene'].includes(item.Type);
+                                if (item.HardwareTypeVal == 21) {
+                                    var ZWID = item.ID.substr(-4, 2);
+                                    if (ZWID == '00') {
+                                        ZWID = item.ID.substr(-2, 2);
+                                    }
+                                    ZWID = '0x' + ZWID;
+                                    var ZWIDdec =  ("00" + parseInt(ZWID)).slice(-3);
+                                    item.HardwareName = item.HardwareName + " " + ZWIDdec + ' (' + ZWID + ')';   
+                                }
 
+                                var isScene = ['Group', 'Scene'].includes(item.Type);
                                 if (isScene) {
                                     item.HardwareName = 'Domoticz';
                                     item.ID = '-';

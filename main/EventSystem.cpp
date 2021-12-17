@@ -154,9 +154,9 @@ void CEventSystem::StartEventSystem()
 	Plugins::PythonEventsInitialize(szUserDataFolder);
 #endif
 
-	m_thread = std::make_shared<std::thread>(&CEventSystem::Do_Work, this);
+	m_thread = std::make_shared<std::thread>([this] { Do_Work(); });
 	SetThreadName(m_thread->native_handle(), "EventSystem");
-	m_eventqueuethread = std::make_shared<std::thread>(&CEventSystem::EventQueueThread, this);
+	m_eventqueuethread = std::make_shared<std::thread>([this] { EventQueueThread(); });
 	SetThreadName(m_eventqueuethread->native_handle(), "EventSystemQueue");
 	m_szStartTime = TimeToString(&m_StartTime, TF_DateTime);
 }
@@ -289,6 +289,7 @@ void CEventSystem::LoadEvents()
 			}
 		}
 	}
+	m_mainworker.m_notificationsystem.Notify(Notification::DZ_ALLEVENTRESET, Notification::STATUS_INFO);
 #ifdef _DEBUG
 	_log.Log(LOG_STATUS, "EventSystem: Events (re)loaded");
 #endif
@@ -334,18 +335,6 @@ void CEventSystem::Do_Work()
 	_log.Log(LOG_STATUS, "EventSystem: Stopped...");
 
 }
-/*
-std::string utf8_to_string(const char *utf8str, const std::locale& loc)
-{
-// UTF-8 to wstring
-std::wstring_convert<std::codecvt_utf8<wchar_t>> wconv;
-std::wstring wstr = wconv.from_bytes(utf8str);
-// wstring to string
-std::vector<char> buf(wstr.size());
-std::use_facet<std::ctype<wchar_t>>(loc).narrow(wstr.data(), wstr.data() + wstr.size(), '?', buf.data());
-return std::string(buf.data(), buf.size());
-}
-*/
 
 void CEventSystem::StripQuotes(std::string &sString)
 {
@@ -512,6 +501,7 @@ void CEventSystem::GetCurrentStates()
 		}
 		m_devicestates = m_devicestates_temp;
 	}
+	m_mainworker.m_notificationsystem.Notify(Notification::DZ_ALLDEVICESTATUSRESET, Notification::STATUS_INFO);
 }
 
 void CEventSystem::GetCurrentUserVariables()
@@ -545,7 +535,7 @@ void CEventSystem::GetCurrentScenesGroups()
 	m_scenesgroups.clear();
 
 	std::vector<std::vector<std::string> > result;
-	result = m_sql.safe_query("SELECT ID, Name, nValue, SceneType, LastUpdate, Protected FROM Scenes");
+	result = m_sql.safe_query("SELECT ID, Name, nValue, SceneType, LastUpdate, Protected, Description FROM Scenes");
 	if (!result.empty())
 	{
 		for (const auto &sd : result)
@@ -566,6 +556,7 @@ void CEventSystem::GetCurrentScenesGroups()
 			sgitem.scenesgroupType = atoi(sd[3].c_str());
 			sgitem.lastUpdate = sd[4];
 			sgitem.protection = atoi(sd[5].c_str());
+			sgitem.description = sd[6];
 			result2 = m_sql.safe_query("SELECT DISTINCT A.DeviceRowID FROM SceneDevices AS A, DeviceStatus AS B WHERE (A.SceneRowID == %" PRIu64 ") AND (A.DeviceRowID == B.ID)", sgitem.ID);
 			if (!result2.empty())
 			{
@@ -1439,18 +1430,17 @@ void CEventSystem::ProcessDevice(
 	const unsigned char signallevel, 
 	const unsigned char batterylevel, 
 	const int nValue, 
-	const char* sValue, 
-	const std::string &devname)
+	const char* sValue)
 {
 	if (!m_bEnabled)
 		return;
 
 	std::vector<std::vector<std::string> > result;
-	result = m_sql.safe_query("SELECT SwitchType, LastUpdate, LastLevel, Options FROM DeviceStatus WHERE (Name == '%q')", devname.c_str());
+	result = m_sql.safe_query("SELECT SwitchType, LastUpdate, LastLevel, Options, Name FROM DeviceStatus WHERE (ID==%" PRIu64 ")", ulDevID);
 	if (result.empty())
 	{
-		//inpossible as we just updated it
-		_log.Log(LOG_ERROR, "EventSystem: Could not find device in system: ((ID=%" PRIu64 ": %s)", ulDevID, devname.c_str());
+		//impossible as we just updated it
+		_log.Log(LOG_ERROR, "EventSystem: Could not find device in system: (idx %" PRIu64 ")",  ulDevID);
 		return; 
 	}
 
@@ -1460,6 +1450,7 @@ void CEventSystem::ProcessDevice(
 	std::string lastUpdate = sd[1];
 	uint8_t lastLevel = (uint8_t)std::stoi(sd[2]);
 	std::string dev_options = sd[3];
+	std::string devname = sd[4];
 
 	std::map<std::string, std::string> options = m_sql.BuildDeviceOptions(dev_options);
 
@@ -1492,6 +1483,7 @@ void CEventSystem::ProcessDevice(
 		item.devname = devname;
 		item.nValue = nValue;
 		item.sValue = osValue;
+
 		item.nValueWording = UpdateSingleState(ulDevID, devname, nValue, osValue, devType, subType, switchType, "", 255, batterylevel, options);
 		boost::unique_lock<boost::shared_mutex> devicestatesMutexLock(m_devicestatesMutex);
 		auto itt = m_devicestates.find(ulDevID);
@@ -1634,7 +1626,7 @@ void CEventSystem::EvaluateEvent(const std::vector<_tEventQueue> &items)
 		{
 			std::vector<std::vector<std::string> > result;
 			result = m_sql.safe_query(
-				"SELECT DeviceStatus.HardwareID, DeviceStatus.ID, DeviceStatus.Unit FROM DeviceStatus INNER JOIN Hardware ON DeviceStatus.HardwareID=Hardware.ID WHERE (DeviceStatus.Type=%d AND DeviceStatus.SubType=%d  AND Hardware.Type=%d)",
+				"SELECT DeviceStatus.HardwareID, DeviceStatus.ID, DeviceStatus.DeviceID, DeviceStatus.Unit FROM DeviceStatus INNER JOIN Hardware ON DeviceStatus.HardwareID=Hardware.ID WHERE (DeviceStatus.Type=%d AND DeviceStatus.SubType=%d  AND Hardware.Type=%d)",
 				pTypeSecurity1, sTypeDomoticzSecurity, HTYPE_PythonPlugin);
 
 			if (!result.empty())
@@ -1642,8 +1634,7 @@ void CEventSystem::EvaluateEvent(const std::vector<_tEventQueue> &items)
 				std::vector<std::string> sd = result[0];
 				Plugins::CPlugin* pPlugin = (Plugins::CPlugin*)m_mainworker.GetHardware(atoi(sd[0].c_str()));
 				if (pPlugin)
-					pPlugin->MessagePlugin(new Plugins::onSecurityEventCallback(
-						pPlugin, atoi(sd[2].c_str()), item.nValue, m_szSecStatus[item.nValue]));
+					pPlugin->MessagePlugin(new Plugins::onSecurityEventCallback(sd[2].c_str(), atoi(sd[3].c_str()), item.nValue, m_szSecStatus[item.nValue]));
 			}
 		}
 #endif
@@ -3123,10 +3114,10 @@ void CEventSystem::EvaluateLua(const std::vector<_tEventQueue> &items, const std
 	{
 		lua_sethook(lua_state, luaStop, LUA_MASKCOUNT, 10000000);
 
-		boost::thread luaThread(boost::bind(&CEventSystem::luaThread, this, lua_state, filename));
-		SetThreadName(luaThread.native_handle(), "luaThread");
+		boost::thread aluaThread([this, lua_state, filename] { luaThread(lua_state, filename); });
+		SetThreadName(aluaThread.native_handle(), "luaThread");
 
-		if (!luaThread.timed_join(boost::posix_time::seconds(10)))
+		if (!aluaThread.timed_join(boost::posix_time::seconds(10)))
 		{
 			_log.Log(LOG_ERROR, "EventSystem: Warning!, lua script %s has been running for more than 10 seconds", filename.c_str());
 		}
@@ -3824,7 +3815,11 @@ std::string CEventSystem::nValueToWording(const uint8_t dType, const uint8_t dSu
 			lstatus = "Locked";
 		}
 	}
-	else if (switchtype == STYPE_Blinds)
+	else if (
+		(switchtype == STYPE_Blinds)
+		|| (switchtype == STYPE_BlindsPercentage)
+		|| (switchtype == STYPE_BlindsPercentageWithStop)
+		)
 	{
 		if (lstatus == "On")
 		{
@@ -3839,7 +3834,11 @@ std::string CEventSystem::nValueToWording(const uint8_t dType, const uint8_t dSu
 			lstatus = "Open";
 		}
 	}
-	else if (switchtype == STYPE_BlindsInverted)
+	else if (
+		(switchtype == STYPE_BlindsInverted)
+		|| (switchtype == STYPE_BlindsPercentageInverted)
+		|| (switchtype == STYPE_BlindsPercentageInvertedWithStop)
+		)
 	{
 		if (lstatus == "Off")
 		{
@@ -3852,28 +3851,6 @@ std::string CEventSystem::nValueToWording(const uint8_t dType, const uint8_t dSu
 		else
 		{
 			lstatus = "Open";
-		}
-	}
-	else if (switchtype == STYPE_BlindsPercentage)
-	{
-		if (lstatus == "On")
-		{
-			lstatus = "Closed";
-		}
-		else if (lstatus == "Off")
-		{
-			lstatus = "Open";
-		}
-	}
-	else if (switchtype == STYPE_BlindsPercentageInverted)
-	{
-		if (lstatus == "On")
-		{
-			lstatus = "Open";
-		}
-		else if (lstatus == "Off")
-		{
-			lstatus = "Closed";
 		}
 	}
 	else if (switchtype == STYPE_Media)
@@ -4012,7 +3989,11 @@ int CEventSystem::calculateDimLevel(int deviceID, int percentageLevel)
 
 		if (maxDimLevel != 0)
 		{
-			if ((switchtype == STYPE_Dimmer) || (switchtype == STYPE_BlindsPercentage) || (switchtype == STYPE_BlindsPercentageInverted))
+			if (
+				(switchtype == STYPE_Dimmer)
+				|| (switchtype == STYPE_BlindsPercentage) || (switchtype == STYPE_BlindsPercentageInverted)
+				|| (switchtype == STYPE_BlindsPercentageWithStop) || (switchtype == STYPE_BlindsPercentageInvertedWithStop)
+				)
 			{
 				float fLevel = (maxDimLevel / 100.0F) * percentageLevel;
 				if (fLevel > 100)

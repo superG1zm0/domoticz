@@ -72,11 +72,11 @@ bool C1Wire::StartHardware()
 
 	// Start worker thread
 	if (m_sensorThreadPeriod != 0) {
-		m_threadSensors = std::make_shared<std::thread>(&C1Wire::SensorThread, this);
+		m_threadSensors = std::make_shared<std::thread>([this] { SensorThread(); });
 		SetThreadName(m_threadSensors->native_handle(), "1WireSensors");
 	}
 	if (m_switchThreadPeriod != 0) {
-		m_threadSwitches = std::make_shared<std::thread>(&C1Wire::SwitchThread, this);
+		m_threadSwitches = std::make_shared<std::thread>([this] { SwitchThread(); });
 		SetThreadName(m_threadSwitches->native_handle(), "1WireSwitches");
 	}
 	m_bIsStarted = true;
@@ -241,7 +241,7 @@ void C1Wire::SensorThread()
 				sleep_milliseconds(pollPeriod);
 	}
 
-	_log.Log(LOG_STATUS, "1-Wire: Sensor thread terminating");
+	Log(LOG_STATUS, "Sensor thread terminating");
 }
 
 void C1Wire::SwitchThread()
@@ -272,7 +272,7 @@ void C1Wire::SwitchThread()
 		PollSwitches();
 	}
 
-	_log.Log(LOG_STATUS, "1-Wire: Switch thread terminating");
+	Log(LOG_STATUS, "Switch thread terminating");
 }
 
 

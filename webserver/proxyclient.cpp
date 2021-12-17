@@ -10,8 +10,6 @@
 #include "../tcpserver/TCPServer.h"
 #include "sha1.hpp"
 
-using namespace boost::placeholders;
-
 // RK: some defines to make mydomoticz also work when openssl not compiled in
 #ifdef WWW_ENABLE_SSL
 #define PROXY_PORT 443
@@ -354,7 +352,7 @@ namespace http {
 			// todo: make a map of websocket connections. There can be more than one.
 			// open new virtual websocket connection
 			// todo: different request_url's can have different websocket handlers
-			websocket_handlers[pdu->m_requestid] = new CWebsocketHandler(m_pWebEm, boost::bind(&CProxyClient::WS_Write, this, pdu->m_requestid, _1));
+			websocket_handlers[pdu->m_requestid] = new CWebsocketHandler(m_pWebEm, [this, pdu](auto &&d) { WS_Write(pdu->m_requestid, d); });
 			websocket_handlers[pdu->m_requestid]->Start();
 		}
 
@@ -425,20 +423,23 @@ namespace http {
 					case opcodes::opcode_binary:
 					case opcodes::opcode_text:
 						std::shared_ptr<CProxyPduBase> pdu = CProxyPduBase::FromString(frame.Payload());
-						switch (pdu->pdu_type()) {
+						if (pdu)
+						{
+							switch (pdu->pdu_type())
+							{
 #define PDUSTRING(name)
 #define PDULONG(name)
 #define PDULONGLONG(name)
-#define PROXYPDU(name, members) case ePDU_##name: OnPduReceived(std::dynamic_pointer_cast<ProxyPdu_##name>(pdu)); break;
+#define PROXYPDU(name, members)                                                                                                                                                                        \
+	case ePDU_##name:                                                                                                                                                                              \
+		OnPduReceived(std::dynamic_pointer_cast<ProxyPdu_##name>(pdu));                                                                                                                        \
+		break;
 #include "proxydef.def"
-						default:
-							// pdu enum not found
-							break;
+								default:
+									// pdu enum not found
+									break;
+							}
 						}
-#undef PDUSTRING
-#undef PDULONG
-#undef PDULONGLONG
-#undef PROXYPDU
 						break;
 					}
 				}

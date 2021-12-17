@@ -41,9 +41,9 @@ jobs:
       # Boost
       - name: build boost libraries
         run: |
-          wget https://dl.bintray.com/boostorg/release/1.74.0/source/boost_1_74_0.tar.gz >> /dev/null 2>&1
-          tar xfz boost_1_74_0.tar.gz
-          cd boost_1_74_0/
+          wget https://boostorg.jfrog.io/artifactory/main/release/1.76.0/source/boost_1_76_0.tar.gz >> /dev/null 2>&1
+          tar xfz boost_1_76_0.tar.gz
+          cd boost_1_76_0/
           ./bootstrap.sh
           ./b2 stage threading=multi link=static --with-thread --with-system --with-chrono >> /dev/null 2>&1
           sudo ./b2 install threading=multi link=static --with-thread --with-system --with-chrono >> /dev/null 2>&1
@@ -53,7 +53,7 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE
           cd ..
-          git clone https://github.com/OpenZWave/open-zwave.git open-zwave-read-only
+          git clone https://github.com/domoticz/open-zwave.git open-zwave-read-only
           cd open-zwave-read-only
           make
           sudo make install >> /dev/null 2>&1
@@ -67,6 +67,7 @@ jobs:
 
       # Packaging
       - name: package domoticz
+        if: ${{ false }}
         run: |
           cd $GITHUB_WORKSPACE
           mkdir package
@@ -74,9 +75,20 @@ jobs:
           shasum -a 256 package/domoticz_linux_x86_64.tgz > package/domoticz_linux_x86_64.tgz.sha256sum
           cp appversion.h.txt package/version_linux_x86_64.h
           cp History.txt package/history_linux_x86_64.txt
-
+      
+      # Artifact upload
+      - name: Upload artifacts
+        if: ${{ false }}
+        uses: actions/upload-artifact@v2
+        with:
+          name: domoticz_linux_x86_64-${{ github.sha }}
+          path: package/domoticz_linux_x86_64.tgz
+          retention-days: 7
+ 
       # Deploy
       - name: FTP Deployment
+        if: ${{ false }}
+        #if: github.repository_owner == 'domoticz'
         uses: SamKirkland/FTP-Deploy-Action@4.0.0
         with:
           server: ${{ secrets.FTP_SERVER }}
@@ -86,13 +98,6 @@ jobs:
           local-dir: ./package/
           server-dir: beta/
           security: loose
-
-      # Trigger Docker build
-      - name: Docker Stage
-        uses: fjogeleit/http-request-action@master
-        with:
-          url: 'https://hub.docker.com/api/build/v1/source/778e5561-87f9-47e3-a431-f493328d1b6f/trigger/4cbd5d3b-5113-4d9f-b826-af620f2319a3/call/'
-          method: 'POST'
 
       # Grok 2.tcp.ngrok.io DNS resolves to 52.14.18.129
       - name: Start SSH debug Session

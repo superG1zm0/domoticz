@@ -62,7 +62,6 @@ function showTime
 
 checkProces()
 {
-	echo $1
 	ps -ef | grep $1 | grep -v 'grep' 2>&1 >/dev/null
 	result=$?
 }
@@ -100,6 +99,12 @@ function cleanup
 			rm domoticz.log[0-9][0-9]*
 			find . -type f -name 'domoticz.db_*' -mmin +30 -exec rm {} \;
 		fi
+	}
+
+function killDomoticz
+	{
+		sleep 3
+		kill -9 $(cat domoticz.pid) 2>&1 >/dev/null
 	}
 
 function stopBackgroundProcesses
@@ -143,15 +148,15 @@ function fillNumberOfTests
 		Lodash_ExpectedTests=100
 		ScriptdzVentsDispatching_ExpectedTests=2
 		TimedCommand_ExpectedTests=46
-		Time_ExpectedTests=369
-		Utils_ExpectedTests=36
+		Time_ExpectedTests=371
+		Utils_ExpectedTests=39
 		Variable_ExpectedTests=15
 		ContactDoorLockInvertedSwitch_ExpectedTests=2
 		DelayedVariableScene_ExpectedTests=2
 		EventState_ExpectedTests=2
 		Integration_ExpectedTests=222
 		SelectorSwitch_ExpectedTests=2
-		SystemAndCustomEvents_ExpectedTests=7
+		SystemAndCustomEvents_ExpectedTests=9
 	}
 
 function testDir
@@ -220,7 +225,7 @@ cd $basedir
 cp dzVents/runtime/integration-tests/scriptTestCustomAndSystemEventsScript.lua scripts/dzVents/scripts/scriptTestCustomAndSystemEventsScript.lua
 
 cd $basedir
-./domoticz  -www 8080 -sslwww 444 > domoticz.log$$ &
+./domoticz  -www 8080 -sslwww 444 -pidfile domoticz.pid --> domoticz.log$$ &
 checkStarted "domoticz" 20
 
 clear
@@ -246,8 +251,9 @@ if [[ $? -eq 0 ]];then
 	grep "Results stage 1: SUCCEEDED" domoticz.log$$ 2>&1 >/dev/null
 	if [[ $? -eq 0 ]];then
 		#echo Stage 1 and stage 2 of integration test Succeeded
-		errorCount=$(grep "Error" domoticz.log$$ | grep -v CheckAuthToken | grep -v errorText | wc -l)
-		if [[ $errorCount -le $expectedErrorCount ]];then
+		errorCount=$(grep "Error" domoticz.log$$ | grep -v CheckAuthToken | grep -v errorText | grep -v latitude | wc -l)
+		errorLine=$(grep "Error" domoticz.log$$ | grep -v CheckAuthToken | grep -v errorText | grep -v latitude | head -7 | tail -1 | grep -v Segmentation | wc -l)
+		if [ $errorCount -le $expectedErrorCount ] || [ $errorLine -eq 0 ] ;then
 			#echo Errors are to be expected
 			echo -n
 		else

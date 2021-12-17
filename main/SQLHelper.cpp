@@ -38,12 +38,12 @@
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 
-#define DB_VERSION 148
+#define DB_VERSION 150
 
 extern http::server::CWebServerHelper m_webservers;
 extern std::string szWWWFolder;
 
-const char* sqlCreateDeviceStatus =
+constexpr auto sqlCreateDeviceStatus =
 "CREATE TABLE IF NOT EXISTS [DeviceStatus] ("
 "[ID] INTEGER PRIMARY KEY, "
 "[HardwareID] INTEGER NOT NULL, "
@@ -74,13 +74,13 @@ const char* sqlCreateDeviceStatus =
 "[Options] TEXT DEFAULT null, "
 "[Color] TEXT DEFAULT NULL);";
 
-const char* sqlCreateDeviceStatusTrigger =
+constexpr auto sqlCreateDeviceStatusTrigger =
 "CREATE TRIGGER IF NOT EXISTS devicestatusupdate AFTER INSERT ON DeviceStatus\n"
 "BEGIN\n"
 "	UPDATE DeviceStatus SET [Order] = (SELECT MAX([Order]) FROM DeviceStatus)+1 WHERE DeviceStatus.ID = NEW.ID;\n"
 "END;\n";
 
-const char* sqlCreateLightingLog =
+constexpr auto sqlCreateLightingLog =
 "CREATE TABLE IF NOT EXISTS [LightingLog] ("
 "[DeviceRowID] BIGINT(10) NOT NULL, "
 "[nValue] INTEGER DEFAULT 0, "
@@ -88,34 +88,34 @@ const char* sqlCreateLightingLog =
 "[User] VARCHAR(100) DEFAULT (''), "
 "[Date] DATETIME DEFAULT (datetime('now','localtime')));";
 
-const char* sqlCreateSceneLog =
+constexpr auto sqlCreateSceneLog =
 "CREATE TABLE IF NOT EXISTS [SceneLog] ("
 "[SceneRowID] BIGINT(10) NOT NULL, "
 "[nValue] INTEGER DEFAULT 0, "
 "[User] VARCHAR(100) DEFAULT (''), "
 "[Date] DATETIME DEFAULT (datetime('now','localtime')));";
 
-const char* sqlCreatePreferences =
+constexpr auto sqlCreatePreferences =
 "CREATE TABLE IF NOT EXISTS [Preferences] ("
 "[Key] VARCHAR(50) PRIMARY KEY, "
 "[nValue] INTEGER DEFAULT 0, "
 "[sValue] VARCHAR(200));";
 
-const char* sqlCreateRain =
+constexpr auto sqlCreateRain =
 "CREATE TABLE IF NOT EXISTS [Rain] ("
 "[DeviceRowID] BIGINT(10) NOT NULL, "
 "[Total] FLOAT NOT NULL, "
 "[Rate] INTEGER DEFAULT 0, "
 "[Date] DATETIME DEFAULT (datetime('now','localtime')));";
 
-const char* sqlCreateRain_Calendar =
+constexpr auto sqlCreateRain_Calendar =
 "CREATE TABLE IF NOT EXISTS [Rain_Calendar] ("
 "[DeviceRowID] BIGINT(10) NOT NULL, "
 "[Total] FLOAT NOT NULL, "
 "[Rate] INTEGER DEFAULT 0, "
 "[Date] DATE NOT NULL);";
 
-const char* sqlCreateTemperature =
+constexpr auto sqlCreateTemperature =
 "CREATE TABLE IF NOT EXISTS [Temperature] ("
 "[DeviceRowID] BIGINT(10) NOT NULL, "
 "[Temperature] FLOAT NOT NULL, "
@@ -126,7 +126,7 @@ const char* sqlCreateTemperature =
 "[SetPoint] FLOAT DEFAULT 0, "
 "[Date] DATETIME DEFAULT (datetime('now','localtime')));";
 
-const char* sqlCreateTemperature_Calendar =
+constexpr auto sqlCreateTemperature_Calendar =
 "CREATE TABLE IF NOT EXISTS [Temperature_Calendar] ("
 "[DeviceRowID] BIGINT(10) NOT NULL, "
 "[Temp_Min] FLOAT NOT NULL, "
@@ -142,7 +142,7 @@ const char* sqlCreateTemperature_Calendar =
 "[SetPoint_Avg] FLOAT DEFAULT 0, "
 "[Date] DATE NOT NULL);";
 
-const char* sqlCreateTimers =
+constexpr auto sqlCreateTimers =
 "CREATE TABLE IF NOT EXISTS [Timers] ("
 "[ID] INTEGER PRIMARY KEY, "
 "[Active] BOOLEAN DEFAULT true, "
@@ -160,19 +160,19 @@ const char* sqlCreateTimers =
 "[MDay] INTEGER DEFAULT 0, "
 "[Occurence] INTEGER DEFAULT 0);";
 
-const char* sqlCreateUV =
+constexpr auto sqlCreateUV =
 "CREATE TABLE IF NOT EXISTS [UV] ("
 "[DeviceRowID] BIGINT(10) NOT NULL, "
 "[Level] FLOAT NOT NULL, "
 "[Date] DATETIME DEFAULT (datetime('now','localtime')));";
 
-const char* sqlCreateUV_Calendar =
+constexpr auto sqlCreateUV_Calendar =
 "CREATE TABLE IF NOT EXISTS [UV_Calendar] ("
 "[DeviceRowID] BIGINT(10) NOT NULL, "
 "[Level] FLOAT, "
 "[Date] DATE NOT NULL);";
 
-const char* sqlCreateWind =
+constexpr auto sqlCreateWind =
 "CREATE TABLE IF NOT EXISTS [Wind] ("
 "[DeviceRowID] BIGINT(10) NOT NULL, "
 "[Direction] FLOAT NOT NULL, "
@@ -180,7 +180,7 @@ const char* sqlCreateWind =
 "[Gust] INTEGER NOT NULL, "
 "[Date] DATETIME DEFAULT (datetime('now','localtime')));";
 
-const char* sqlCreateWind_Calendar =
+constexpr auto sqlCreateWind_Calendar =
 "CREATE TABLE IF NOT EXISTS [Wind_Calendar] ("
 "[DeviceRowID] BIGINT(10) NOT NULL, "
 "[Direction] FLOAT NOT NULL, "
@@ -190,7 +190,7 @@ const char* sqlCreateWind_Calendar =
 "[Gust_Max] INTEGER NOT NULL, "
 "[Date] DATE NOT NULL);";
 
-const char* sqlCreateMultiMeter =
+constexpr auto sqlCreateMultiMeter =
 "CREATE TABLE IF NOT EXISTS [MultiMeter] ("
 "[DeviceRowID] BIGINT(10) NOT NULL, "
 "[Value1] BIGINT NOT NULL, "
@@ -201,7 +201,7 @@ const char* sqlCreateMultiMeter =
 "[Value6] BIGINT DEFAULT 0, "
 "[Date] DATETIME DEFAULT (datetime('now','localtime')));";
 
-const char* sqlCreateMultiMeter_Calendar =
+constexpr auto sqlCreateMultiMeter_Calendar =
 "CREATE TABLE IF NOT EXISTS [MultiMeter_Calendar] ("
 "[DeviceRowID] BIGINT(10) NOT NULL, "
 "[Value1] BIGINT NOT NULL, "
@@ -216,7 +216,7 @@ const char* sqlCreateMultiMeter_Calendar =
 "[Counter4] BIGINT DEFAULT 0, "
 "[Date] DATETIME DEFAULT (datetime('now','localtime')));";
 
-const char* sqlCreateNotifications =
+constexpr auto sqlCreateNotifications =
 "CREATE TABLE IF NOT EXISTS [Notifications] ("
 "[ID] INTEGER PRIMARY KEY, "
 "[DeviceRowID] BIGINT(10) NOT NULL, "
@@ -227,7 +227,7 @@ const char* sqlCreateNotifications =
 "[SendAlways] INTEGER default 0, "
 "[LastSend] DATETIME DEFAULT 0);";
 
-const char* sqlCreateHardware =
+constexpr auto sqlCreateHardware =
 "CREATE TABLE IF NOT EXISTS [Hardware] ("
 "[ID] INTEGER PRIMARY KEY, "
 "[Name] VARCHAR(200) NOT NULL, "
@@ -249,7 +249,7 @@ const char* sqlCreateHardware =
 "[DataTimeout] INTEGER DEFAULT 0, "
 "[Configuration] TEXT DEFAULT (''));";
 
-const char* sqlCreateUsers =
+constexpr auto sqlCreateUsers =
 "CREATE TABLE IF NOT EXISTS [Users] ("
 "[ID] INTEGER PRIMARY KEY, "
 "[Active] INTEGER NOT NULL DEFAULT 0, "
@@ -259,27 +259,27 @@ const char* sqlCreateUsers =
 "[TabsEnabled] INTEGER DEFAULT 255, "
 "[RemoteSharing] INTEGER DEFAULT 0);";
 
-const char* sqlCreateMeter =
+constexpr auto sqlCreateMeter =
 "CREATE TABLE IF NOT EXISTS [Meter] ("
 "[DeviceRowID] BIGINT NOT NULL, "
 "[Value] BIGINT NOT NULL, "
 "[Usage] INTEGER DEFAULT 0, "
 "[Date] DATETIME DEFAULT (datetime('now','localtime')));";
 
-const char* sqlCreateMeter_Calendar =
+constexpr auto sqlCreateMeter_Calendar =
 "CREATE TABLE IF NOT EXISTS [Meter_Calendar] ("
 "[DeviceRowID] BIGINT NOT NULL, "
 "[Value] BIGINT NOT NULL, "
 "[Counter] BIGINT DEFAULT 0, "
 "[Date] DATETIME DEFAULT (datetime('now','localtime')));";
 
-const char* sqlCreateLightSubDevices =
+constexpr auto sqlCreateLightSubDevices =
 "CREATE TABLE IF NOT EXISTS [LightSubDevices] ("
 "[ID] INTEGER PRIMARY KEY, "
 "[DeviceRowID] INTEGER NOT NULL, "
 "[ParentID] INTEGER NOT NULL);";
 
-const char* sqlCreateCameras =
+constexpr auto sqlCreateCameras =
 "CREATE TABLE IF NOT EXISTS [Cameras] ("
 "[ID] INTEGER PRIMARY KEY, "
 "[Name] VARCHAR(200) NOT NULL, "
@@ -291,7 +291,7 @@ const char* sqlCreateCameras =
 "[Password] VARCHAR(100) DEFAULT (''), "
 "[ImageURL] VARCHAR(200) DEFAULT (''));";
 
-const char* sqlCreateCamerasActiveDevices =
+constexpr auto sqlCreateCamerasActiveDevices =
 "CREATE TABLE IF NOT EXISTS [CamerasActiveDevices] ("
 "[ID] INTEGER PRIMARY KEY, "
 "[CameraRowID] INTEGER NOT NULL, "
@@ -300,7 +300,7 @@ const char* sqlCreateCamerasActiveDevices =
 "[DevSceneWhen] INTEGER NOT NULL, "
 "[DevSceneDelay] INTEGER NOT NULL);";
 
-const char* sqlCreatePlanMappings =
+constexpr auto sqlCreatePlanMappings =
 "CREATE TABLE IF NOT EXISTS [DeviceToPlansMap] ("
 "[ID] INTEGER PRIMARY KEY, "
 "[DeviceRowID] BIGINT NOT NULL, "
@@ -310,13 +310,13 @@ const char* sqlCreatePlanMappings =
 "[XOffset] INTEGER default 0, "
 "[YOffset] INTEGER default 0);";
 
-const char* sqlCreateDevicesToPlanStatusTrigger =
+constexpr auto sqlCreateDevicesToPlanStatusTrigger =
 "CREATE TRIGGER IF NOT EXISTS deviceplantatusupdate AFTER INSERT ON DeviceToPlansMap\n"
 "BEGIN\n"
 "	UPDATE DeviceToPlansMap SET [Order] = (SELECT MAX([Order]) FROM DeviceToPlansMap)+1 WHERE DeviceToPlansMap.ID = NEW.ID;\n"
 "END;\n";
 
-const char* sqlCreatePlans =
+constexpr auto sqlCreatePlans =
 "CREATE TABLE IF NOT EXISTS [Plans] ("
 "[ID] INTEGER PRIMARY KEY, "
 "[Order] INTEGER BIGINT(10) default 0, "
@@ -324,13 +324,13 @@ const char* sqlCreatePlans =
 "[FloorplanID] INTEGER default 0, "
 "[Area] VARCHAR(200) DEFAULT '');";
 
-const char* sqlCreatePlanOrderTrigger =
+constexpr auto sqlCreatePlanOrderTrigger =
 "CREATE TRIGGER IF NOT EXISTS planordertrigger AFTER INSERT ON Plans\n"
 "BEGIN\n"
 "	UPDATE Plans SET [Order] = (SELECT MAX([Order]) FROM Plans)+1 WHERE Plans.ID = NEW.ID;\n"
 "END;\n";
 
-const char* sqlCreateScenes =
+constexpr auto sqlCreateScenes =
 "CREATE TABLE IF NOT EXISTS [Scenes] (\n"
 "[ID] INTEGER PRIMARY KEY, \n"
 "[Name] VARCHAR(100) NOT NULL, \n"
@@ -345,13 +345,13 @@ const char* sqlCreateScenes =
 "[Activators] VARCHAR(200) DEFAULT '', "
 "[LastUpdate] DATETIME DEFAULT (datetime('now','localtime')));\n";
 
-const char* sqlCreateScenesTrigger =
+constexpr auto sqlCreateScenesTrigger =
 "CREATE TRIGGER IF NOT EXISTS scenesupdate AFTER INSERT ON Scenes\n"
 "BEGIN\n"
 "	UPDATE Scenes SET [Order] = (SELECT MAX([Order]) FROM Scenes)+1 WHERE Scenes.ID = NEW.ID;\n"
 "END;\n";
 
-const char* sqlCreateSceneDevices =
+constexpr auto sqlCreateSceneDevices =
 "CREATE TABLE IF NOT EXISTS [SceneDevices] ("
 "[ID] INTEGER PRIMARY KEY, "
 "[Order] INTEGER BIGINT(10) default 0, "
@@ -363,18 +363,18 @@ const char* sqlCreateSceneDevices =
 "[OnDelay] INTEGER DEFAULT 0, "
 "[OffDelay] INTEGER DEFAULT 0);";
 
-const char* sqlCreateSceneDeviceTrigger =
+constexpr auto sqlCreateSceneDeviceTrigger =
 "CREATE TRIGGER IF NOT EXISTS scenedevicesupdate AFTER INSERT ON SceneDevices\n"
 "BEGIN\n"
 "	UPDATE SceneDevices SET [Order] = (SELECT MAX([Order]) FROM SceneDevices)+1 WHERE SceneDevices.ID = NEW.ID;\n"
 "END;\n";
 
-const char* sqlCreateTimerPlans =
+constexpr auto sqlCreateTimerPlans =
 "CREATE TABLE IF NOT EXISTS [TimerPlans] ("
 "[ID] INTEGER PRIMARY KEY, "
 "[Name] VARCHAR(200) NOT NULL);";
 
-const char* sqlCreateSceneTimers =
+constexpr auto sqlCreateSceneTimers =
 "CREATE TABLE IF NOT EXISTS [SceneTimers] ("
 "[ID] INTEGER PRIMARY KEY, "
 "[Active] BOOLEAN DEFAULT true, "
@@ -391,7 +391,7 @@ const char* sqlCreateSceneTimers =
 "[MDay] INTEGER DEFAULT 0, "
 "[Occurence] INTEGER DEFAULT 0);";
 
-const char* sqlCreateSetpointTimers =
+constexpr auto sqlCreateSetpointTimers =
 "CREATE TABLE IF NOT EXISTS [SetpointTimers] ("
 "[ID] INTEGER PRIMARY KEY, "
 "[Active] BOOLEAN DEFAULT true, "
@@ -406,14 +406,14 @@ const char* sqlCreateSetpointTimers =
 "[MDay] INTEGER DEFAULT 0, "
 "[Occurence] INTEGER DEFAULT 0);";
 
-const char* sqlCreateSharedDevices =
+constexpr auto sqlCreateSharedDevices =
 "CREATE TABLE IF NOT EXISTS [SharedDevices] ("
 "[ID] INTEGER PRIMARY KEY,  "
 "[SharedUserID] BIGINT NOT NULL, "
 "[DeviceRowID] BIGINT NOT NULL, "
 "[Favorite] INTEGER DEFAULT 0);";
 
-const char* sqlCreateEventMaster =
+constexpr auto sqlCreateEventMaster =
 "CREATE TABLE IF NOT EXISTS [EventMaster] ("
 "[ID] INTEGER PRIMARY KEY,  "
 "[Name] VARCHAR(200) NOT NULL, "
@@ -422,7 +422,7 @@ const char* sqlCreateEventMaster =
 "[XMLStatement] TEXT NOT NULL, "
 "[Status] INTEGER DEFAULT 0);";
 
-const char* sqlCreateEventRules =
+constexpr auto sqlCreateEventRules =
 "CREATE TABLE IF NOT EXISTS [EventRules] ("
 "[ID] INTEGER PRIMARY KEY, "
 "[EMID] INTEGER, "
@@ -431,7 +431,7 @@ const char* sqlCreateEventRules =
 "[SequenceNo] INTEGER NOT NULL, "
 "FOREIGN KEY (EMID) REFERENCES EventMaster(ID));";
 
-const char* sqlCreateZWaveNodes =
+constexpr auto sqlCreateZWaveNodes =
 "CREATE TABLE IF NOT EXISTS [ZWaveNodes] ("
 "[ID] INTEGER PRIMARY KEY, "
 "[HardwareID] INTEGER NOT NULL, "
@@ -441,7 +441,7 @@ const char* sqlCreateZWaveNodes =
 "[ProductDescription] VARCHAR(100) DEFAULT Unknown, "
 "[PollTime] INTEGER DEFAULT 0);";
 
-const char* sqlCreateWOLNodes =
+constexpr auto sqlCreateWOLNodes =
 "CREATE TABLE IF NOT EXISTS [WOLNodes] ("
 "[ID] INTEGER PRIMARY KEY, "
 "[HardwareID] INTEGER NOT NULL, "
@@ -449,13 +449,13 @@ const char* sqlCreateWOLNodes =
 "[MacAddress] VARCHAR(50) DEFAULT Unknown, "
 "[Timeout] INTEGER DEFAULT 5);";
 
-const char* sqlCreatePercentage =
+constexpr auto sqlCreatePercentage =
 "CREATE TABLE IF NOT EXISTS [Percentage] ("
 "[DeviceRowID] BIGINT(10) NOT NULL, "
 "[Percentage] FLOAT NOT NULL, "
 "[Date] DATETIME DEFAULT (datetime('now','localtime')));";
 
-const char* sqlCreatePercentage_Calendar =
+constexpr auto sqlCreatePercentage_Calendar =
 "CREATE TABLE IF NOT EXISTS [Percentage_Calendar] ("
 "[DeviceRowID] BIGINT(10) NOT NULL, "
 "[Percentage_Min] FLOAT NOT NULL, "
@@ -463,13 +463,13 @@ const char* sqlCreatePercentage_Calendar =
 "[Percentage_Avg] FLOAT DEFAULT 0, "
 "[Date] DATE NOT NULL);";
 
-const char* sqlCreateFan =
+constexpr auto sqlCreateFan =
 "CREATE TABLE IF NOT EXISTS [Fan] ("
 "[DeviceRowID] BIGINT(10) NOT NULL, "
 "[Speed] INTEGER NOT NULL, "
 "[Date] DATETIME DEFAULT (datetime('now','localtime')));";
 
-const char* sqlCreateFan_Calendar =
+constexpr auto sqlCreateFan_Calendar =
 "CREATE TABLE IF NOT EXISTS [Fan_Calendar] ("
 "[DeviceRowID] BIGINT(10) NOT NULL, "
 "[Speed_Min] INTEGER NOT NULL, "
@@ -477,21 +477,25 @@ const char* sqlCreateFan_Calendar =
 "[Speed_Avg] INTEGER DEFAULT 0, "
 "[Date] DATE NOT NULL);";
 
-const char* sqlCreateBackupLog =
+constexpr auto sqlCreateBackupLog =
 "CREATE TABLE IF NOT EXISTS [BackupLog] ("
 "[Key] VARCHAR(50) NOT NULL, "
-"[nValue] INTEGER DEFAULT 0); ";
+"[nValue] INTEGER DEFAULT 0);";
 
-const char* sqlCreateEnoceanSensors =
-"CREATE TABLE IF NOT EXISTS [EnoceanSensors] ("
+constexpr auto sqlCreateEnOceanNodes =
+"CREATE TABLE IF NOT EXISTS [EnOceanNodes] ("
 "[ID] INTEGER PRIMARY KEY, "
 "[HardwareID] INTEGER NOT NULL, "
-"[DeviceID] VARCHAR(25) NOT NULL, "
-"[Manufacturer] INTEGER NOT NULL, "
-"[Profile] INTEGER NOT NULL, "
-"[Type] INTEGER NOT NULL);";
+"[NodeID] INTEGER NOT NULL, "
+"[Name] VARCHAR(100) DEFAULT Unknown, "
+"[ManufacturerID] INTEGER DEFAULT 0, "
+"[RORG] INTEGER DEFAULT 0, "
+"[Func] INTEGER DEFAULT 0, "
+"[Type] INTEGER DEFAULT 0, "
+"[Description] VARCHAR(100) DEFAULT Unknown, "
+"[nValue] INTEGER DEFAULT 0);";
 
-const char* sqlCreatePushLink =
+constexpr auto sqlCreatePushLink =
 "CREATE TABLE IF NOT EXISTS [PushLink] ("
 "[ID] INTEGER PRIMARY KEY, "
 "[PushType] INTEGER, "
@@ -504,7 +508,7 @@ const char* sqlCreatePushLink =
 "[Enabled] INTEGER DEFAULT 1, "
 "[IncludeUnit] INTEGER default 0);";
 
-const char* sqlCreateUserVariables =
+constexpr auto sqlCreateUserVariables =
 "CREATE TABLE IF NOT EXISTS [UserVariables] ("
 "[ID] INTEGER PRIMARY KEY, "
 "[Name] VARCHAR(200), "
@@ -512,7 +516,7 @@ const char* sqlCreateUserVariables =
 "[Value] VARCHAR(200), "
 "[LastUpdate] DATETIME DEFAULT(datetime('now', 'localtime')));";
 
-const char* sqlCreateFloorplans =
+constexpr auto sqlCreateFloorplans =
 "CREATE TABLE IF NOT EXISTS [Floorplans] ("
 "[ID] INTEGER PRIMARY KEY, "
 "[Name] VARCHAR(200) NOT NULL, "
@@ -520,13 +524,13 @@ const char* sqlCreateFloorplans =
 "[ScaleFactor] FLOAT DEFAULT 1.0, "
 "[Order] INTEGER BIGINT(10) default 0);";
 
-const char* sqlCreateFloorplanOrderTrigger =
+constexpr auto sqlCreateFloorplanOrderTrigger =
 "CREATE TRIGGER IF NOT EXISTS floorplanordertrigger AFTER INSERT ON Floorplans\n"
 "BEGIN\n"
 "	UPDATE Floorplans SET [Order] = (SELECT MAX([Order]) FROM Floorplans)+1 WHERE Floorplans.ID = NEW.ID;\n"
 "END;\n";
 
-const char* sqlCreateCustomImages =
+constexpr auto sqlCreateCustomImages =
 "CREATE TABLE IF NOT EXISTS [CustomImages]("
 "	[ID] INTEGER PRIMARY KEY, "
 "	[Base] VARCHAR(80) NOT NULL, "
@@ -536,7 +540,7 @@ const char* sqlCreateCustomImages =
 "	[IconOn] BLOB, "
 "	[IconOff] BLOB);";
 
-const char* sqlCreateMySensors =
+constexpr auto sqlCreateMySensors =
 "CREATE TABLE IF NOT EXISTS [MySensors]("
 " [HardwareID] INTEGER NOT NULL,"
 " [ID] INTEGER NOT NULL,"
@@ -544,7 +548,7 @@ const char* sqlCreateMySensors =
 " [SketchName] VARCHAR(100) DEFAULT Unknown,"
 " [SketchVersion] VARCHAR(40) DEFAULT(1.0));";
 
-const char* sqlCreateMySensorsVariables =
+constexpr auto sqlCreateMySensorsVariables =
 "CREATE TABLE IF NOT EXISTS [MySensorsVars]("
 " [HardwareID] INTEGER NOT NULL,"
 " [NodeID] INTEGER NOT NULL,"
@@ -552,7 +556,7 @@ const char* sqlCreateMySensorsVariables =
 " [VarID] INTEGER NOT NULL,"
 " [Value] VARCHAR(100) NOT NULL);";
 
-const char* sqlCreateMySensorsChilds =
+constexpr auto sqlCreateMySensorsChilds =
 "CREATE TABLE IF NOT EXISTS [MySensorsChilds]("
 " [HardwareID] INTEGER NOT NULL,"
 " [NodeID] INTEGER NOT NULL,"
@@ -562,12 +566,12 @@ const char* sqlCreateMySensorsChilds =
 " [UseAck] INTEGER DEFAULT 0,"
 " [AckTimeout] INTEGER DEFAULT 1200);";
 
-const char* sqlCreateToonDevices =
+constexpr auto sqlCreateToonDevices =
 "CREATE TABLE IF NOT EXISTS [ToonDevices]("
 " [HardwareID] INTEGER NOT NULL,"
 " [UUID] VARCHAR(100) NOT NULL);";
 
-const char* sqlCreateUserSessions =
+constexpr auto sqlCreateUserSessions =
 "CREATE TABLE IF NOT EXISTS [UserSessions]("
 " [SessionID] VARCHAR(100) NOT NULL,"
 " [Username] VARCHAR(100) NOT NULL,"
@@ -577,7 +581,7 @@ const char* sqlCreateUserSessions =
 " [LastUpdate] DATETIME DEFAULT(datetime('now', 'localtime')),"
 " PRIMARY KEY([SessionID]));";
 
-const char* sqlCreateMobileDevices =
+constexpr auto sqlCreateMobileDevices =
 "CREATE TABLE IF NOT EXISTS [MobileDevices]("
 "[ID] INTEGER PRIMARY KEY, "
 "[Active] BOOLEAN DEFAULT false, "
@@ -589,6 +593,64 @@ const char* sqlCreateMobileDevices =
 ");";
 
 extern std::string szUserDataFolder;
+
+CSQLStatement::CSQLStatement(sqlite3 *pDBase, const std::string &pSQL)
+	: m_DBase(pDBase)
+	, m_Statement(nullptr)
+	, iNextParam(1)
+	, m_Status(SQLITE_OK)
+{
+	const char *pTail;
+	int iRetVal = sqlite3_prepare_v3(m_DBase, pSQL.c_str(), pSQL.length(), 0, &m_Statement, &pTail);
+	if (iRetVal != SQLITE_OK)
+	{
+		m_Status = iRetVal;
+		m_ErrorText = sqlite3_errmsg(m_DBase);
+	}
+}
+
+int CSQLStatement::AddParameter(std::string &pParam)
+{
+	std::string sText = pParam;
+	// Strip delimiters if supplied
+	if (((sText[0] == '\'') && (sText[sText.length() - 1] == '\'')) || (sText[0] == '\"') && (sText[sText.length() - 1] == '\"'))
+	{
+		sText = pParam.substr(1, pParam.size() - 2);
+		;
+	}
+
+	int iRetVal = sqlite3_bind_text(m_Statement, iNextParam++, sText.c_str(), sText.length(), SQLITE_TRANSIENT);
+	if (iRetVal != SQLITE_OK)
+	{
+		m_Status = iRetVal;
+		m_ErrorText = sqlite3_errmsg(m_DBase);
+	}
+	return iRetVal;
+}
+
+int CSQLStatement::Execute()
+{
+	int iRetVal = sqlite3_step(m_Statement);
+	if (iRetVal != SQLITE_DONE)
+	{
+		m_Status = iRetVal;
+		m_ErrorText = sqlite3_errmsg(m_DBase);
+	}
+	return iRetVal;
+}
+
+bool CSQLStatement::Error()
+{
+	return (m_Status != SQLITE_OK) && (m_Status != SQLITE_DONE);
+};
+
+CSQLStatement::~CSQLStatement()
+{
+	if (m_Statement)
+	{
+		sqlite3_finalize(m_Statement);
+	}
+}
 
 CSQLHelper::CSQLHelper()
 {
@@ -630,14 +692,12 @@ bool CSQLHelper::OpenDatabase()
 		sqlite3_close(m_dbase);
 		return false;
 	}
-#ifndef WIN32
-	//test, this could improve performance
+	std::string pragma_journal_mode = "PRAGMA journal_mode = " + m_journal_mode;
+	sqlite3_exec(m_dbase, pragma_journal_mode.c_str(), nullptr, nullptr, nullptr);
 	sqlite3_exec(m_dbase, "PRAGMA synchronous = NORMAL", nullptr, nullptr, nullptr);
-	sqlite3_exec(m_dbase, "PRAGMA journal_mode = WAL", nullptr, nullptr, nullptr);
-#else
-	sqlite3_exec(m_dbase, "PRAGMA journal_mode=DELETE", NULL, NULL, NULL);
-#endif
-	sqlite3_exec(m_dbase, "PRAGMA foreign_keys = ON;", nullptr, nullptr, nullptr);
+	sqlite3_exec(m_dbase, "PRAGMA foreign_keys = ON", nullptr, nullptr, nullptr);
+	sqlite3_exec(m_dbase, "PRAGMA busy_timeout = 1000", nullptr, nullptr, nullptr);
+
 	std::vector<std::vector<std::string> > result = query("SELECT name FROM sqlite_master WHERE type='table' AND name='DeviceStatus'");
 	bool bNewInstall = (result.empty());
 	int dbversion = 0;
@@ -703,7 +763,7 @@ bool CSQLHelper::OpenDatabase()
 	query(sqlCreateFan);
 	query(sqlCreateFan_Calendar);
 	query(sqlCreateBackupLog);
-	query(sqlCreateEnoceanSensors);
+	query(sqlCreateEnOceanNodes);
 	query(sqlCreatePushLink);
 	query(sqlCreateUserVariables);
 	query(sqlCreateFloorplans);
@@ -2385,6 +2445,35 @@ bool CSQLHelper::OpenDatabase()
 			//Two more files to remove
 			std::remove(std::string(szWWWFolder + "/js/domoticzblocks.js.gz").c_str());
 			std::remove(std::string(szWWWFolder + "/js/domoticzblocks_messages_en.js.gz").c_str());
+
+			// Check for selector action url's that are UrlEncoded and convert to non-encoded url's
+			std::vector<std::vector<std::string>> result;
+
+			// Get all selector devices
+			result = safe_query("SELECT ID, Options FROM DeviceStatus WHERE (SwitchType=%d)", STYPE_Selector);
+			for (const auto &sd : result)
+			{
+				std::string idx = sd[0];
+				std::string sOptions = sd[1];
+				if (!sOptions.empty())
+				{
+					std::map<std::string, std::string> options = BuildDeviceOptions(sOptions, true);
+					std::string levelActions = options["LevelActions"];
+
+					if (!levelActions.empty())
+					{
+						std::string laLower(levelActions);
+						stdlower(laLower);
+
+						if (laLower.find("http%3a//") != std::string::npos || laLower.find("https%3a//") != std::string::npos)
+						{
+							options["LevelActions"] = CURLEncode::URLDecode(levelActions);
+							uint64_t ullidx = std::stoull(idx);
+							SetDeviceOptions(ullidx, options);
+						}
+					}
+				}
+			}
 		}
 		if (dbversion < 129)
 		{
@@ -2649,10 +2738,9 @@ bool CSQLHelper::OpenDatabase()
 					PushType = pushtype;
 				}
 			};
-			std::vector<_tPushHelper> dbToMigrate;
-			dbToMigrate.push_back(_tPushHelper("HttpLink", CBasePush::PushType::PUSHTYPE_HTTP));
-			dbToMigrate.push_back(_tPushHelper("GooglePubSubLink", CBasePush::PushType::PUSHTYPE_GOOGLE_PUB_SUB));
-			dbToMigrate.push_back(_tPushHelper("FibaroLink", CBasePush::PushType::PUSHTYPE_FIBARO));
+			std::vector<_tPushHelper> dbToMigrate{ _tPushHelper("HttpLink", CBasePush::PushType::PUSHTYPE_HTTP),
+							       _tPushHelper("GooglePubSubLink", CBasePush::PushType::PUSHTYPE_GOOGLE_PUB_SUB),
+							       _tPushHelper("FibaroLink", CBasePush::PushType::PUSHTYPE_FIBARO) };
 
 			for (const auto &sd : dbToMigrate)
 			{
@@ -2774,7 +2862,84 @@ bool CSQLHelper::OpenDatabase()
 		}
 		if (dbversion < 148)
 		{
-			query("ALTER TABLE Hardware ADD COLUMN [LogLevel] INTEGER DEFAULT 7"); // LOG_NORM + LOG_STATUS + LOG_ERROR
+			if (!DoesColumnExistsInTable("LogLevel", "Hardware"))
+			{
+				query("ALTER TABLE Hardware ADD COLUMN [LogLevel] INTEGER DEFAULT 7"); // LOG_NORM + LOG_STATUS + LOG_ERROR
+			}
+		}
+		if (dbversion < 149)
+		{
+			// Patch for MQTT: adding default in/ouput topics
+			std::stringstream szQuery;
+			std::vector<std::vector<std::string>> result;
+			szQuery << "SELECT ID, Extra FROM Hardware WHERE([Type]==" << HTYPE_MQTT << ")";
+			result = query(szQuery.str());
+			if (!result.empty())
+			{
+				for (const auto &sd : result)
+				{
+					std::string ID = sd.at(0);
+					std::string Options = sd.at(1);
+
+					std::vector<std::string> strarray;
+					StringSplit(Options, ";", strarray);
+
+					if (strarray.size()==4)
+						continue;
+
+					if (strarray.empty())
+					{
+						strarray.push_back("");
+						strarray.push_back("domoticz/in");
+						strarray.push_back("domoticz/out");
+					}
+					else if (strarray.size() == 1)
+					{
+						strarray.push_back("domoticz/in");
+						strarray.push_back("domoticz/out");
+						strarray.push_back("");
+					}
+					else if (strarray.size() == 2)
+					{
+						if (strarray[1].empty())
+							strarray[1] = "domoticz/in";
+						strarray.push_back("domoticz/out;");
+					}
+					else if (strarray.size() == 2)
+					{
+						if (strarray[1].empty())
+							strarray[1] = "domoticz/in";
+						if (strarray[2].empty())
+							strarray[2] = "domoticz/out";
+					}
+					strarray.push_back("");
+					Options.clear();
+					int iIndex = 0;
+					for (const auto ittOptions : strarray)
+					{
+						if (iIndex > 0)
+							Options += ";";
+						Options += ittOptions;
+						iIndex++;
+					}
+					safe_query("UPDATE Hardware SET Extra='%q' WHERE (ID=%s)", Options.c_str(), ID.c_str());
+				}
+			}
+		}
+		if (dbversion < 150)
+		{ // Populate EnOceanNodes table from EnoceanSensors table
+			std::vector<std::vector<std::string>> result;
+
+			result = m_sql.safe_query("SELECT ID, HardwareID, DeviceID, Manufacturer, Profile, Type FROM EnoceanSensors");
+			if (!result.empty())
+			{
+				for (const auto &sdn : result)
+				{
+					safe_query("INSERT INTO EnOceanNodes (ID, HardwareID, NodeID, ManufacturerID, Func, Type) VALUES ('%q','%q',%u,'%q','%q','%q')",
+						sdn[0].c_str(), sdn[1].c_str(), static_cast<uint32_t>(std::stoul(sdn[2], 0, 16)), sdn[3].c_str(), sdn[4].c_str(), sdn[5].c_str());
+				}
+			}
+			query("DROP TABLE EnoceanSensors");
 		}
 	}
 	else if (bNewInstall)
@@ -3290,7 +3455,7 @@ void CSQLHelper::StopThread()
 bool CSQLHelper::StartThread()
 {
 	RequestStart();
-	m_thread = std::make_shared<std::thread>(&CSQLHelper::Do_Work, this);
+	m_thread = std::make_shared<std::thread>([this] { Do_Work(); });
 	SetThreadName(m_thread->native_handle(), "SQLHelper");
 	return (m_thread != nullptr);
 }
@@ -3314,34 +3479,33 @@ bool CSQLHelper::SwitchLightFromTasker(uint64_t idx, const std::string& switchcm
 }
 
 #ifndef WIN32
-void CSQLHelper::ManageExecuteScriptTimeout(int pid, int timeout, bool *stillRunning, bool *timeoutOccurred)
+void CSQLHelper::ManageExecuteScriptTimeout(std::string szCommand, int pid, int timeout, bool *stillRunning, bool *timeoutOccurred)
 {
 
 	auto start = std::chrono::system_clock::now();
 
 	while ( std::chrono::system_clock::now()-start<std::chrono::seconds(timeout) && *stillRunning) // check every second if we have to wait another second
 	{
-
 		std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 	}
 
 	if (*stillRunning)
 	{
-		_log.Log(LOG_ERROR,"dzVents script command running longer than specified timeout(%d seconds), cancelling...", timeout);
+		_log.Log(LOG_ERROR,"dzVents script command running longer than specified timeout(%d seconds), cancelling...(%s)", timeout, szCommand.c_str());
 		kill (pid,SIGKILL);
 		*timeoutOccurred=true;
 	}
 }
 #endif
 
-void CSQLHelper::PerformThreadedAction(const _tTaskItem itt)
+void CSQLHelper::PerformThreadedAction(const _tTaskItem tItem)
 {
-	if (itt._ItemType == TITEM_EXECUTESHELLCOMMAND)
+	if (tItem._ItemType == TITEM_EXECUTESHELLCOMMAND)
 	{
-		std::string command = itt._sValue;
-		std::string callback = itt._ID;
-		std::string path = itt._sUser;
-		int timeout = itt._nValue;
+		std::string command = tItem._sValue;
+		std::string callback = tItem._ID;
+		std::string path = tItem._sUser;
+		int timeout = tItem._nValue;
 
 		std::ifstream infile;
 		std::string sLine;
@@ -3497,7 +3661,7 @@ void CSQLHelper::PerformThreadedAction(const _tTaskItem itt)
 		{
 			if (timeout > 0)
 			{
-				T = std::make_shared<std::thread>(&CSQLHelper::ManageExecuteScriptTimeout, this, pid, timeout, &stillRunning, &timeoutOccurred);
+				T = std::make_shared<std::thread>(&CSQLHelper::ManageExecuteScriptTimeout, this, command, pid, timeout, &stillRunning, &timeoutOccurred);
 			}
 			waitpid(pid, &exitcode, 0);
 			stillRunning = false;
@@ -3577,16 +3741,16 @@ void CSQLHelper::PerformThreadedAction(const _tTaskItem itt)
 			}
 		}
 	}
-	else if (itt._ItemType == TITEM_GETURL)
+	else if (tItem._ItemType == TITEM_GETURL)
 	{
 		std::vector<std::string> extraHeaders;
-		std::string postData = itt._command;
-		std::string callback = itt._ID;
-		std::string url = itt._sValue;
-		int method = itt._switchtype;
+		std::string postData = tItem._command;
+		std::string callback = tItem._ID;
+		std::string url = tItem._sValue;
+		int method = tItem._switchtype;
 
-		if (!itt._relatedEvent.empty())
-			StringSplit(itt._relatedEvent, "!#", extraHeaders);
+		if (!tItem._relatedEvent.empty())
+			StringSplit(tItem._relatedEvent, "!#", extraHeaders);
 		std::string response;
 		std::vector<std::string> headerData;
 
@@ -3622,7 +3786,7 @@ void CSQLHelper::PerformThreadedAction(const _tTaskItem itt)
 			_log.Log(LOG_ERROR, "Error opening url: %s", url.c_str());
 		}
 	}
-	else if ((itt._ItemType == TITEM_SEND_EMAIL) || (itt._ItemType == TITEM_SEND_EMAIL_TO))
+	else if ((tItem._ItemType == TITEM_SEND_EMAIL) || (tItem._ItemType == TITEM_SEND_EMAIL_TO))
 	{
 		int nValue;
 		if (GetPreferencesVar("EmailEnabled", nValue))
@@ -3641,13 +3805,13 @@ void CSQLHelper::PerformThreadedAction(const _tTaskItem itt)
 						std::string EmailUsername;
 						std::string EmailPassword;
 						GetPreferencesVar("EmailFrom", EmailFrom);
-						if (itt._ItemType != TITEM_SEND_EMAIL_TO)
+						if (tItem._ItemType != TITEM_SEND_EMAIL_TO)
 						{
 							GetPreferencesVar("EmailTo", EmailTo);
 						}
 						else
 						{
-							EmailTo = itt._command;
+							EmailTo = tItem._command;
 						}
 						GetPreferencesVar("EmailUsername", EmailUsername);
 						GetPreferencesVar("EmailPassword", EmailPassword);
@@ -3659,8 +3823,8 @@ void CSQLHelper::PerformThreadedAction(const _tTaskItem itt)
 						sclient.SetTo(CURLEncode::URLDecode(EmailTo));
 						sclient.SetCredentials(base64_decode(EmailUsername), base64_decode(EmailPassword));
 						sclient.SetServer(CURLEncode::URLDecode(EmailServer), EmailPort);
-						sclient.SetSubject(CURLEncode::URLDecode(itt._ID));
-						sclient.SetHTMLBody(itt._sValue);
+						sclient.SetSubject(CURLEncode::URLDecode(tItem._ID));
+						sclient.SetHTMLBody(tItem._sValue);
 						bool bRet = sclient.SendEmail();
 
 						if (bRet)
@@ -3672,22 +3836,22 @@ void CSQLHelper::PerformThreadedAction(const _tTaskItem itt)
 			}
 		}
 	}
-	else if (itt._ItemType == TITEM_SEND_SMS)
+	else if (tItem._ItemType == TITEM_SEND_SMS)
 	{
-		m_notifications.SendMessage(0, std::string(""), "clickatell", itt._ID, itt._ID, std::string(""), 1, std::string(""), false);
+		m_notifications.SendMessage(0, std::string(""), "clickatell", tItem._ID, tItem._ID, std::string(""), 1, std::string(""), false);
 	}
-	else if (itt._ItemType == TITEM_EMAIL_CAMERA_SNAPSHOT)
+	else if (tItem._ItemType == TITEM_EMAIL_CAMERA_SNAPSHOT)
 	{
-		m_mainworker.m_cameras.EmailCameraSnapshot(itt._ID, itt._sValue);
+		m_mainworker.m_cameras.EmailCameraSnapshot(tItem._ID, tItem._sValue);
 	}
 }
 
 void CSQLHelper::Do_Work()
 {
-	std::vector<_tTaskItem> _items2do;
-
 	while (!IsStopRequested(static_cast<const long>(1000.0F / timer_resolution_hz)))
 	{
+		std::vector<_tTaskItem> _items2do;
+
 		if (m_bAcceptHardwareTimerActive)
 		{
 			m_iAcceptHardwareTimerCounter -= static_cast<float>(1. / timer_resolution_hz);
@@ -3707,8 +3871,6 @@ void CSQLHelper::Do_Work()
 			std::lock_guard<std::mutex> l(m_background_task_mutex);
 			if (!m_background_task_queue.empty())
 			{
-				_items2do.clear();
-
 				auto itt = m_background_task_queue.begin();
 				while (itt != m_background_task_queue.end())
 				{
@@ -3743,17 +3905,16 @@ void CSQLHelper::Do_Work()
 			continue;
 		}
 
-		auto itt = _items2do.begin();
-		while (itt != _items2do.end())
+		for (const auto &itt : _items2do)
 		{
-			_log.Debug(DEBUG_NORM, "SQLH: Do Task ItemType:%d Cmd:%s Value:%s ", itt->_ItemType, itt->_command.c_str(), itt->_sValue.c_str());
+			_log.Debug(DEBUG_NORM, "SQLH: Do Task ItemType:%d Cmd:%s Value:%s ", itt._ItemType, itt._command.c_str(), itt._sValue.c_str());
 
-			if (itt->_ItemType == TITEM_SWITCHCMD)
+			if (itt._ItemType == TITEM_SWITCHCMD)
 			{
-				if (itt->_switchtype == STYPE_Motion)
+				if (itt._switchtype == STYPE_Motion)
 				{
 					std::string devname;
-					switch (itt->_devType)
+					switch (itt._devType)
 					{
 					case pTypeLighting1:
 					case pTypeLighting2:
@@ -3764,93 +3925,93 @@ void CSQLHelper::Do_Work()
 					case pTypeGeneralSwitch:
 					case pTypeHomeConfort:
 					case pTypeFS20:
-						SwitchLightFromTasker(itt->_idx, "Off", 0, NoColor, itt->_sUser);
+						SwitchLightFromTasker(itt._idx, "Off", 0, NoColor, itt._sUser);
 						break;
 					case pTypeSecurity1:
-						switch (itt->_subType)
+						switch (itt._subType)
 						{
 						case sTypeSecX10M:
-							SwitchLightFromTasker(itt->_idx, "No Motion", 0, NoColor, itt->_sUser);
+							SwitchLightFromTasker(itt._idx, "No Motion", 0, NoColor, itt._sUser);
 							break;
 						default:
 							//just update internally
-							m_mainworker.m_szLastSwitchUser = itt->_sUser;
-							UpdateValueInt(itt->_HardwareID, itt->_ID.c_str(), itt->_unit, itt->_devType, itt->_subType, itt->_signallevel, itt->_batterylevel, itt->_nValue, itt->_sValue.c_str(), devname, true);
+							m_mainworker.m_szLastSwitchUser = itt._sUser;
+							UpdateValueInt(itt._HardwareID, itt._ID.c_str(), itt._unit, itt._devType, itt._subType, itt._signallevel, itt._batterylevel, itt._nValue, itt._sValue.c_str(), devname, true);
 							break;
 						}
 						break;
 					case pTypeLighting4:
 						//only update internally
-						m_mainworker.m_szLastSwitchUser = itt->_sUser;
-						UpdateValueInt(itt->_HardwareID, itt->_ID.c_str(), itt->_unit, itt->_devType, itt->_subType, itt->_signallevel, itt->_batterylevel, itt->_nValue,
-								   itt->_sValue.c_str(), devname, true);
+						m_mainworker.m_szLastSwitchUser = itt._sUser;
+						UpdateValueInt(itt._HardwareID, itt._ID.c_str(), itt._unit, itt._devType, itt._subType, itt._signallevel, itt._batterylevel, itt._nValue,
+								   itt._sValue.c_str(), devname, true);
 						break;
 					default:
 						//unknown hardware type, sensor will only be updated internally
-						m_mainworker.m_szLastSwitchUser = itt->_sUser;
-						UpdateValueInt(itt->_HardwareID, itt->_ID.c_str(), itt->_unit, itt->_devType, itt->_subType, itt->_signallevel, itt->_batterylevel, itt->_nValue,
-								   itt->_sValue.c_str(), devname, true);
+						m_mainworker.m_szLastSwitchUser = itt._sUser;
+						UpdateValueInt(itt._HardwareID, itt._ID.c_str(), itt._unit, itt._devType, itt._subType, itt._signallevel, itt._batterylevel, itt._nValue,
+								   itt._sValue.c_str(), devname, true);
 						break;
 					}
 				}
 				else
 				{
-					if (itt->_devType == pTypeLighting4)
+					if (itt._devType == pTypeLighting4)
 					{
 						//only update internally
 						std::string devname;
-						m_mainworker.m_szLastSwitchUser = itt->_sUser;
-						UpdateValueInt(itt->_HardwareID, itt->_ID.c_str(), itt->_unit, itt->_devType, itt->_subType, itt->_signallevel, itt->_batterylevel, itt->_nValue,
-								   itt->_sValue.c_str(), devname, true);
+						m_mainworker.m_szLastSwitchUser = itt._sUser;
+						UpdateValueInt(itt._HardwareID, itt._ID.c_str(), itt._unit, itt._devType, itt._subType, itt._signallevel, itt._batterylevel, itt._nValue,
+								   itt._sValue.c_str(), devname, true);
 					}
 					else
-						SwitchLightFromTasker(itt->_idx, "Off", 0, NoColor, itt->_sUser);
+						SwitchLightFromTasker(itt._idx, "Off", 0, NoColor, itt._sUser);
 				}
 			}
-			else if (itt->_ItemType == TITEM_EXECUTE_SCRIPT)
+			else if (itt._ItemType == TITEM_EXECUTE_SCRIPT)
 			{
-				_log.Log(LOG_STATUS, "Executing script: %s", itt->_ID.c_str() );
+				_log.Log(LOG_STATUS, "Executing script: %s", itt._ID.c_str() );
 
 				//start script
 #ifdef WIN32
-				ShellExecute(NULL, "open", itt->_ID.c_str(), itt->_sValue.c_str(), NULL, SW_SHOWNORMAL);
+				ShellExecute(NULL, "open", itt._ID.c_str(), itt._sValue.c_str(), NULL, SW_SHOWNORMAL);
 #else
-				std::string lscript = itt->_ID + " " + itt->_sValue;
+				std::string lscript = itt._ID + " " + itt._sValue;
 				int ret = system(lscript.c_str());
 				if (ret != 0)
 				{
-					_log.Log(LOG_ERROR, "Error executing script command (%s). returned: %d", itt->_ID.c_str(), ret);
+					_log.Log(LOG_ERROR, "Error executing script command (%s). returned: %d", itt._ID.c_str(), ret);
 				}
 #endif
 			}
-			else if (itt->_ItemType == TITEM_SWITCHCMD_EVENT)
+			else if (itt._ItemType == TITEM_SWITCHCMD_EVENT)
 			{
-				SwitchLightFromTasker(itt->_idx, itt->_command, itt->_level, itt->_Color, itt->_sUser);
+				SwitchLightFromTasker(itt._idx, itt._command, itt._level, itt._Color, itt._sUser);
 			}
 
-			else if (itt->_ItemType == TITEM_SWITCHCMD_SCENE)
+			else if (itt._ItemType == TITEM_SWITCHCMD_SCENE)
 			{
-				m_mainworker.SwitchScene(itt->_idx, itt->_command, itt->_sUser);
+				m_mainworker.SwitchScene(itt._idx, itt._command, itt._sUser);
 			}
-			else if (itt->_ItemType == TITEM_SET_VARIABLE)
+			else if (itt._ItemType == TITEM_SET_VARIABLE)
 			{
 				std::vector<std::vector<std::string> > result;
 				std::stringstream s_str;
-				result = safe_query("SELECT Name, ValueType FROM UserVariables WHERE (ID == %" PRIu64 ")", itt->_idx);
+				result = safe_query("SELECT Name, ValueType FROM UserVariables WHERE (ID == %" PRIu64 ")", itt._idx);
 				if (!result.empty())
 				{
 					std::vector<std::string> sd = result[0];
 					s_str.clear();
 					s_str.str("");
-					s_str << itt->_idx;
+					s_str << itt._idx;
 					std::string errorMessage;
-					if (!UpdateUserVariable(s_str.str(), sd[0], (const _eUsrVariableType)atoi(sd[1].c_str()), itt->_sValue, (itt->_nValue == 0) ? false : true, errorMessage))
+					if (!UpdateUserVariable(s_str.str(), sd[0], (const _eUsrVariableType)atoi(sd[1].c_str()), itt._sValue, (itt._nValue == 0) ? false : true, errorMessage))
 					{
 						_log.Log(LOG_ERROR, "Error updating variable %s: %s", sd[0].c_str(), errorMessage.c_str());
 					}
 					else
 					{
-						_log.Log(LOG_STATUS, "Set UserVariable %s = %s", sd[0].c_str(), CURLEncode::URLDecode(itt->_sValue).c_str());
+						_log.Log(LOG_STATUS, "Set UserVariable %s = %s", sd[0].c_str(), CURLEncode::URLDecode(itt._sValue).c_str());
 					}
 				}
 				else
@@ -3858,18 +4019,18 @@ void CSQLHelper::Do_Work()
 					_log.Log(LOG_ERROR, "Variable not found!");
 				}
 			}
-			else if (itt->_ItemType == TITEM_SET_SETPOINT)
+			else if (itt._ItemType == TITEM_SET_SETPOINT)
 			{
 				std::stringstream sstr;
-				sstr << itt->_idx;
+				sstr << itt._idx;
 				std::string idx = sstr.str();
-				float fValue = (float)atof(itt->_sValue.c_str());
-				m_mainworker.SetSetPoint(idx, fValue, itt->_command, itt->_sUntil);
+				float fValue = (float)atof(itt._sValue.c_str());
+				m_mainworker.SetSetPoint(idx, fValue, itt._command, itt._sUntil);
 			}
-			else if (itt->_ItemType == TITEM_SEND_NOTIFICATION)
+			else if (itt._ItemType == TITEM_SEND_NOTIFICATION)
 			{
 				std::vector<std::string> splitresults;
-				StringSplit(itt->_command, "!#", splitresults);
+				StringSplit(itt._command, "!#", splitresults);
 				if (splitresults.size() >= 4) {
 					std::string subsystem;
 					if (splitresults.size() > 4)
@@ -3881,13 +4042,13 @@ void CSQLHelper::Do_Work()
 						_log.Log(LOG_STATUS, "Deprecated Notification system specified (gcm), change this to 'fcm'!");
 						subsystem = "fcm";
 					}
-					m_notifications.SendMessageEx(0, std::string(""), subsystem, splitresults[0], splitresults[1], splitresults[2], static_cast<int>(itt->_idx), splitresults[3], true);
+					m_notifications.SendMessageEx(0, std::string(""), subsystem, splitresults[0], splitresults[1], splitresults[2], static_cast<int>(itt._idx), splitresults[3], true);
 				}
 			}
-			else if (itt->_ItemType == TITEM_SEND_IFTTT_TRIGGER)
+			else if (itt._ItemType == TITEM_SEND_IFTTT_TRIGGER)
 			{
 				std::vector<std::string> splitresults;
-				StringSplit(itt->_command, "!#", splitresults);
+				StringSplit(itt._command, "!#", splitresults);
 				if (!splitresults.empty())
 				{
 					std::string sValue1, sValue2, sValue3;
@@ -3897,41 +4058,43 @@ void CSQLHelper::Do_Work()
 						sValue2 = splitresults[1];
 					if (splitresults.size() > 2)
 						sValue3 = splitresults[2];
-					IFTTT::Send_IFTTT_Trigger(itt->_ID, sValue1, sValue2, sValue3);
+					IFTTT::Send_IFTTT_Trigger(itt._ID, sValue1, sValue2, sValue3);
 				}
 			}
-			else if (itt->_ItemType == TITEM_UPDATEDEVICE)
+			else if (itt._ItemType == TITEM_UPDATEDEVICE)
 			{
-				m_mainworker.UpdateDevice(static_cast<int>(itt->_idx), itt->_nValue, itt->_sValue, itt->_sUser, 12, 255, (itt->_switchtype ? true : false));
+				m_mainworker.UpdateDevice(static_cast<int>(itt._idx), itt._nValue, itt._sValue, itt._sUser, 12, 255, (itt._switchtype ? true : false));
 			}
-			else if (itt->_ItemType == TITEM_CUSTOM_COMMAND)
+			else if (itt._ItemType == TITEM_CUSTOM_COMMAND)
 			{
-				m_mainworker.m_eventsystem.CustomCommand(itt->_idx, itt->_command);
+				m_mainworker.m_eventsystem.CustomCommand(itt._idx, itt._command);
 			}
-			else if (itt->_ItemType == TITEM_CUSTOM_EVENT)
+			else if (itt._ItemType == TITEM_CUSTOM_EVENT)
 			{
 				Json::Value eventInfo;
-				eventInfo["name"] = itt->_ID;
-				eventInfo["data"] = itt->_sValue;
+				eventInfo["name"] = itt._ID;
+				eventInfo["data"] = itt._sValue;
 				m_mainworker.m_notificationsystem.Notify(Notification::DZ_CUSTOM, Notification::STATUS_INFO, JSonToRawString(eventInfo));
 			}
-			else if (itt->_ItemType == TITEM_EXECUTESHELLCOMMAND || itt->_ItemType == TITEM_GETURL || itt->_ItemType == TITEM_SEND_EMAIL || itt->_ItemType == TITEM_SEND_EMAIL_TO ||
-				 itt->_ItemType == TITEM_SEND_SMS || itt->_ItemType == TITEM_EMAIL_CAMERA_SNAPSHOT)
+			else if (itt._ItemType == TITEM_EXECUTESHELLCOMMAND || itt._ItemType == TITEM_GETURL || itt._ItemType == TITEM_SEND_EMAIL || itt._ItemType == TITEM_SEND_EMAIL_TO ||
+				 itt._ItemType == TITEM_SEND_SMS || itt._ItemType == TITEM_EMAIL_CAMERA_SNAPSHOT)
 			{
 				// All actions which should not be on the main SQL Helper thread will get their own thread
-				std::thread ActionThread(&CSQLHelper::PerformThreadedAction, this, *itt);
+				std::thread ActionThread([this, itt] { PerformThreadedAction(itt); });
 				ActionThread.detach();
 			}
-
-			++itt;
 		}
-		_items2do.clear();
 	}
 }
 
 void CSQLHelper::SetDatabaseName(const std::string& DBName)
 {
 	m_dbase_name = DBName;
+}
+
+void CSQLHelper::SetJournalMode(const std::string& mode)
+{
+	m_journal_mode = mode;
 }
 
 bool CSQLHelper::DoesColumnExistsInTable(const std::string& columnname, const std::string& tablename)
@@ -3972,6 +4135,9 @@ bool CSQLHelper::safe_UpdateBlobInTableWithID(const std::string& Table, const st
 {
 	if (!m_dbase)
 		return false;
+
+	std::lock_guard<std::mutex> l(m_sqlQueryMutex);
+
 	sqlite3_stmt *stmt = nullptr;
 	char* zQuery = sqlite3_mprintf("UPDATE %q SET %q = ? WHERE ID=%q", Table.c_str(), Column.c_str(), sID.c_str());
 	if (!zQuery)
@@ -3997,7 +4163,39 @@ bool CSQLHelper::safe_UpdateBlobInTableWithID(const std::string& Table, const st
 	return true;
 }
 
-std::vector<std::vector<std::string> > CSQLHelper::safe_query(const char* fmt, ...)
+int CSQLHelper::execute_sql(const std::string &sSQL, std::vector<std::string> *pValues, bool bLogError)
+{
+	CSQLStatement sqlStatement(m_dbase, sSQL);
+	std::vector<std::vector<std::string>> result;
+	for (unsigned int i = 0; (i < pValues->size()) && (!sqlStatement.Error()); i++)
+	{
+		sqlStatement.AddParameter((*pValues)[i]);
+	}
+
+	if (!sqlStatement.Error())
+	{
+		sqlStatement.Execute();
+	}
+
+	if (!sqlStatement.Error())
+	{
+		result = m_sql.safe_query("SELECT changes();");
+	}
+	else
+	{
+		if (bLogError)
+		{
+			_log.Log(LOG_ERROR, "Error performing operation: '%s'", sqlStatement.ErrorText());
+		}
+	}
+
+	if (result.empty() || result[0][0] == "0")
+		return 0;
+	else
+		return atoi(result[0][0].c_str());
+}
+
+std::vector<std::vector<std::string>> CSQLHelper::safe_query(const char *fmt, ...)
 {
 	va_list args;
 	va_start(args, fmt);
@@ -4026,7 +4224,7 @@ std::vector<std::vector<std::string> > CSQLHelper::query(const std::string& szQu
 
 	sqlite3_stmt* statement;
 	std::vector<std::vector<std::string> > results;
-
+    _log.Debug(DEBUG_SQL, "Query:%s", szQuery.c_str());
 	if (sqlite3_prepare_v2(m_dbase, szQuery.c_str(), -1, &statement, nullptr) == SQLITE_OK)
 	{
 		int cols = sqlite3_column_count(statement);
@@ -4463,7 +4661,7 @@ uint64_t CSQLHelper::UpdateValue(const int HardwareID, const char* ID, const uns
 			unsigned char ParentType = (unsigned char)atoi(sd[3].c_str());
 			unsigned char ParentSubType = (unsigned char)atoi(sd[4].c_str());
 			unsigned char ParentUnit = (unsigned char)atoi(sd[5].c_str());
-			m_mainworker.m_eventsystem.ProcessDevice(ParentHardwareID, ParentID, ParentUnit, ParentType, ParentSubType, signallevel, batterylevel, nValue, sValue, ParentName);
+			m_mainworker.m_eventsystem.ProcessDevice(ParentHardwareID, ParentID, ParentUnit, ParentType, ParentSubType, signallevel, batterylevel, nValue, sValue);
 
 			m_mainworker.sOnDeviceUpdate(std::stoi(sd[2]), std::stoll(sd[0]));
 
@@ -4696,7 +4894,11 @@ uint64_t CSQLHelper::GetDeviceIndex(const int HardwareID, const std::string& ID,
 	return std::stoull(result[0].at(0));
 }
 
-uint64_t CSQLHelper::UpdateValueInt(const int HardwareID, const char* ID, const unsigned char unit, const unsigned char devType, const unsigned char subType, const unsigned char signallevel, const unsigned char batterylevel, const int nValue, const char* sValue, std::string& devname, const bool bUseOnOffAction)
+uint64_t CSQLHelper::UpdateValueInt(
+        const int HardwareID, const char *ID, const unsigned char unit, const unsigned char devType, const unsigned char subType,
+        const unsigned char signallevel, const unsigned char batterylevel, const int nValue, const char *sValue, std::string &devname,
+        const bool bUseOnOffAction
+)
 {
 	if (!m_dbase)
 		return -1;
@@ -4704,8 +4906,8 @@ uint64_t CSQLHelper::UpdateValueInt(const int HardwareID, const char* ID, const 
 	uint64_t ulID = 0;
 	bool bDeviceUsed = false;
 	bool bSameDeviceStatusValue = false;
-	int old_nValue = -1;
-	std::string old_sValue;
+	int nValueBeforeUpdate = -1;
+	std::string sValueBeforeUpdate;
 	_eSwitchType stype = STYPE_OnOff;
 
 	std::vector<std::vector<std::string> > result;
@@ -4727,7 +4929,7 @@ uint64_t CSQLHelper::UpdateValueInt(const int HardwareID, const char* ID, const 
 		{
 			_log.Debug(DEBUG_NORM, "CSQLHelper::UpdateValueInt: Notifying plugin %u about creation of device %u", HardwareID, unit);
 			Plugins::CPlugin* pPlugin = (Plugins::CPlugin*)pHardware;
-			pPlugin->DeviceAdded(unit);
+			pPlugin->DeviceAdded(ID, unit);
 		}
 #endif
 	}
@@ -4740,8 +4942,8 @@ uint64_t CSQLHelper::UpdateValueInt(const int HardwareID, const char* ID, const 
 		devname = result[0][1];
 		bDeviceUsed = atoi(result[0][2].c_str()) != 0;
 		stype = (_eSwitchType)atoi(result[0][3].c_str());
-		old_nValue = atoi(result[0][4].c_str());
-		old_sValue = result[0][5];
+		nValueBeforeUpdate = atoi(result[0][4].c_str());
+		sValueBeforeUpdate = result[0][5];
 		time_t now = time(nullptr);
 		struct tm ltime;
 		localtime_r(&now, &ltime);
@@ -4749,22 +4951,40 @@ uint64_t CSQLHelper::UpdateValueInt(const int HardwareID, const char* ID, const 
 		//Default is option 0, read from device
 		if (options["EnergyMeterMode"] == "1" && devType == pTypeGeneral && subType == sTypeKwh)
 		{
-			std::vector<std::string> parts;
-			struct tm ntime;
-			double interval;
-			float nEnergy;
-			char sCompValue[100];
+            double intervalSeconds;
+            struct tm ntime;
 			std::string sLastUpdate = result[0][6];
 			time_t lutime;
 			ParseSQLdatetime(lutime, ntime, sLastUpdate, ltime.tm_isdst);
+			intervalSeconds = difftime(now, lutime);
 
-			interval = difftime(now, lutime);
-			StringSplit(result[0][5], ";", parts);
-			nEnergy = static_cast<float>(strtof(parts[0].c_str(), nullptr) * interval / 3600
-							 + strtof(parts[1].c_str(), nullptr)); // Rob: whats happening here... strtof ?
-			StringSplit(sValue, ";", parts);
-			sprintf(sCompValue, "%s;%.1f", parts[0].c_str(), nEnergy);
-			sValue = sCompValue;
+            std::vector<std::string> powerAndEnergyBeforeUpdate;
+			StringSplit(sValueBeforeUpdate, ";", powerAndEnergyBeforeUpdate);
+			if (powerAndEnergyBeforeUpdate.size() == 2)
+			{
+				//we need to use atof here because some users seem to have a illegal sValue in the database that causes std::stof to crash
+				float powerDuringInterval = static_cast<float>(atof(powerAndEnergyBeforeUpdate[0].c_str()));
+				float energyUpToInterval = static_cast<float>(atof(powerAndEnergyBeforeUpdate[1].c_str()));
+				float energyDuringInterval = static_cast<float>(powerDuringInterval * intervalSeconds / 3600);
+				float energyAfterInterval = static_cast<float>(energyUpToInterval + energyDuringInterval);
+				std::vector<std::string> powerAndEnergyUpdate;
+				StringSplit(sValue, ";", powerAndEnergyUpdate);
+				if (!powerAndEnergyUpdate.empty())
+				{
+					const char* powerUpdate = powerAndEnergyUpdate[0].c_str();
+                    char sValueUpdate[100];
+                    sprintf(sValueUpdate, "%s;%.1f", powerUpdate, energyAfterInterval);
+					sValue = sValueUpdate;
+				}
+				else
+				{
+                    sValue = sValueBeforeUpdate.c_str();
+				}
+			}
+			else
+            {
+                sValue = sValueBeforeUpdate.c_str();
+            }
 		}
 		//~ use different update queries based on the device type
 		if (devType == pTypeGeneral && subType == sTypeCounterIncremental)
@@ -4791,8 +5011,8 @@ uint64_t CSQLHelper::UpdateValueInt(const int HardwareID, const char* ID, const 
 				//like professional alarm system equipment
 				//.. we should make this an option of course
 				bSameDeviceStatusValue = (
-					(nValue == old_nValue) &&
-					(sValue == old_sValue)
+					(nValue == nValueBeforeUpdate) &&
+					(sValue == sValueBeforeUpdate)
 					);
 			}
 
@@ -4928,8 +5148,8 @@ uint64_t CSQLHelper::UpdateValueInt(const int HardwareID, const char* ID, const 
 
 		//Add Lighting log (Skip duplicates)
 		if (
-			(nValue != old_nValue)
-			|| (sValue != old_sValue)
+			(nValue != nValueBeforeUpdate)
+			|| (sValue != sValueBeforeUpdate)
 			|| (stype == STYPE_Doorbell)
 			|| (stype == STYPE_PushOn)
 			|| (stype == STYPE_PushOff)
@@ -4966,13 +5186,27 @@ uint64_t CSQLHelper::UpdateValueInt(const int HardwareID, const char* ID, const 
 			bool bIsLightSwitchOn = IsLightSwitchOn(lstatus);
 			std::string slevel = sd[6];
 
+			_eHardwareTypes HWtype = HTYPE_Domoticz; //just a value
+			CDomoticzHardwareBase* pHardware = m_mainworker.GetHardware(HardwareID);
+			if (pHardware != nullptr)
+				HWtype = pHardware->HwdType;
+
 			if (
 				((bIsLightSwitchOn) && (llevel != 0) && (llevel != 255))
 				|| (switchtype == STYPE_BlindsPercentage)
 				|| (switchtype == STYPE_BlindsPercentageInverted)
+				|| (switchtype == STYPE_BlindsPercentageWithStop)
+				|| (switchtype == STYPE_BlindsPercentageInvertedWithStop)
 				)
 			{
-				if (switchtype == STYPE_BlindsPercentage || switchtype == STYPE_BlindsPercentageInverted)
+				if (
+					(pHardware->HwdType != HTYPE_MQTT)
+					&&
+					(switchtype == STYPE_BlindsPercentage
+					|| switchtype == STYPE_BlindsPercentageWithStop
+					|| switchtype == STYPE_BlindsPercentageInverted
+					|| switchtype == STYPE_BlindsPercentageInvertedWithStop)
+					)
 				{
 					if (nValue == light2_sOn)
 						llevel = 100;
@@ -5065,11 +5299,6 @@ uint64_t CSQLHelper::UpdateValueInt(const int HardwareID, const char* ID, const 
 					m_background_task_queue.push_back(_tTaskItem::ExecuteScript(1, scriptname, s_scriptparams.str()));
 				}
 			}
-
-			_eHardwareTypes HWtype = HTYPE_Domoticz; //just a value
-			CDomoticzHardwareBase* pHardware = m_mainworker.GetHardware(HardwareID);
-			if (pHardware != nullptr)
-				HWtype = pHardware->HwdType;
 
 			//Check for notifications
 			if (HWtype != HTYPE_LogitechMediaServer) // Skip notifications for LMS here; is handled by the LMS plug-in
@@ -5197,7 +5426,7 @@ uint64_t CSQLHelper::UpdateValueInt(const int HardwareID, const char* ID, const 
 	_log.Debug(DEBUG_NORM, "SQLH UpdateValueInt %s HwID:%d  DevID:%s Type:%d  sType:%d nValue:%d sValue:%s ", devname.c_str(), HardwareID, ID, devType, subType, nValue, sValue);
 
 	if (bDeviceUsed)
-		m_mainworker.m_eventsystem.ProcessDevice(HardwareID, ulID, unit, devType, subType, signallevel, batterylevel, nValue, sValue, devname);
+		m_mainworker.m_eventsystem.ProcessDevice(HardwareID, ulID, unit, devType, subType, signallevel, batterylevel, nValue, sValue);
 	return ulID;
 }
 
@@ -5276,7 +5505,7 @@ void CSQLHelper::UpdatePreferencesVar(const std::string& Key, const std::string&
 }
 void CSQLHelper::UpdatePreferencesVar(const std::string& Key, const double Value)
 {
-	std::string sValue = boost::to_string(Value);
+	std::string sValue = std::to_string(Value);
 	UpdatePreferencesVar(Key, 0, sValue);
 }
 
@@ -7392,10 +7621,10 @@ void CSQLHelper::DeleteHardware(const std::string& idx)
 		DeleteDevices(devs2delete);
 	}
 	//also delete all records in other tables
-	safe_query("DELETE FROM ZWaveNodes WHERE (HardwareID== '%q')", idx.c_str());
-	safe_query("DELETE FROM EnoceanSensors WHERE (HardwareID== '%q')", idx.c_str());
-	safe_query("DELETE FROM MySensors WHERE (HardwareID== '%q')", idx.c_str());
-	safe_query("DELETE FROM WOLNodes WHERE (HardwareID == '%q')", idx.c_str());
+	safe_query("DELETE FROM ZWaveNodes WHERE (HardwareID=='%q')", idx.c_str());
+	safe_query("DELETE FROM EnOceanNodes WHERE (HardwareID=='%q')", idx.c_str());
+	safe_query("DELETE FROM MySensors WHERE (HardwareID=='%q')", idx.c_str());
+	safe_query("DELETE FROM WOLNodes WHERE (HardwareID=='%q')", idx.c_str());
 }
 
 void CSQLHelper::DeleteCamera(const std::string& idx)
@@ -7422,22 +7651,23 @@ void CSQLHelper::DeleteDevices(const std::string& idx)
 	StringSplit(idx, ";", _idx);
 	if (_idx.empty())
 		return;
-	std::set<std::pair<std::string, std::string> > removeddevices;
+	std::set<std::tuple<std::string, std::string, std::string>> removeddevices;
 #ifdef ENABLE_PYTHON
 	for (const auto &str : _idx)
 	{
 		_log.Debug(DEBUG_NORM, "CSQLHelper::DeleteDevices: ID: %s", str.c_str());
 		std::vector<std::vector<std::string> > result;
-		result = safe_query("SELECT HardwareID, Unit FROM DeviceStatus WHERE (ID == '%q')", str.c_str());
+		result = safe_query("SELECT HardwareID, DeviceID, Unit FROM DeviceStatus WHERE (ID == '%q')", str.c_str());
 		if (!result.empty())
 		{
 			std::vector<std::string> sd = result[0];
 			std::string HwID = sd[0];
-			std::string Unit = sd[1];
-			CDomoticzHardwareBase* pHardware = m_mainworker.GetHardwareByIDType(HwID, HTYPE_PythonPlugin);
+			std::string DeviceID = sd[1];
+			std::string Unit = sd[2];
+			CDomoticzHardwareBase *pHardware = m_mainworker.GetHardwareByIDType(HwID, HTYPE_PythonPlugin);
 			if (pHardware != nullptr)
 			{
-				removeddevices.insert(std::make_pair(HwID, Unit));
+				removeddevices.insert(std::make_tuple(HwID, DeviceID, Unit));
 			}
 		}
 	}
@@ -7490,15 +7720,16 @@ void CSQLHelper::DeleteDevices(const std::string& idx)
 #ifdef ENABLE_PYTHON
 	for (const auto& it : removeddevices)
 	{
-		int HwID = atoi(it.first.c_str());
-		int Unit = atoi(it.second.c_str());
+		int HwID = atoi(std::get<0>(it).c_str());
+		std::string DeviceID = std::get<1>(it);
+		int Unit = atoi(std::get<2>(it).c_str());
 		// Notify plugin to sync plugins' device list
 		CDomoticzHardwareBase* pHardware = m_mainworker.GetHardware(HwID);
 		if (pHardware != nullptr && pHardware->HwdType == HTYPE_PythonPlugin)
 		{
 			_log.Debug(DEBUG_NORM, "CSQLHelper::DeleteDevices: Notifying plugin %u about deletion of device %u", HwID, Unit);
 			Plugins::CPlugin* pPlugin = (Plugins::CPlugin*)pHardware;
-			pPlugin->DeviceRemoved(Unit);
+			pPlugin->DeviceRemoved(DeviceID, Unit);
 		}
 	}
 #endif
@@ -7810,17 +8041,31 @@ void CSQLHelper::CheckSceneStatus(const uint64_t Idx)
 	}
 }
 
-void CSQLHelper::DeleteDataPoint(const char* ID, const std::string& Date)
+void CSQLHelper::DeleteDateRange(const char *ID, const std::string &fromDate, const std::string &toDate)
 {
-	std::vector<std::vector<std::string> > result;
+	std::vector<std::vector<std::string>> result;
 	result = safe_query("SELECT Type,SubType FROM DeviceStatus WHERE (ID==%q)", ID);
 	if (result.empty())
 		return;
 
+	const std::vector<std::string> historyTables{
+		"Rain",		 "Wind",	  "UV",		 "Temperature",		 "Meter",	   "MultiMeter",	  "Percentage",		 "Fan",
+		"Rain_Calendar", "Wind_Calendar", "UV_Calendar", "Temperature_Calendar", "Meter_Calendar", "MultiMeter_Calendar", "Percentage_Calendar", "Fan_Calendar"
+	};
+
+	for (const auto &historyTable : historyTables)
+	{
+		safe_query("DELETE FROM %q WHERE (DeviceRowID=='%q') AND (Date>='%q') AND (Date<='%q')", historyTable.c_str(), ID, fromDate.c_str(), toDate.c_str() );
+		_log.Debug(DEBUG_NORM, "CSQLHelper::DeleteDateRange; delete from %s with idx: %s and Date >= %s and date <= %s " , historyTable.c_str(), std::string(ID).c_str(), fromDate.c_str(), toDate.c_str() );
+	}
+}
+
+void CSQLHelper::DeleteDataPoint(const char* ID, const std::string& Date)
+{
+
+	char szDateEnd[100];
 	if (Date.find(':') != std::string::npos)
 	{
-		char szDateEnd[100];
-
 		time_t now = mytime(nullptr);
 		struct tm tLastUpdate;
 		localtime_r(&now, &tLastUpdate);
@@ -7830,28 +8075,10 @@ void CSQLHelper::DeleteDataPoint(const char* ID, const std::string& Date)
 		tLastUpdate.tm_min += 2;
 		sprintf(szDateEnd, "%04d-%02d-%02d %02d:%02d:%02d", tLastUpdate.tm_year + 1900, tLastUpdate.tm_mon + 1, tLastUpdate.tm_mday, tLastUpdate.tm_hour, tLastUpdate.tm_min, tLastUpdate.tm_sec);
 
-		//Short log
-		safe_query("DELETE FROM Rain WHERE (DeviceRowID=='%q') AND (Date>='%q') AND (Date<='%q')", ID, Date.c_str(), szDateEnd);
-		safe_query("DELETE FROM Wind WHERE (DeviceRowID=='%q') AND (Date>='%q') AND (Date<='%q')", ID, Date.c_str(), szDateEnd);
-		safe_query("DELETE FROM UV WHERE (DeviceRowID=='%q') AND (Date>='%q') AND (Date<='%q')", ID, Date.c_str(), szDateEnd);
-		safe_query("DELETE FROM Temperature WHERE (DeviceRowID=='%q') AND (Date>='%q') AND (Date<='%q')", ID, Date.c_str(), szDateEnd);
-		safe_query("DELETE FROM Meter WHERE (DeviceRowID=='%q') AND (Date>='%q') AND (Date<='%q')", ID, Date.c_str(), szDateEnd);
-		safe_query("DELETE FROM MultiMeter WHERE (DeviceRowID=='%q') AND (Date>='%q') AND (Date<='%q')", ID, Date.c_str(), szDateEnd);
-		safe_query("DELETE FROM Percentage WHERE (DeviceRowID=='%q') AND (Date>='%q') AND (Date<='%q')", ID, Date.c_str(), szDateEnd);
-		safe_query("DELETE FROM Fan WHERE (DeviceRowID=='%q') AND (Date>='%q') AND (Date<='%q')", ID, Date.c_str(), szDateEnd);
+		DeleteDateRange(ID, Date.c_str(), szDateEnd);
 	}
 	else
-	{
-		//Day/Month/Year
-		safe_query("DELETE FROM Rain_Calendar WHERE (DeviceRowID=='%q') AND (Date=='%q')", ID, Date.c_str());
-		safe_query("DELETE FROM Wind_Calendar WHERE (DeviceRowID=='%q') AND (Date=='%q')", ID, Date.c_str());
-		safe_query("DELETE FROM UV_Calendar WHERE (DeviceRowID=='%q') AND (Date=='%q')", ID, Date.c_str());
-		safe_query("DELETE FROM Temperature_Calendar WHERE (DeviceRowID=='%q') AND (Date=='%q')", ID, Date.c_str());
-		safe_query("DELETE FROM Meter_Calendar WHERE (DeviceRowID=='%q') AND (Date=='%q')", ID, Date.c_str());
-		safe_query("DELETE FROM MultiMeter_Calendar WHERE (DeviceRowID=='%q') AND (Date=='%q')", ID, Date.c_str());
-		safe_query("DELETE FROM Percentage_Calendar WHERE (DeviceRowID=='%q') AND (Date=='%q')", ID, Date.c_str());
-		safe_query("DELETE FROM Fan_Calendar WHERE (DeviceRowID=='%q') AND (Date=='%q')", ID, Date.c_str());
-	}
+		DeleteDateRange(ID, Date.c_str(), Date.c_str() );
 }
 
 void CSQLHelper::AddTaskItem(const _tTaskItem& tItem, const bool cancelItem)
@@ -8904,22 +9131,33 @@ std::string CSQLHelper::GetDeviceValue(const char * FieldName, const char *Idx)
 }
 */
 
+void CSQLHelper::SendUpdateInt(const std::string& Idx)
+{
+	auto result = safe_query("SELECT HardwareID, Name From DeviceStatus WHERE (ID == %s )", Idx.c_str());
+	if (result.empty())
+		return;
+	m_mainworker.sOnDeviceReceived(atoi(result[0][0].c_str()), atoll(Idx.c_str()), result[0][1], nullptr);
+}
+
 void CSQLHelper::UpdateDeviceValue(const char* FieldName, const std::string& Value, const std::string& Idx)
 {
 	safe_query("UPDATE DeviceStatus SET %s='%s' , LastUpdate='%s' WHERE (ID == %s )", FieldName, Value.c_str(), TimeToString(nullptr, TF_DateTime).c_str(), Idx.c_str());
+	SendUpdateInt(Idx);
 }
 void CSQLHelper::UpdateDeviceValue(const char* FieldName, const int Value, const std::string& Idx)
 {
 	safe_query("UPDATE DeviceStatus SET %s=%d , LastUpdate='%s' WHERE (ID == %s )", FieldName, Value, TimeToString(nullptr, TF_DateTime).c_str(), Idx.c_str());
+	SendUpdateInt(Idx);
 }
 void CSQLHelper::UpdateDeviceValue(const char* FieldName, const float Value, const std::string& Idx)
 {
 	safe_query("UPDATE DeviceStatus SET %s=%4.2f , LastUpdate='%s' WHERE (ID == %s )", FieldName, Value, TimeToString(nullptr, TF_DateTime).c_str(), Idx.c_str());
+	SendUpdateInt(Idx);
 }
-
 void CSQLHelper::UpdateDeviceName(const std::string& Idx, const std::string& Name)
 {
 	safe_query("UPDATE DeviceStatus SET Name='%q', LastUpdate='%s' WHERE (ID == %s )", Name.c_str(), TimeToString(nullptr, TF_DateTime).c_str(), Idx.c_str());
+	SendUpdateInt(Idx);
 }
 
 bool CSQLHelper::InsertCustomIconFromZip(const std::string& szZip, std::string& ErrorMessage)

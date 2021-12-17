@@ -42,14 +42,14 @@ class CEventSystem : public CLuaCommon, StoppableTask, CNotificationObserver
 public:
 	enum _eReason
 	{
-		REASON_DEVICE,			// 0
-		REASON_SCENEGROUP,		// 1
-		REASON_USERVARIABLE,		// 2
-		REASON_TIME,			// 3
-		REASON_SECURITY,		// 4
-		REASON_URL,			// 5
-		REASON_NOTIFICATION,		// 6
-		REASON_SHELLCOMMAND		// 7
+		REASON_DEVICE,       // 0
+		REASON_SCENEGROUP,   // 1
+		REASON_USERVARIABLE, // 2
+		REASON_TIME,         // 3
+		REASON_SECURITY,     // 4
+		REASON_URL,          // 5
+		REASON_NOTIFICATION, // 6
+		REASON_SHELLCOMMAND  // 7
 	};
 
 	struct _tDeviceStatus
@@ -100,6 +100,7 @@ public:
 		int scenesgroupType;
 		int protection;
 		std::string lastUpdate;
+		std::string description;
 		std::vector<uint64_t> memberID;
 	};
 
@@ -118,7 +119,7 @@ public:
 
 	void LoadEvents();
 	void ProcessDevice(int HardwareID, uint64_t ulDevID, unsigned char unit, unsigned char devType, unsigned char subType, unsigned char signallevel, unsigned char batterylevel, int nValue,
-			   const char *sValue, const std::string &devname);
+			   const char *sValue);
 	void UpdateBatteryLevel(uint64_t ulDevID, unsigned char batteryLevel);
 
 	void RemoveSingleState(uint64_t ulDevID, _eReason reason);

@@ -199,7 +199,7 @@ void CPanasonicNode::StopThread()
 bool CPanasonicNode::StartThread()
 {
 	StopThread();
-	m_thread = std::make_shared<std::thread>(&CPanasonicNode::Do_Work, this);
+	m_thread = std::make_shared<std::thread>([this] { Do_Work(); });
 	SetThreadName(m_thread->native_handle(), "PanasonicNode");
 	return (m_thread != nullptr);
 }
@@ -317,7 +317,7 @@ void CPanasonicNode::UpdateStatus(bool forceupdate)
 	if (m_CurrentStatus.Status() != m_PreviousStatus.Status() || forceupdate)
 	{
 		m_notifications.CheckAndHandleNotification(m_ID, m_Name, m_CurrentStatus.NotificationType(), sLogText);
-		m_mainworker.m_eventsystem.ProcessDevice(m_HwdID, m_ID, 1, int(pTypeLighting2), int(sTypeAC), 12, 100, int(m_CurrentStatus.Status()), m_CurrentStatus.StatusMessage().c_str(), m_Name);
+		m_mainworker.m_eventsystem.ProcessDevice(m_HwdID, m_ID, 1, int(pTypeLighting2), int(sTypeAC), 12, 100, int(m_CurrentStatus.Status()), m_CurrentStatus.StatusMessage().c_str());
 	}
 
 	m_PreviousStatus = m_CurrentStatus;
@@ -386,7 +386,7 @@ std::string CPanasonicNode::handleWriteAndRead(const std::string &pMessageToSend
 		return "ERROR";
 	}
 
-	boost::array<char, 512> _Buffer;
+	std::array<char, 512> _Buffer;
 	size_t request_length = std::strlen(pMessageToSend.c_str());
 	_log.Debug(DEBUG_HARDWARE, "Panasonic Plugin: (%s) Attemping write.", m_Name.c_str());
 
@@ -397,7 +397,7 @@ std::string CPanasonicNode::handleWriteAndRead(const std::string &pMessageToSend
 		size_t reply_length = boost::asio::read(socket, boost::asio::buffer(_Buffer, request_length));
 		//_log.Log(LOG_NORM, "Panasonic Plugin: (%s) Error code: (%i).'.", m_Name.c_str(),error);
 		socket.close();
-		std::string pReceived(_Buffer.begin(), reply_length);
+		std::string pReceived(_Buffer.data(), reply_length);
 		return pReceived;
 	}
 	catch (...)
@@ -868,7 +868,7 @@ bool CPanasonic::StartHardware()
 	StartHeartbeatThread();
 
 	//Start worker thread
-	m_thread = std::make_shared<std::thread>(&CPanasonic::Do_Work, this);
+	m_thread = std::make_shared<std::thread>([this] { Do_Work(); });
 	SetThreadNameInt(m_thread->native_handle());
 	_log.Log(LOG_STATUS, "Panasonic Plugin: Started");
 

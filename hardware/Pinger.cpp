@@ -19,8 +19,6 @@
 
 #include <iostream>
 
-using namespace boost::placeholders;
-
 #if BOOST_VERSION >= 107000
 #define GET_IO_SERVICE(s) ((boost::asio::io_context&)(s).get_executor().context())
 #else
@@ -75,7 +73,7 @@ private:
 
 		num_replies_ = 0;
 		timer_.expires_at(time_sent_ + boost::posix_time::milliseconds(PingTimeoutms_));
-		timer_.async_wait(boost::bind(&pinger::handle_timeout, this, boost::asio::placeholders::error));
+		timer_.async_wait([this](auto err) { handle_timeout(err); });
 	}
 
 	void handle_timeout(const boost::system::error_code& error)
@@ -93,7 +91,7 @@ private:
 				}
 				else
 				{
-					timer_.async_wait(boost::bind(&pinger::start_send, this));
+					timer_.async_wait([this](auto &) { start_send(); });
 				}
 			}
 		}
@@ -105,8 +103,7 @@ private:
 		reply_buffer_.consume(reply_buffer_.size());
 
 		// Wait for a reply. We prepare the buffer to receive up to 64KB.
-		socket_.async_receive(reply_buffer_.prepare(65536),
-			boost::bind(&pinger::handle_receive, this, _2));
+		socket_.async_receive(reply_buffer_.prepare(65536), [this](auto, auto bytes) { handle_receive(bytes); });
 	}
 
 	void handle_receive(std::size_t length)
@@ -187,7 +184,7 @@ bool CPinger::StartHardware()
 	ReloadNodes();
 
 	//Start worker thread
-	m_thread = std::make_shared<std::thread>(&CPinger::Do_Work, this);
+	m_thread = std::make_shared<std::thread>([this] { Do_Work(); });
 	SetThreadNameInt(m_thread->native_handle());
 	return true;
 }
@@ -222,9 +219,9 @@ bool CPinger::WriteToHardware(const char *pdata, const unsigned char length)
 	std::vector<std::vector<std::string> > result;
 	result = m_sql.safe_query("SELECT Name, MacAddress FROM WOLNodes WHERE (ID==%d)", nodeID);
 	if (result.empty())
-		_log.Log(LOG_ERROR, "Pinger: Unknown ID (%08X)", nodeID);
+		Log(LOG_ERROR, "Unknown ID (%08X)", nodeID);
 	else
-		_log.Log(LOG_ERROR, "Pinger: This is a read-only sensor! (Name: %s, IP: %s)", result[0][0].c_str(), result[0][1].c_str());
+		Log(LOG_ERROR, "This is a read-only sensor! (Name: %s, IP: %s)", result[0][0].c_str(), result[0][1].c_str());
 
 	return false;
 }
@@ -361,10 +358,10 @@ void CPinger::Do_Ping_Worker(const PingNode &Node)
 
 void CPinger::UpdateNodeStatus(const PingNode &Node, const bool bPingOK)
 {
-	//_log.Log(LOG_STATUS, "Pinger: %s = %s", Node.Name.c_str(), (bPingOK == true) ? "OK" : "Error");
+	//Log(LOG_STATUS, "%s = %s", Node.Name.c_str(), (bPingOK == true) ? "OK" : "Error");
 	if (!bPingOK)
 	{
-		//_log.Log(LOG_STATUS, "Pinger: Could not ping host: %s", Node.Name.c_str());
+		//Log(LOG_STATUS, "Could not ping host: %s", Node.Name.c_str());
 	}
 
 	//Find out node, and update it's status
@@ -402,7 +399,7 @@ void CPinger::DoPingHosts()
 		if (m_iThreadsRunning < 1000)
 		{
 			//m_iThreadsRunning++;
-			boost::thread t(boost::bind(&CPinger::Do_Ping_Worker, this, node));
+			boost::thread t([this, node] { Do_Ping_Worker(node); });
 			SetThreadName(t.native_handle(), "PingerWorker");
 			t.join();
 		}
@@ -414,7 +411,7 @@ void CPinger::Do_Work()
 	int mcounter = 0;
 	int scounter = 0;
 	bool bFirstTime = true;
-	_log.Log(LOG_STATUS, "Pinger: Worker started...");
+	Log(LOG_STATUS, "Worker started...");
 	while (!IsStopRequested(500))
 	{
 		mcounter++;
@@ -435,7 +432,7 @@ void CPinger::Do_Work()
 	{
 		sleep_milliseconds(150);
 	}
-	_log.Log(LOG_STATUS, "Pinger: Worker stopped...");
+	Log(LOG_STATUS, "Worker stopped...");
 }
 
 void CPinger::SetSettings(const int PollIntervalsec, const int PingTimeoutms)

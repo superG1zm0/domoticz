@@ -54,7 +54,7 @@ bool CAirconWithMe::StartHardware()
 	RequestStart();
 
 	//Start worker thread
-	m_thread = std::make_shared<std::thread>(&CAirconWithMe::Do_Work, this);
+	m_thread = std::make_shared<std::thread>([this] { Do_Work(); });
 	SetThreadNameInt(m_thread->native_handle());
 	m_bIsStarted = true;
 	sOnConnected(this);
@@ -78,7 +78,7 @@ bool CAirconWithMe::StopHardware()
 void CAirconWithMe::Do_Work()
 {
 	int countdown = mPollInterval;
-	_log.Log(LOG_STATUS, "AirconWithMe: Worker started...");
+	Log(LOG_STATUS, "Worker started...");
 	GetValues();
 	while (!IsStopRequested(1000))
 	{
@@ -93,7 +93,7 @@ void CAirconWithMe::Do_Work()
 			countdown = mPollInterval;
 		}
 	}
-	_log.Log(LOG_STATUS, "AirconWithMe: Worker stopped...");
+	Log(LOG_STATUS, "Worker stopped...");
 }
 
 

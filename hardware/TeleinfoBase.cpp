@@ -47,6 +47,10 @@ void CTeleinfoBase::InitTeleinfo()
 	m_bufferpos = 0;
 	m_teleinfo.CRCmode1 = 255;	 // Guess the CRC mode at first run
 	m_counter = 0;
+	m_teleinfo.ISOUSC = 0;
+	m_teleinfo.URMS1 = 0;
+	m_teleinfo.URMS2 = 0;
+	m_teleinfo.URMS3 = 0;
 }
 
 void CTeleinfoBase::ProcessTeleinfo(Teleinfo &teleinfo)
@@ -56,32 +60,50 @@ void CTeleinfoBase::ProcessTeleinfo(Teleinfo &teleinfo)
 
 
 // Alert level is 1 up to 80% usage, 2 between 80% and 90%, 3 between 90% and 98%, 4 above
-int CTeleinfoBase::AlertLevel(int Iinst, int Isousc, char* text)
+int CTeleinfoBase::AlertLevel(int Iinst, int Isousc, int Sinsts, int Pref, char* text)
 {
-	int level;
-	float flevel;
+	int level = 1;
+	float flevel = 0;
 
-	flevel = (float)(Iinst * 100) / Isousc;
-	level = 1;
-	sprintf(text, " < 80%% de %iA souscrits", Isousc);
+	if (Isousc > 0)
+	{
+		flevel = (float)(Iinst * 100) / Isousc;
+		sprintf(text, " < 80%% de %iA souscrits", Isousc);
+	}
+	else if (Pref > 0)
+	{
+		flevel = (float)(Sinsts * 100) / (Pref * 1000);
+		sprintf(text, " < 80%% de %iKVA souscrits", Pref);
+	}
+	else
+		sprintf(text, "Pas d'info de souscription !");
+
 	if (flevel > 80)
 	{
 		level = 2;
-		sprintf(text, ">80%% et <90%% de %iA souscrits", Isousc);
+		if(Isousc > 0)
+			sprintf(text, ">80%% et <90%% de %iA souscrits", Isousc);
+		else
+			sprintf(text, ">80%% et <90%% de %iKVA souscrits", Pref);
 	}
 	if (level > 90)
 	{
 		level = 3;
-		sprintf(text, ">90%% et <98%% de %iA souscrits", Isousc);
+		if(Isousc > 0)
+			sprintf(text, ">90%% et <98%% de %iA souscrits", Isousc);
+		else
+			sprintf(text, ">90%% et <98%% de %iKVA souscrits", Pref);
 	}
 	if (level > 98)
 	{
 		level = 3;
-		sprintf(text, ">98%% de %iA souscrits", Isousc);
+		if(Isousc > 0)
+			sprintf(text, ">98%% de %iA souscrits", Isousc);
+		else
+			sprintf(text, ">98%% de %iKVA souscrits", Pref);
 	}
 	return level;
 }
-
 
 void CTeleinfoBase::ProcessTeleinfo(const std::string &name, int rank, Teleinfo &teleinfo)
 {
@@ -95,7 +117,7 @@ void CTeleinfoBase::ProcessTeleinfo(const std::string &name, int rank, Teleinfo 
 	// We need to limit the number of Teleinfo devices per hardware because of the subID in sensors. i
 	if ((rank < 1) || (rank > 4))
 	{
-		_log.Log(LOG_ERROR, "(%s) TeleinfoBase: Invalid rank passed to function (%i), must be between 1 and 4", m_Name.c_str(), rank);
+		Log(LOG_ERROR, "Invalid rank passed to function (%i), must be between 1 and 4", rank);
 		return;
 	}
 	rank = rank - 1;		// Now it is 0 to 3
@@ -153,7 +175,7 @@ void CTeleinfoBase::ProcessTeleinfo(const std::string &name, int rank, Teleinfo 
 	// Process only if maximum time between updates (5mn) has been reached (or power consumption changed => removed)
 	// If it did not, then alerts and intensity have not changed either
 #ifdef DEBUG_TeleinfoBase
-	_log.Log(LOG_NORM, "(%s) TeleinfoBase called. Power changed: %s, last update %.f sec", m_Name.c_str(), (teleinfo.pAlertPAPP != teleinfo.PAPP) ? "true" : "false", difftime(atime, teleinfo.last));
+	Log(LOG_NORM, "TeleinfoBase called. Power changed: %s, last update %.f sec", (teleinfo.pAlertPAPP != teleinfo.PAPP) ? "true" : "false", difftime(atime, teleinfo.last));
 #endif
 	// 1.6 version: if ((teleinfo.pAlertPAPP != teleinfo.PAPP) || (difftime(atime, teleinfo.last) >= 290))
 
@@ -167,7 +189,7 @@ void CTeleinfoBase::ProcessTeleinfo(const std::string &name, int rank, Teleinfo 
 			if (teleinfo.OPTARIF == "BASE")
 			{
 #ifdef DEBUG_TeleinfoBase
-				_log.Log(LOG_STATUS, "Teleinfo Base: %i, PAPP: %i", teleinfo.BASE, teleinfo.PAPP);
+				Log(LOG_STATUS, "Teleinfo Base: %i, PAPP: %i", teleinfo.BASE, teleinfo.PAPP);
 #endif
 				teleinfo.tariff = "Tarif de Base";
 				m_p1power.powerusage1 = teleinfo.BASE;
@@ -279,13 +301,24 @@ void CTeleinfoBase::ProcessTeleinfo(const std::string &name, int rank, Teleinfo 
 			}
 			if (teleinfo.triphase == false)
 			{
-				SendCurrentSensor(m_HwdID + rank, 255, (float)teleinfo.IINST, 0, 0, name + " Courant");
-				SendPercentageSensor(32 * rank + 1, 0, 255, (teleinfo.IINST * 100) / float(teleinfo.ISOUSC), name + " Pourcentage de Charge");
+				SendCurrentSensor(m_HwdID + rank, 255, (float) teleinfo.IINST, 0, 0, name + " Courant");
+				if(teleinfo.URMS1 > 0)
+					SendVoltageSensor(m_HwdID + rank, 0, 255, (float) teleinfo.URMS1, name + " Tension");
+				if(teleinfo.ISOUSC > 0)
+					SendPercentageSensor(32 * rank + 1, 0, 255, (teleinfo.IINST * 100) / float(teleinfo.ISOUSC), name + " Pourcentage de Charge");
+				else
+					SendPercentageSensor(32 * rank + 1, 0, 255, (teleinfo.PAPP * 100) / float(teleinfo.PREF * 1000), name + " Pourcentage de Charge");
 			}
 			else
 			{
 				SendCurrentSensor(m_HwdID + rank, 255, (float)teleinfo.IINST1, (float)teleinfo.IINST2, (float)teleinfo.IINST3,
 					name + " Courant");
+                                if(teleinfo.URMS1 > 0)
+					SendVoltageSensor(m_HwdID + rank + 1, 0, 255, (float) teleinfo.URMS1, name + " Tension phase 1");
+                                if(teleinfo.URMS2 > 0)
+					SendVoltageSensor(m_HwdID + rank + 2, 0, 255, (float) teleinfo.URMS2, name + " Tension phase 2");
+                                if(teleinfo.URMS3 > 0)
+					SendVoltageSensor(m_HwdID + rank + 3, 0, 255, (float) teleinfo.URMS3, name + " Tension phase 3");
 				if (teleinfo.ISOUSC > 0)
 				{
 					SendPercentageSensor(32 * rank + 1, 0, 255, (teleinfo.IINST1 * 100) / float(teleinfo.ISOUSC),
@@ -293,6 +326,15 @@ void CTeleinfoBase::ProcessTeleinfo(const std::string &name, int rank, Teleinfo 
 					SendPercentageSensor(32 * rank + 2, 0, 255, (teleinfo.IINST2 * 100) / float(teleinfo.ISOUSC),
 						name + " Charge phase 2");
 					SendPercentageSensor(32 * rank + 3, 0, 255, (teleinfo.IINST3 * 100) / float(teleinfo.ISOUSC),
+						name + " charge phase 3");
+				}
+				else
+				{
+					SendPercentageSensor(32 * rank + 1, 0, 255, (teleinfo.SINSTS1 * 100) / float(teleinfo.PREF * 1000),
+						name + " Charge phase 1");
+					SendPercentageSensor(32 * rank + 2, 0, 255, (teleinfo.SINSTS2 * 100) / float(teleinfo.PREF * 1000),
+						name + " Charge phase 2");
+					SendPercentageSensor(32 * rank + 3, 0, 255, (teleinfo.SINSTS3 * 100) / float(teleinfo.PREF * 1000),
 						name + " charge phase 3");
 				}
 			}
@@ -306,7 +348,7 @@ void CTeleinfoBase::ProcessTeleinfo(const std::string &name, int rank, Teleinfo 
 		}
 		if (teleinfo.triphase == false)
 		{
-			alertI1 = AlertLevel(teleinfo.IINST, teleinfo.ISOUSC, szTmp);
+			alertI1 = AlertLevel(teleinfo.IINST, teleinfo.ISOUSC, teleinfo.PAPP, teleinfo.PREF, szTmp);
 			if (alertI1 != teleinfo.pAlertI1)
 			{
 				SendAlertSensor(32 * rank + 4, 255, alertI1, szTmp, name + " Alerte courant");
@@ -315,19 +357,19 @@ void CTeleinfoBase::ProcessTeleinfo(const std::string &name, int rank, Teleinfo 
 		}
 		else
 		{
-			alertI1 = AlertLevel(teleinfo.IINST1, teleinfo.ISOUSC, szTmp);
+			alertI1 = AlertLevel(teleinfo.IINST1, teleinfo.ISOUSC, teleinfo.PAPP, teleinfo.PREF, szTmp);
 			if (alertI1 != teleinfo.pAlertI1)
 			{
 				SendAlertSensor(32 * rank + 4, 255, alertI1, szTmp, name + " Alerte phase 1");
 				teleinfo.pAlertI1 = alertI1;
 			}
-			alertI2 = AlertLevel(teleinfo.IINST2, teleinfo.ISOUSC, szTmp);
+			alertI2 = AlertLevel(teleinfo.IINST2, teleinfo.ISOUSC, teleinfo.PAPP, teleinfo.PREF, szTmp);
 			if (alertI2 != teleinfo.pAlertI2)
 			{
 				SendAlertSensor(32 * rank + 5, 255, alertI2, szTmp, name + " Alerte phase 2");
 				teleinfo.pAlertI2 = alertI2;
 			}
-			alertI3 = AlertLevel(teleinfo.IINST3, teleinfo.ISOUSC, szTmp);
+			alertI3 = AlertLevel(teleinfo.IINST3, teleinfo.ISOUSC, teleinfo.PAPP, teleinfo.PREF, szTmp);
 			if (alertI3 != teleinfo.pAlertI3)
 			{
 				SendAlertSensor(32 * rank + 6, 255, alertI3, szTmp, name + " Alerte phase 3");
@@ -347,7 +389,6 @@ void CTeleinfoBase::ProcessTeleinfo(const std::string &name, int rank, Teleinfo 
 				SendAlertSensor(32 * rank + 7, 255, alertPPOT, message, " Alerte Potentiels");
 			}
 		}
-	
 }
 
 //Example of data received from power meter
@@ -391,7 +432,7 @@ bool CTeleinfoBase::isCheckSumOk(const std::string &sLine, int &isMode1)
 
 	checksum = sLine[sLine.size() - 1];
 	int i = 0;
-	for (int i = 0; i < (int)sLine.size()-2; i++)
+	for (i = 0; i < (int)sLine.size()-2; i++)
 	{
 		mode1 += sLine[i];
 	}
@@ -404,7 +445,7 @@ bool CTeleinfoBase::isCheckSumOk(const std::string &sLine, int &isMode1)
 		if (isMode1 != (int)true)// This will evaluate to false when isMode still equals to 255 at second run
 		{
 			isMode1 = true;
-			_log.Log(LOG_STATUS, "(%s) Teleinfo CRC check mode set to 1", m_Name.c_str());
+			Log(LOG_STATUS, "CRC check mode set to 1");
 		}
 	}
 	else if (mode2 == checksum)
@@ -413,19 +454,55 @@ bool CTeleinfoBase::isCheckSumOk(const std::string &sLine, int &isMode1)
 		if (isMode1 != false)	 // if this is first run, will still be at 255
 		{
 			isMode1 = false;
-			_log.Log(LOG_STATUS, "(%s) TeleinfoCRC check mode set to 2", m_Name.c_str());
+			Log(LOG_STATUS, "CRC check mode set to 2");
 		}
 	}
 	else						 // Don't send an error on the first run as the line is probably truncated, wait for mode to be initialised
 		if (isMode1 != 255)
-			_log.Log(LOG_ERROR, "(%s) CRC check failed on Teleinfo line '%s' using both modes 1 and 2. Line skipped.", m_Name.c_str(), sLine.c_str());
+			Log(LOG_ERROR, "CRC check failed on Teleinfo line '%s' using both modes 1 and 2. Line skipped.", sLine.c_str());
 
 	if (line_ok)
 	{
-		_log.Debug(DEBUG_HARDWARE, "(%s) CRC check passed on Teleinfo line '%s'. Line processed", m_Name.c_str(), sLine.c_str());
+		Debug(DEBUG_HARDWARE, "CRC check passed on Teleinfo line '%s'. Line processed", sLine.c_str());
 	}
 
 	return line_ok;
+}
+
+// trim from start (in place)
+static inline void ltrim(std::string &s) {
+    s.erase(s.begin(), std::find_if(s.begin(), s.end(),
+            std::not1(std::ptr_fun<int, int>(std::isspace))));
+}
+
+// trim from end (in place)
+static inline void rtrim(std::string &s) {
+    s.erase(std::find_if(s.rbegin(), s.rend(),
+            std::not1(std::ptr_fun<int, int>(std::isspace))).base(), s.end());
+}
+
+// trim from both ends (in place)
+static inline void trim(std::string &s) {
+    ltrim(s);
+    rtrim(s);
+}
+
+// trim from start (copying)
+static inline std::string ltrim_copy(std::string s) {
+    ltrim(s);
+    return s;
+}
+
+// trim from end (copying)
+static inline std::string rtrim_copy(std::string s) {
+    rtrim(s);
+    return s;
+}
+
+// trim from both ends (copying)
+static inline std::string trim_copy(std::string s) {
+    trim(s);
+    return s;
 }
 
 void CTeleinfoBase::MatchLine()
@@ -435,20 +512,25 @@ void CTeleinfoBase::MatchLine()
 	unsigned long value;
 	std::string sline(m_buffer);
 
-	_log.Debug(DEBUG_HARDWARE, "Frame : #%s#", sline.c_str());
+	Debug(DEBUG_HARDWARE, "Frame : #%s#", sline.c_str());
 
 	// Is the line we got worth analysing any further?
 	if ((sline.size() < 4) || (sline[0] == 0x0a))
 	{
-		_log.Debug(DEBUG_HARDWARE, "Frame #%s# ignored, too short or irrelevant", sline.c_str());
+		Debug(DEBUG_HARDWARE, "Frame #%s# ignored, too short or irrelevant", sline.c_str());
 		return;
 	}
 
 	// Extract the elements, return if not enough and line is invalid
-	StringSplit(sline, " ", splitresults);
+	StringSplit(sline, "	", splitresults); // standard mode is using TAB (0x09) as delimiter
+	if (splitresults.size() < 3)
+	{ // Decoding using standard mode failed, fall back using historic mode
+		splitresults.clear();
+		StringSplit(sline, " ", splitresults); // historic mode is using space (0x20) as delimiter
+	}
 	if (splitresults.size() < 3)
 	{
-		_log.Log(LOG_ERROR, "Frame #%s# passed the checksum test but failed analysis", sline.c_str());
+		Log(LOG_ERROR, "Frame #%s# passed the checksum test but failed analysis", sline.c_str());
 		return;
 	}
 
@@ -456,6 +538,7 @@ void CTeleinfoBase::MatchLine()
 	vString = splitresults[1];
 	value = atoi(splitresults[1].c_str());
 
+	// Historic mode
 	if (label == "ADCO") m_teleinfo.ADCO = vString;
 	else if (label == "OPTARIF") m_teleinfo.OPTARIF = vString;
 	else if (label == "ISOUSC") m_teleinfo.ISOUSC = value;
@@ -484,11 +567,50 @@ void CTeleinfoBase::MatchLine()
 	else if (label == "PPOT")  m_teleinfo.PPOT = value;
 	else if (label == "MOTDETAT") m_counter++;
 
+	// Standard mode
+	else if (label == "EAST") m_teleinfo.BASE = value;
+	else if (label == "EASF01") m_teleinfo.HCHC = value;
+	else if (label == "EASF02") m_teleinfo.HCHP = value;
+	else if (label == "PREF") m_teleinfo.PREF = value;
+	else if (label == "IRMS1") m_teleinfo.IINST = value;
+	else if (label == "IRMS2")
+	{ // triphase
+		m_teleinfo.IINST1 = m_teleinfo.IINST;
+		m_teleinfo.IINST = 0;
+		m_teleinfo.IINST2 = value;
+	}
+	else if (label == "IRMS3") m_teleinfo.IINST3 = value;
+	else if (label == "NGTF") m_teleinfo.OPTARIF = trim_copy(vString);
+	else if (label == "SINSTS")
+	{
+		m_teleinfo.PAPP = value;
+		m_teleinfo.withPAPP = true;
+	}
+	else if (label == "SINSTS1") m_teleinfo.SINSTS1 = value;
+	else if (label == "SINSTS2") m_teleinfo.SINSTS2 = value;
+	else if (label == "SINSTS3") m_teleinfo.SINSTS3 = value;
+	else if (label == "URMS1") m_teleinfo.URMS1 = value;
+	else if (label == "URMS2") m_teleinfo.URMS2 = value;
+	else if (label == "URMS3") m_teleinfo.URMS3 = value;
+	else if (label == "NTARF")
+	{
+		if(value == 1 && m_teleinfo.OPTARIF == "BASE")
+			m_teleinfo.PTEC = "TH..";
+		else if(value == 1)
+			m_teleinfo.PTEC = "HC..";
+		else if(value == 2)
+		m_teleinfo.PTEC == "HP..";
+	}
+	else if (label == "ADSC")
+	{
+		m_counter++;
+	}
+
 	// at 1200 baud we have roughly one frame per 1,5 second, check more frequently for alerts.
 	if (m_counter >= m_iBaudRate / 600)
 	{
 		m_counter = 0;
-		_log.Debug(DEBUG_HARDWARE, "(%s) Teleinfo frame complete, PAPP: %i, PTEC: %s", m_Name.c_str(), m_teleinfo.PAPP, m_teleinfo.PTEC.c_str());
+		Debug(DEBUG_HARDWARE, "frame complete, PAPP: %i, PTEC: %s, OPTARIF: %s", m_teleinfo.PAPP, m_teleinfo.PTEC.c_str(), m_teleinfo.OPTARIF.c_str());
 		ProcessTeleinfo(m_teleinfo);
 		mytime(&m_LastHeartbeat);// keep heartbeat happy
 	}
@@ -511,8 +633,7 @@ void CTeleinfoBase::ParseTeleinfoData(const char *pData, int Len)
 		if (c == 0x0a || m_bufferpos == sizeof(m_buffer) - 1)
 		{
 			// discard newline, close string, parse line and clear it.
-			if (m_bufferpos > 0)
-				m_buffer[m_bufferpos] = 0;
+			m_buffer[m_bufferpos] = 0;
 
 			//We process the line only if the checksum is ok and user did not request to bypass CRC verification
 			if ((m_bDisableCRC) || isCheckSumOk(std::string(m_buffer), m_teleinfo.CRCmode1))

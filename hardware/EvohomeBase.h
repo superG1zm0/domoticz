@@ -390,6 +390,8 @@ class CEvohomeDateTime : public CEvohomeDataType
 	template <class T> static void DecodeISODate(T &out, const char *str)
 	{
 		unsigned int y, m, d, h, n;
+		if(!str[0])
+			return;
 		sscanf(str, "%04u-%02u-%02uT%02u:%02u:", &y, &m, &d, &h, &n);
 		out.year = static_cast<uint16_t>(y);
 		out.month = static_cast<uint8_t>(m);
@@ -740,8 +742,9 @@ class CEvohomeBase : public CDomoticzHardwareBase
 		cmEvoAutoWithEco, //  0x01
 		cmEvoAway,	  //  0x02
 		cmEvoDayOff,	  //  0x03
-		cmEvoCustom,	  //  0x04
-		cmEvoHeatingOff,  //  0x05
+		cmEvoDayOffWithEco,      //  0x04
+ 		cmEvoCustom,	  //  0x05
+		cmEvoHeatingOff,  //  0x06
 	};
 
 	enum controllerModeType
@@ -763,6 +766,8 @@ class CEvohomeBase : public CDomoticzHardwareBase
 
 	unsigned int GetControllerID();
 	unsigned int GetGatewayID();
+	unsigned int GetOpenThermBridgeID();
+
 	uint8_t GetZoneCount();
 	uint8_t GetControllerMode();
 	std::string GetControllerName();
@@ -783,6 +788,7 @@ class CEvohomeBase : public CDomoticzHardwareBase
       private:
 	void SetControllerID(unsigned int nID);
 	void SetGatewayID(unsigned int nID);
+	void SetOpenThermBridgeID(unsigned int nID);
 
 	bool SetMaxZoneCount(uint8_t nZoneCount);
 	bool SetZoneCount(uint8_t nZoneCount);
@@ -794,8 +800,8 @@ class CEvohomeBase : public CDomoticzHardwareBase
 	void InitZoneNames();
 	void SetZoneName(uint8_t nZone, const std::string &szName);
 
-	static const std::array<const char *, 7> m_szControllerMode;
-	static const std::array<const char *, 7> m_szWebAPIMode;
+	static const std::array<const char *, 8> m_szControllerMode;
+	static const std::array<const char *, 8> m_szWebAPIMode;
 	static const std::array<const char *, 7> m_szZoneMode;
 
 	std::vector<zoneModeType> m_ZoneOverrideLocal;
@@ -817,6 +823,9 @@ class CEvohomeBase : public CDomoticzHardwareBase
 
 	unsigned int m_nMyID; // gateway ID
 	std::mutex m_mtxGatewayID;
+
+	unsigned int m_nOtbID; // OpenTherm Bridge ID
+	std::mutex m_mtxOpenThermBridgeID;
 
 	unsigned int m_nBindID;	     // device ID of bound device
 	unsigned char m_nBindIDType; // what type of device to bind

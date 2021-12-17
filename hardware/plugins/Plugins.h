@@ -4,6 +4,7 @@
 #include "../hardwaretypes.h"
 #include "../../notifications/NotificationBase.h"
 #include "PythonObjects.h"
+#include "PythonObjectEx.h"
 
 #ifndef byte
 typedef unsigned char byte;
@@ -11,11 +12,15 @@ typedef unsigned char byte;
 
 namespace Plugins {
 
+	// forward declarations
 	class CDirectiveBase;
 	class CEventBase;
 	class CPluginMessageBase;
 	class CPluginNotifier;
 	class CPluginTransport;
+	class PyNewRef;
+	class PyBorrowedRef;
+	struct module_state;
 
 	enum PluginDebugMask
 	{
@@ -36,8 +41,8 @@ namespace Plugins {
 	private:
 		int				m_iPollInterval;
 
-		void*			m_PyInterpreter;
-		void*			m_PyModule;
+		PyThreadState*	m_PyInterpreter;
+		PyObject*		m_PyModule;			// plugin module itself
 
 		std::string		m_Version;
 		std::string		m_Author;
@@ -46,13 +51,15 @@ namespace Plugins {
 
 		std::mutex	m_TransportsMutex;
 		std::vector<CPluginTransport*>	m_Transports;
+		std::mutex m_QueueMutex; // controls access to the message queue
+		std::deque<CPluginMessageBase *> m_MessageQueue;
 
 		std::shared_ptr<std::thread> m_thread;
 
-		bool StartHardware() override;
+		bool m_bIsStarting;
+		bool m_bIsStopped;
+
 		void Do_Work();
-		bool StopHardware() override;
-		void ClearMessageQueue();
 
 		void LogPythonException();
 		void LogPythonException(const std::string &);
@@ -61,11 +68,16 @@ namespace Plugins {
 	  CPlugin(int HwdID, const std::string &Name, const std::string &PluginKey);
 	  ~CPlugin() override;
 
+	  static module_state *FindModule();
+	  static CPlugin*	FindPlugin();
+
+	  bool StartHardware() override;
+	  bool StopHardware() override;
+
+	  void LogTraceback(PyTracebackObject *pTraceback);
+
 	  int PollInterval(int Interval = -1);
-	  void *PythonModule()
-	  {
-		  return m_PyModule;
-	  };
+	  PyObject*	PythonModule() { return m_PyModule; };
 	  void Notifier(const std::string &Notifier = "");
 	  void AddConnection(CPluginTransport *);
 	  void RemoveConnection(CPluginTransport *);
@@ -80,7 +92,7 @@ namespace Plugins {
 	  void ConnectionWrite(CDirectiveBase *);
 	  void ConnectionDisconnect(CDirectiveBase *);
 	  void DisconnectEvent(CEventBase *);
-	  void Callback(const std::string &sHandler, void *pParams);
+	  void Callback(PyObject* pTarget, const std::string &sHandler, PyObject *pParams);
 	  void RestoreThread();
 	  void ReleaseThread();
 	  void Stop();
@@ -88,26 +100,28 @@ namespace Plugins {
 	  void WriteDebugBuffer(const std::vector<byte> &Buffer, bool Incoming);
 
 	  bool WriteToHardware(const char *pdata, unsigned char length) override;
-	  void SendCommand(int Unit, const std::string &command, int level, _tColor color);
-	  void SendCommand(int Unit, const std::string &command, float level);
+	  void SendCommand(const std::string &DeviceID, int Unit, const std::string &command, int level, _tColor color);
+	  void SendCommand(const std::string &DeviceID, int Unit, const std::string &command, float level);
 
-	  void onDeviceAdded(int Unit);
-	  void onDeviceModified(int Unit);
-	  void onDeviceRemoved(int Unit);
+	  void onDeviceAdded(const std::string DeviceID, int Unit);
+	  void onDeviceModified(const std::string DeviceID, int Unit);
+	  void onDeviceRemoved(const std::string DeviceID, int Unit);
 	  void MessagePlugin(CPluginMessageBase *pMessage);
-	  void DeviceAdded(int Unit);
-	  void DeviceModified(int Unit);
-	  void DeviceRemoved(int Unit);
+	  void DeviceAdded(const std::string DeviceID, int Unit);
+	  void DeviceModified(const std::string DeviceID, int Unit);
+	  void DeviceRemoved(const std::string DeviceID, int Unit);
 
-	  bool HasNodeFailed(int Unit);
+	  bool HasNodeFailed(const std::string DeviceID, int Unit);
+
+	  PyBorrowedRef FindDevice(const std::string &Key);
+	  PyBorrowedRef	FindUnitInDevice(const std::string &deviceKey, const int unitKey);
 
 	  std::string m_PluginKey;
-	  void *m_DeviceDict;
-	  void *m_ImageDict;
-	  void *m_SettingsDict;
+	  PyDictObject*	m_DeviceDict;
+	  PyDictObject* m_ImageDict;
+	  PyDictObject* m_SettingsDict;
 	  std::string m_HomeFolder;
 	  PluginDebugMask m_bDebug;
-	  bool m_bIsStarting;
 	  bool m_bTracing;
 	};
 
@@ -127,11 +141,137 @@ namespace Plugins {
 	};
 
 	//
-//	Holds per plugin state details, specifically plugin object, read using PyModule_GetState(PyObject *module)
-//
-	struct module_state {
-		CPlugin* pPlugin;
-		PyObject* error;
+	//	Controls lifetime of Python Objects to ensure they always release
+	//
+	class PyBorrowedRef
+	{
+	      protected:
+		PyObject *m_pObject;
+
+	      public:
+		PyBorrowedRef()
+			: m_pObject(NULL){};
+		PyBorrowedRef(PyObject *pObject)
+		{
+			m_pObject = pObject;
+		};
+		operator PyObject *() const
+		{
+			return m_pObject;
+		}
+		operator PyTypeObject *() const
+		{
+			return (PyTypeObject *)m_pObject;
+		}
+		operator PyBytesObject *() const
+		{
+			return (PyBytesObject *)m_pObject;
+		}
+		operator bool() const
+		{
+			return (m_pObject != NULL);
+		}
+		operator CDevice *() const
+		{
+			return (CDevice *)m_pObject;
+		}
+		operator CDeviceEx *() const
+		{
+			return (CDeviceEx *)m_pObject;
+		}
+		operator CUnitEx *() const
+		{
+			return (CUnitEx *)m_pObject;
+		}
+		operator std::string() const
+		{
+			if (!m_pObject)
+				return std::string("");
+			PyObject* pString = PyObject_Str(m_pObject);
+			if (!pString)
+				return std::string("");
+			std::string sUTF8 = PyUnicode_AsUTF8(pString);
+			Py_DECREF(pString);
+			return sUTF8;
+		}
+		PyObject **operator&()
+		{
+			return &m_pObject;
+		};
+		PyObject *operator->()
+		{
+			return m_pObject;
+		};
+		void operator=(PyObject *pObject)
+		{
+			m_pObject = pObject;
+		}
+		void operator++()
+		{
+			if (m_pObject)
+			{
+				Py_INCREF(m_pObject);
+			}
+		}
+		void operator--()
+		{
+			if (m_pObject)
+			{
+				Py_DECREF(m_pObject);
+			}
+		}
+		~PyBorrowedRef()
+		{
+			m_pObject = NULL;
+		};
 	};
 
+	class PyNewRef : public PyBorrowedRef
+	{
+	      public:
+		PyNewRef()
+			: PyBorrowedRef(){};
+		PyNewRef(PyObject *pObject)
+			: PyBorrowedRef(pObject){};
+		void operator=(PyObject *pObject)
+		{
+			if (m_pObject)
+			{
+				Py_XDECREF(m_pObject);
+			}
+			m_pObject = pObject;
+		}
+		void operator+=(PyObject *pObject)
+		{
+			if (m_pObject)
+			{
+				Py_XDECREF(m_pObject);
+			}
+			m_pObject = pObject;
+			if (m_pObject)
+			{
+				Py_INCREF(m_pObject);
+			}
+		}
+		~PyNewRef()
+		{
+			if (m_pObject)
+			{
+				// Py_CLEAR(m_pObject);  // Need to look into using clear more broadly
+				Py_XDECREF(m_pObject);
+			}
+		};
+	};
+
+	//
+	//	Holds per plugin state details, specifically plugin object, read using PyModule_GetState(PyObject *module)
+	//
+	struct module_state
+	{
+		CPlugin *pPlugin;
+		PyBorrowedRef lastCallback; // last callback called
+		PyObject *error;
+		PyTypeObject *pDeviceClass;
+		PyTypeObject *pUnitClass;
+	};
 } // namespace Plugins

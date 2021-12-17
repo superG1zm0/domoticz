@@ -27,6 +27,36 @@ define(['app'], function (app) {
 			RefreshHardwareTable();
 		}
 		
+		function validateInteger (val, defVal, minVal, maxVal, fldName)  {
+			var testno = parseInt(val);
+			var msg = "";
+			var betmsg = "!";
+			if(!fldName)
+				fldName = "number";
+			if(typeof minVal == 'number') {
+				if(typeof maxVal == 'number') {
+					betmsg = " between " + minVal + " and " + maxVal + "!";
+				}
+				else {
+					betmsg = " above " + minVal + "!";
+				}
+			}
+			else if(typeof maxVal == 'number') {
+				betmsg = " below " + maxVal + "!";
+			}
+			if (isNaN(testno)) {
+				msg = 'Please enter a valid ' + fldName + betmsg;
+			}
+			else if(((typeof minVal == 'number')?(testno < minVal):false) || ((typeof maxVal == 'number')?(testno > maxVal):false)) {
+				msg = 'Please enter a ' + fldName + betmsg;
+			}
+			if (msg != "") {
+				ShowNotify($.t(msg), 2500, true);
+				return false;
+			}
+			return true;
+		}
+		
 		UpdateHardware = function (idx, Mode1, Mode2, Mode3, Mode4, Mode5, Mode6) {
 			var name = $("#hardwarecontent #hardwareparamstable #hardwarename").val();
 			if (name == "") {
@@ -200,7 +230,7 @@ define(['app'], function (app) {
 					}
 				});
 			}
-			else if (text.indexOf("USB") >= 0 || text.indexOf("Teleinfo EDF") >= 0) {
+			else if (text.indexOf("USB") >= 0 || text == "Teleinfo EDF") {
 				var Mode1 = "0";
 				var password = "";
 				var serialport = $("#hardwarecontent #divserial #comboserialport option:selected").text();
@@ -663,9 +693,9 @@ define(['app'], function (app) {
 					extra = encodeURIComponent(extra);
 				}
 				else if ((text.indexOf("MQTT") >= 0)) {
-					extra = $("#hardwarecontent #divmqtt #filename").val().trim();
 					var mqtttopicin = $("#hardwarecontent #divmqtt #mqtttopicin").val().trim();
 					var mqtttopicout = $("#hardwarecontent #divmqtt #mqtttopicout").val().trim();
+					var mqttdiscoveryprefix = $("#hardwarecontent #divmqtt #mqttdiscoveryprefix").val().trim();
 					if (mqtttopicin.indexOf("#") >= 0) {
 						ShowNotify($.t('Publish Prefix cannot contain a "#" symbol!'), 2500, true);
 						return;
@@ -674,13 +704,22 @@ define(['app'], function (app) {
 						ShowNotify($.t('Subscribe Prefix cannot contain a "#" symbol!'), 2500, true);
 						return;
 					}
-					if ((mqtttopicin!="")||(mqtttopicout!="")) {
-						extra += ";" + mqtttopicin + ";" + mqtttopicout;
+					if (mqttdiscoveryprefix.indexOf("#") >= 0) {
+						ShowNotify($.t('Auto Discovery Prefix cannot contain a "#" symbol!'), 2500, true);
+						return;
 					}
+					extra = $("#hardwarecontent #divmqtt #filename").val().trim();
+					extra += ";" + mqtttopicin + ";" + mqtttopicout + ";" + mqttdiscoveryprefix;
+					extra = encodeURIComponent(extra);
 					
 					Mode1 = $("#hardwarecontent #divmqtt #combotopicselect").val();
 					Mode2 = $("#hardwarecontent #divmqtt #combotlsversion").val();
 					Mode3 = $("#hardwarecontent #divmqtt #combopreventloop").val();
+				}
+				else if ((text.indexOf("Daikin") >= 0)) {
+					Mode1 = $("#hardwarecontent #divdaikin #updatefrequencydaikin").val();
+					if (!validateInteger(Mode1, 300, 10, 3600, "Poll Interval"))
+						return;
 				}
 				if (text.indexOf("Eco Devices") >= 0) {
 					Mode1 = $("#hardwarecontent #divmodelecodevices #combomodelecodevices option:selected").val();
@@ -854,7 +893,11 @@ define(['app'], function (app) {
 				});
 			}
 			else if(text.indexOf("Meteorologisk") >= 0){
-				var location = $("#hardwarecontent #divlocation #location").val();
+				var location = $("#hardwarecontent #divmeteorologisk #location").val();
+				if (location == "") {
+					ShowNotify($.t('Please enter an Location specifying Latitude, Longitude (or 0 to use Domoticz home location)!'), 2500, true);
+					return;
+				}
 				$.ajax({
 					url: "json.htm?type=command&param=updatehardware&htype=" + hardwaretype +
 					"&loglevel=" + logLevel +
@@ -887,6 +930,8 @@ define(['app'], function (app) {
 				}
 				var adddayforecast = $("#hardwarecontent #divopenweathermap #adddayforecast").prop("checked") ? 1 : 0;
 				var addhourforecast = $("#hardwarecontent #divopenweathermap #addhourforecast").prop("checked") ? 1 : 0;
+				var adddescdev = $("#hardwarecontent #divopenweathermap #adddescdev").prop("checked") ? 1 : 0;
+				var useowmforecast = $("#hardwarecontent #divopenweathermap #useowmforecast").prop("checked") ? 1 : 0;
 				$.ajax({
 					url: "json.htm?type=command&param=updatehardware&htype=" + hardwaretype +
 					"&loglevel=" + logLevel +
@@ -896,7 +941,7 @@ define(['app'], function (app) {
 					"&enabled=" + bEnabled +
 					"&idx=" + idx +
 					"&datatimeout=" + datatimeout +
-					"&Mode1=" + adddayforecast + "&Mode2=" + addhourforecast + "&Mode3=" + Mode3 + "&Mode4=" + Mode4 + "&Mode5=" + Mode5 + "&Mode6=" + Mode6,
+					"&Mode1=" + adddayforecast + "&Mode2=" + addhourforecast + "&Mode3=" + adddescdev + "&Mode4=" + useowmforecast + "&Mode5=" + Mode5 + "&Mode6=" + Mode6,
 					async: false,
 					dataType: 'json',
 					success: function (data) {
@@ -1046,6 +1091,7 @@ define(['app'], function (app) {
 				var username = $("#hardwarecontent #divlogin #username").val();
 				var password = encodeURIComponent($("#hardwarecontent #divlogin #password").val());
 				var vinnr = $("#hardwarecontent #divtesla #vinnr").val();
+				var apikey = $("#hardwarecontent #divtesla #apikey").val();
 				var activeinterval = parseInt($("#hardwarecontent #divtesla #activeinterval").val());
 				if (activeinterval < 1) {
 					activeinterval = 1;
@@ -1055,6 +1101,10 @@ define(['app'], function (app) {
 					defaultinterval = 20;
 				}
 				var allowwakeup = $("#hardwarecontent #divtesla #comboallowwakeup").val();
+				var extra = vinnr;
+				if (apikey != "") {
+					extra = extra + "|" + btoa(apikey);
+				}
 				$.ajax({
 					url: "json.htm?type=command&param=updatehardware&htype=" + hardwaretype +
 					"&loglevel=" + logLevel +
@@ -1064,7 +1114,7 @@ define(['app'], function (app) {
 					"&enabled=" + bEnabled +
 					"&idx=" + idx +
 					"&datatimeout=" + datatimeout +
-					"&extra=" + vinnr +
+					"&extra=" + extra +
 					"&Mode1=" + defaultinterval +
 					"&Mode2=" + activeinterval + 
 					"&Mode3=" + allowwakeup,
@@ -1596,6 +1646,14 @@ define(['app'], function (app) {
 					}
 					password = decryptionkey;
 				}
+				else if (text.indexOf("Teleinfo EDF") >= 0) {
+					Mode2 = $("#hardwarecontent #divcrcp1 #disablecrcp1").prop("checked") ? 0 : 1;
+					var ratelimitp1 = $("#hardwarecontent #hardwareparamsratelimitp1 #ratelimitp1").val();
+					if (ratelimitp1 == "") {
+						ratelimitp1 = "60";
+					}
+					Mode3 = ratelimitp1;
+				}
 				$.ajax({
 					url: "json.htm?type=command&param=addhardware&htype=" + hardwaretype +
 					"&loglevel=" + logLevel +
@@ -1739,7 +1797,7 @@ define(['app'], function (app) {
 					}
 				});
 			}
-			else if (text.indexOf("USB") >= 0 || text.indexOf("Teleinfo EDF") >= 0) {
+			else if (text.indexOf("USB") >= 0 || text == "Teleinfo EDF") {
 				var Mode1 = "0";
 				var extra = "";
 				var password = "";
@@ -2120,6 +2178,11 @@ define(['app'], function (app) {
 				var Mode1 = "";
 				var Mode2 = "";
 				var Mode3 = "";
+				if (text.indexOf("Daikin") >= 0) {
+					Mode1 = $("#hardwarecontent #divdaikin #updatefrequencydaikin").val();
+					if (!validateInteger(Mode1, 300, 10, 3600, "Poll Interval"))
+						return;
+				}
 				if (text.indexOf("MySensors Gateway with MQTT") >= 0) {
 					extra = $("#hardwarecontent #divmysensorsmqtt #filename").val();
 					Mode1 = $("#hardwarecontent #divmysensorsmqtt #combotopicselect").val();
@@ -2156,9 +2219,9 @@ define(['app'], function (app) {
 					extra = encodeURIComponent(extra);
 				}
 				else if (text.indexOf("MQTT") >= 0) {
-					extra = encodeURIComponent($("#hardwarecontent #divmqtt #filename").val());
 					var mqtttopicin = $("#hardwarecontent #divmqtt #mqtttopicin").val().trim();
 					var mqtttopicout = $("#hardwarecontent #divmqtt #mqtttopicout").val().trim();
+					var mqttdiscoveryprefix = $("#hardwarecontent #divmqtt #mqttdiscoveryprefix").val().trim();
 					if (mqtttopicin.indexOf("#") >= 0) {
 						ShowNotify($.t('Publish Prefix cannot contain a "#" symbol!'), 2500, true);
 						return;
@@ -2167,14 +2230,19 @@ define(['app'], function (app) {
 						ShowNotify($.t('Subscribe Prefix cannot contain a "#" symbol!'), 2500, true);
 						return;
 					}
-					if ((mqtttopicin!="")||(mqtttopicout!="")) {
-						extra += ";" + mqtttopicin + ";" + mqtttopicout;
+					if (mqttdiscoveryprefix.indexOf("#") >= 0) {
+						ShowNotify($.t('Auto Discovery Prefix cannot contain a "#" symbol!'), 2500, true);
+						return;
 					}
+					extra = $("#hardwarecontent #divmqtt #filename").val();
+					extra += ";" + mqtttopicin + ";" + mqtttopicout + ";" + mqttdiscoveryprefix;
+					extra = encodeURIComponent(extra);
+
 					Mode1 = $("#hardwarecontent #divmqtt #combotopicselect").val();
 					Mode2 = $("#hardwarecontent #divmqtt #combotlsversion").val();
 					Mode3 = $("#hardwarecontent #divmqtt #combopreventloop").val();
 				}
-				if (text.indexOf("Eco Devices") >= 0) {
+				else if (text.indexOf("Eco Devices") >= 0) {
 					Mode1 = $("#hardwarecontent #divmodelecodevices #combomodelecodevices option:selected").val();
 					var ratelimitp1 = $("#hardwarecontent #hardwareparamsratelimitp1 #ratelimitp1").val();
 					if (ratelimitp1 == "") {
@@ -2233,7 +2301,11 @@ define(['app'], function (app) {
 				});
 			}
 			else if(text.indexOf("Meteorologisk") >= 0){
-				var location = $("#hardwarecontent #divlocation #location").val();
+				var location = $("#hardwarecontent #divmeteorologisk #location").val();
+				if (location == "") {
+					ShowNotify($.t('Please enter an Location specifying Latitude, Longitude (or 0 to use Domoticz home location)!'), 2500, true);
+					return;
+				}
 				$.ajax({
 					url: "json.htm?type=command&param=addhardware&htype=" + hardwaretype +
 					"&loglevel=" + logLevel +
@@ -2250,35 +2322,38 @@ define(['app'], function (app) {
 				});
 			}
 			else if (text.indexOf("Open Weather Map") >= 0) {
-			var apikey = $("#hardwarecontent #divopenweathermap #apikey").val();
-			if (apikey == "") {
-				ShowNotify($.t('Please enter an API Key!'), 2500, true);
-				return;
-			}
-			var location = $("#hardwarecontent #divopenweathermap #location").val();
-			if (location == "") {
-				ShowNotify($.t('Please enter an Location (or 0 to use Domoticz own location)!'), 2500, true);
-				return;
-			}
-			var adddayforecast = $("#hardwarecontent #divopenweathermap #adddayforecast").prop("checked") ? 1 : 0;
-			var addhourforecast = $("#hardwarecontent #divopenweathermap #addhourforecast").prop("checked") ? 1 : 0;
-			$.ajax({
-				url: "json.htm?type=command&param=addhardware&htype=" + hardwaretype + 
-				"&loglevel=" + logLevel +
-				"&username=" + encodeURIComponent(apikey) + "&password=" + encodeURIComponent(location) + 
-				"&name=" + encodeURIComponent(name) + "&enabled=" + bEnabled + "&datatimeout=" + datatimeout +
-				"&Mode1=" + adddayforecast + "&Mode2=" + addhourforecast,
-				async: false,
-				dataType: 'json',
-				success: function (data) {
-					RefreshHardwareTable();
-				},
-				error: function () {
-					ShowNotify($.t('Problem adding hardware!'), 2500, true);
+				var apikey = $("#hardwarecontent #divopenweathermap #apikey").val();
+				if (apikey == "") {
+					ShowNotify($.t('Please enter an API Key!'), 2500, true);
+					return;
 				}
-			});
-		}
-		else if (text.indexOf("Buienradar") >= 0) {
+				var location = $("#hardwarecontent #divopenweathermap #location").val();
+				if (location == "") {
+					ShowNotify($.t('Please enter an Location (or 0 to use Domoticz own location)!'), 2500, true);
+					return;
+				}
+				var adddayforecast = $("#hardwarecontent #divopenweathermap #adddayforecast").prop("checked") ? 1 : 0;
+				var addhourforecast = $("#hardwarecontent #divopenweathermap #addhourforecast").prop("checked") ? 1 : 0;
+				var adddescdev = $("#hardwarecontent #divopenweathermap #adddescdev").prop("checked") ? 1 : 0;
+				var useowmforecast = $("#hardwarecontent #divopenweathermap #useowmforecast").prop("checked") ? 1 : 0;
+				$.ajax({
+					url: "json.htm?type=command&param=addhardware&htype=" + hardwaretype + 
+					"&loglevel=" + logLevel +
+					"&username=" + encodeURIComponent(apikey) + "&password=" + encodeURIComponent(location) + 
+					"&name=" + encodeURIComponent(name) + "&enabled=" + bEnabled + "&datatimeout=" + datatimeout +
+					"&Mode1=" + adddayforecast + "&Mode2=" + addhourforecast +
+					"&Mode3=" + adddescdev + "&Mode4=" + useowmforecast,
+					async: false,
+					dataType: 'json',
+					success: function (data) {
+						RefreshHardwareTable();
+					},
+					error: function () {
+						ShowNotify($.t('Problem adding hardware!'), 2500, true);
+					}
+				});
+			}
+			else if (text.indexOf("Buienradar") >= 0) {
 				var timeframe = $("#hardwarecontent #divbuienradar #timeframe").val();
 				if (timeframe == 0) {
 					timeframe = 30;
@@ -2511,6 +2586,7 @@ define(['app'], function (app) {
 				var username = $("#hardwarecontent #divlogin #username").val();
 				var password = encodeURIComponent($("#hardwarecontent #divlogin #password").val());
 				var vinnr = encodeURIComponent($("#hardwarecontent #divtesla #vinnr").val());
+				var apikey = $("#hardwarecontent #divtesla #apikey").val();
 				var activeinterval = parseInt($("#hardwarecontent #divtesla #activeinterval").val());
 				if (activeinterval < 1) {
 					activeinterval = 1;
@@ -2520,6 +2596,10 @@ define(['app'], function (app) {
 					defaultinterval = 20;
 				}
 				var allowwakeup = $("#hardwarecontent #divtesla #comboallowwakeup").val();
+				var extra = vinnr;
+				if (apikey != "") {
+					extra = extra + "|" + btoa(apikey);
+				}
 				$.ajax({
 					url: "json.htm?type=command&param=addhardware&htype=" + hardwaretype +
 					"&loglevel=" + logLevel +
@@ -2528,7 +2608,7 @@ define(['app'], function (app) {
 					"&name=" + encodeURIComponent(name) +
 					"&enabled=" + bEnabled +
 					"&datatimeout=" + datatimeout +
-					"&extra=" + vinnr +
+					"&extra=" + extra +
 					"&Mode1=" + defaultinterval +
 					"&Mode2=" + activeinterval +
 					"&Mode3=" + allowwakeup,
@@ -3998,7 +4078,7 @@ define(['app'], function (app) {
 							$("#hardwarecontent #hardwareparamssysfsgpio #sysfsautoconfigure").prop("checked", data["Mode1"] == 1);
 							$("#hardwarecontent #hardwareparamssysfsgpio #sysfsdebounce").val(data["Mode2"]);
 						}
-						else if (data["Type"].indexOf("USB") >= 0 || data["Type"].indexOf("Teleinfo EDF") >= 0) {
+						else if (data["Type"].indexOf("USB") >= 0 || data["Type"] == "Teleinfo EDF") {
 							$("#hardwarecontent #hardwareparamsserial #comboserialport").val(data["IntPort"]);
 							if (data["Type"].indexOf("Evohome") >= 0) {
 								$("#hardwarecontent #divevohome #combobaudrateevohome").val(data["Mode1"]);
@@ -4047,6 +4127,10 @@ define(['app'], function (app) {
 								$("#hardwarecontent #divcrcp1 #disablecrcp1").prop("checked", data["Mode2"] == 0);
 								$("#hardwarecontent #hardwareparamsratelimitp1 #ratelimitp1").val(data["Mode3"]);
 								$("#hardwarecontent #divkeyp1p1 #decryptionkey").val(data["Password"]);
+							}
+							if (data["Type"].indexOf("Teleinfo EDF") >= 0 ) {
+								$("#hardwarecontent #divcrcp1 #disablecrcp1").prop("checked", data["Mode2"] == 0);
+								$("#hardwarecontent #hardwareparamsratelimitp1 #ratelimitp1").val(data["Mode3"]);
 							}
 							if (data["Type"].indexOf("Eco Devices") >= 0) {
 								$("#hardwarecontent #divmodelecodevices #combomodelecodevices").val(data["Mode1"]);
@@ -4125,13 +4209,15 @@ define(['app'], function (app) {
 							$("#hardwarecontent #hardwareparamsunderground #location").val(data["Password"]);
 						}
 						else if ((data["Type"].indexOf("Meteorologisk") >= 0)) {
-							$("#hardwarecontent #hardwareparamslocation #location").val(data["Password"]);
+							$("#hardwarecontent #hardwareparamsmeteorologisk #location").val(data["Password"]);
 						}
 						else if (data["Type"].indexOf("Open Weather Map") >= 0) {
 							$("#hardwarecontent #hardwareparamsopenweathermap #apikey").val(data["Username"]);
 							$("#hardwarecontent #hardwareparamsopenweathermap #location").val(data["Password"]);
 							$("#hardwarecontent #hardwareparamsopenweathermap #adddayforecast").prop("checked", data["Mode1"] == 1);
 							$("#hardwarecontent #hardwareparamsopenweathermap #addhourforecast").prop("checked", data["Mode2"] == 1);
+							$("#hardwarecontent #hardwareparamsopenweathermap #adddescdev").prop("checked", data["Mode3"] == 1);
+							$("#hardwarecontent #hardwareparamsopenweathermap #useowmforecast").prop("checked", data["Mode4"] == 1);
 						}
 						else if (data["Type"].indexOf("Buienradar") >= 0) {
 							var timeframe = parseInt(data["Mode1"]);
@@ -4186,7 +4272,14 @@ define(['app'], function (app) {
 							$("#hardwarecontent #hardwareparamsenecotoon #agreement").val(data["Mode1"]);
 						}
 						else if (data["Type"].indexOf("Tesla") >= 0) {
-							$("#hardwarecontent #hardwareparamstesla #vinnr").val(data["Extra"]);
+							var tmp = data["Extra"];
+							var tmparray = tmp.split("|");
+							if (tmparray.length >= 1) {
+								$("#hardwarecontent #hardwareparamstesla #vinnr").val(tmparray[0]);
+								if (tmparray.length >= 2) {
+									$("#hardwarecontent #hardwareparamstesla #apikey").val(atob(tmparray[1]));
+								}
+							}
 							$("#hardwarecontent #hardwareparamstesla #defaultinterval").val(data["Mode1"]);
 							$("#hardwarecontent #hardwareparamstesla #activeinterval").val(data["Mode2"]);
 							$("#hardwarecontent #hardwareparamstesla #comboallowwakeup").val(data["Mode3"]);
@@ -4277,6 +4370,7 @@ define(['app'], function (app) {
 							$("#hardwarecontent #hardwareparamsmqtt #filename").val("");
 							$("#hardwarecontent #divmqtt #mqtttopicin").val("");
 							$("#hardwarecontent #divmqtt #mqtttopicout").val("");
+							$("#hardwarecontent #divmqtt #mqttdiscoveryprefix").val("");
 
 							// Break out any possible topic prefix pieces.
 							var CAfilenameParts = data["Extra"].split(";");
@@ -4286,6 +4380,8 @@ define(['app'], function (app) {
 								$("#hardwarecontent #hardwareparamsmqtt #mqtttopicin").val(CAfilenameParts[1]);
 							if (CAfilenameParts.length > 2)
 								$("#hardwarecontent #hardwareparamsmqtt #mqtttopicout").val(CAfilenameParts[2]);
+							if (CAfilenameParts.length > 3)
+								$("#hardwarecontent #hardwareparamsmqtt #mqttdiscoveryprefix").val(CAfilenameParts[3]);
 						
 							$("#hardwarecontent #hardwareparamsmqtt #combotopicselect").val(data["Mode1"]);
 							$("#hardwarecontent #hardwareparamsmqtt #combotlsversion").val(data["Mode2"]);
@@ -4353,6 +4449,13 @@ define(['app'], function (app) {
 							$("#hardwarecontent #divevohomeweb #comboevolocation").val(Location >>> 12);
 							$("#hardwarecontent #divevohomeweb #comboevogateway").val((Location >>> 8) & 15);
 							$("#hardwarecontent #divevohomeweb #comboevotcs").val((Location >>> 4) & 15);
+						}
+						if (data["Type"].indexOf("Daikin") >= 0) {
+							var Pollseconds = parseInt(data["Mode1"]);
+							if ( Pollseconds < 10 ) {
+								Pollseconds = 300;
+							}
+							$("#hardwarecontent #divdaikin #updatefrequencydaikin").val(Pollseconds);
 						}
 					}
 				}
@@ -4499,10 +4602,12 @@ define(['app'], function (app) {
 			$("#hardwarecontent #divunderground").hide();
 			$("#hardwarecontent #divopenweathermap").hide();
 			$("#hardwarecontent #divbuienradar").hide();
+			$("#hardwarecontent #divmeteorologisk").hide();
 			$("#hardwarecontent #divserial").hide();
 			$("#hardwarecontent #divremote").hide();
 			$("#hardwarecontent #divlogin").hide();
 			$("#hardwarecontent #divhttppoller").hide();
+			$("#hardwarecontent #divrfplayerdoc").hide();
 
 			// Handle plugins 1st because all the text indexof logic below will have unpredictable impacts for plugins
 			// Python Plugins have the plugin name, not the hardware type id, as the value
@@ -4537,7 +4642,7 @@ define(['app'], function (app) {
 			else if (text.indexOf("sysfs GPIO") >= 0) {
 				$("#hardwarecontent #divsysfsgpio").show();
 			}
-			else if (text.indexOf("USB") >= 0 || text.indexOf("Teleinfo EDF") >= 0) {
+			else if (text.indexOf("USB") >= 0 || text == "Teleinfo EDF") {
 				if (text.indexOf("Evohome") >= 0) {
 					$("#hardwarecontent #divevohome").show();
 				}
@@ -4584,6 +4689,10 @@ define(['app'], function (app) {
 						$("#hardwarecontent #divratelimitp1").show();
 						$("#hardwarecontent #divcrcp1").show();
 						$("#hardwarecontent #divkeyp1p1").show();
+					}
+					if (text.indexOf("Teleinfo EDF") >= 0) {
+						$("#hardwarecontent #divratelimitp1").show();
+						$("#hardwarecontent #divcrcp1").show();
 					}
 					if (text.indexOf("Evohome") >= 0) {
 						$("#hardwarecontent #divevohometcp").show();
@@ -4706,7 +4815,7 @@ define(['app'], function (app) {
 				$("#hardwarecontent #divunderground").show();
 			}
 			else if(text.indexOf("Meteorologisk") >= 0){
-				$("#hardwarecontent #divlocation").show();
+				$("#hardwarecontent #divmeteorologisk").show();
 			}
 			else if(text.indexOf("Open Weather Map") >= 0){
 				$("#hardwarecontent #divopenweathermap").show();
@@ -4771,6 +4880,12 @@ define(['app'], function (app) {
 			) {
 				$("#hardwarecontent #divlogin").show();
 			}
+			if (text.indexOf("Daikin") >= 0) {
+				$("#hardwarecontent #divdaikin").show();
+			}
+			else {
+				$("#hardwarecontent #divdaikin").hide();
+			}
 			if (text.indexOf("Rtl433") >= 0) {
 				$("#hardwarecontent #divrtl433").show();
 			} else {
@@ -4790,6 +4905,9 @@ define(['app'], function (app) {
 			    else {
 			        $("#hardwarecontent #divmqtt #mqtt_publish").show();
 			    }
+			}
+			if (text.indexOf("RFPlayer") >= 0) {
+				$("#hardwarecontent #divrfplayerdoc").show();
 			}
 		}
 
@@ -4935,6 +5053,9 @@ define(['app'], function (app) {
 									PluginParams += '<tr><td></td><td>' + item.description + '</td></tr>';
 								}
 								$.each(item.parameters, function (i, param) {
+									if (typeof (param.description) != "undefined") {
+										PluginParams += '<tr><td></td><td>' + param.description + '</td></tr>';
+									}
 									PluginParams += '<tr><td align="right" style="width:110px"><label id="lbl' + param.field + '"><span data-i18n="' + param.label + '">' + param.label + '</span>:</label></td>';
 									if (typeof (param.options) == "undefined") {
 										if (param.field == "SerialPort") {

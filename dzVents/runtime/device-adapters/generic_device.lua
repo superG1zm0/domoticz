@@ -63,14 +63,8 @@ return {
 		local _states = adapterManager.states
 
 		if (data.lastUpdate == '' or data.lastUpdate == nil) then
-			local level
-			if (data.name ~= nil and data.name ~= '') then
-				level = utils.LOG_ERROR
-			else
-				level = utils.LOG_DEBUG
-			end
 			if data.baseType ~= 'camera' and data.baseType ~= 'hardware' then
-				utils.log('Discarding device. No last update info found: ' .. domoticz.utils._.str(data), level)
+				utils.log('Discarding device. No last update info found: ' .. utils.toStr(data), utils.LOG_DEBUG)
 			end
 			return nil
 		end
@@ -91,13 +85,6 @@ return {
 		device['lastUpdate'] = Time(data.lastUpdate)
 
 		if (data.baseType == 'device') then
-
-			local bat
-			local sig
-
-			if (data.batteryLevel <= 100) then bat = data.batteryLevel end
-			if (data.signalLevel <= 100) then sig = data.signalLevel end
-
 			device['deviceType'] = data.deviceType
 			device['hardwareName'] = data.data.hardwareName
 			device['hardwareType'] = data.data.hardwareType
@@ -108,8 +95,8 @@ return {
 			device['switchType'] = data.switchType
 			device['switchTypeValue'] = data.switchTypeValue
 			device['timedOut'] = data.timedOut
-			device['batteryLevel'] = bat
-			device['signalLevel'] = sig
+			device['batteryLevel'] = data.batteryLevel <= 100 and data.batteryLevel >= 0 and data.batteryLevel or nil
+			device['signalLevel'] = data.signalLevel <= 12 and data.signalLevel >= 0 and data.signalLevel or nil
 			device['deviceSubType'] = data.subType
 			device['rawData'] = data.rawData
 			device['nValue'] = data.data._nValue

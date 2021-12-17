@@ -179,7 +179,7 @@ bool CEvohomeWeb::StartHardware()
 	if (m_username.empty() || m_password.empty())
 		return false;
 	Init();
-	m_thread = std::make_shared<std::thread>(&CEvohomeWeb::Do_Work, this);
+	m_thread = std::make_shared<std::thread>([this] { Do_Work(); });
 	SetThreadNameInt(m_thread->native_handle());
 	if (!m_thread)
 		return false;
@@ -445,6 +445,22 @@ bool CEvohomeWeb::SetSetpoint(const char *pdata)
 	if ((pEvo->mode) == 2) // temporary override
 	{
 		std::string szISODate(CEvohomeDateTime::GetISODate(pEvo));
+		if((!pEvo->year) && !pEvo->hrs)
+		{
+			std::string szsetpoint_tmp;
+			if ((!hz->schedule.isNull()) || get_zone_schedule(zoneId))
+			{
+				szISODate = local_to_utc(get_next_switchpoint_ex(hz->schedule, szsetpoint_tmp));
+				if (!szISODate.empty())
+				{
+					pEvo->year = (uint16_t)(atoi(szISODate.substr(0, 4).c_str()));
+					pEvo->month = (uint8_t)(atoi(szISODate.substr(5, 2).c_str()));
+					pEvo->day = (uint8_t)(atoi(szISODate.substr(8, 2).c_str()));
+					pEvo->hrs = (uint8_t)(atoi(szISODate.substr(11, 2).c_str()));
+					pEvo->mins = (uint8_t)(atoi(szISODate.substr(14, 2).c_str()));
+				}
+			}
+		}
 		return set_temperature(zoneId, s_setpoint.str(), szISODate);
 	}
 	return false;
@@ -740,7 +756,7 @@ uint8_t CEvohomeWeb::GetUnit_by_ID(unsigned long evoID)
 		{
 			int unit = atoi(result[row][0].c_str());
 			m_zones[unit] = atol(result[row][1].c_str());
-			if (m_zones[unit] == (unsigned long)(unit + 92000)) // mark manually added, unlinked zone as free
+			if (m_zones[unit] == uint64_t(unit) + 92000) // mark manually added, unlinked zone as free
 				m_zones[unit] = 0;
 		}
 		m_zones[0] = 1;

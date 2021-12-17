@@ -1,4 +1,3 @@
-local _ = require('lodash')
 local evenItemIdentifier = require('eventItemIdentifier')
 
 local eventMapping = {
@@ -7,12 +6,14 @@ local eventMapping = {
 	backupDoneHour = 'hourlyBackupFinished',
 	backupDoneMonth = 'monthlyBackupFinished',
 	start = 'start',
-	stop = 'stop'
+	stop = 'stop',
+	resetAllEvents = 'resetAllEvents',
+	resetAllDeviceStatus = 'resetAllDeviceStatus',
 }
 
 local function SystemEvent(domoticz, eventData)
 
-	-- eventData: {["message"]="", ["status"]="info", ["baseType"]="system", ["type"]="domoticzStart"}
+	-- eventData: {["message"]="", ["status"]="info", ["type"]="domoticzStart"}
 
 	local self = {}
 
@@ -30,7 +31,7 @@ local function SystemEvent(domoticz, eventData)
 	evenItemIdentifier.setType(
 		self,
 		'isSystemEvent',
-		domoticz.BASE_TYPE_SYSTEM_EVENT,
+		domoticz.BASETYPE_SYSTEM_EVENT,
 		eventMapping[eventData.type]
 	)
 

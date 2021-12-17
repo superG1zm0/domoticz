@@ -23,7 +23,7 @@ SET(DOMO_MIN_LIBBOOST_VERSION 1.66.0)
 option(USE_BUILTIN_JSONCPP "Use builtin JSonCPP" YES)
 option(USE_BUILTIN_MINIZIP "Use builtin Minizip" YES)
 option(USE_BUILTIN_MQTT "Use builtin Mosquitto library" YES)
-option(USE_BUILTIN_SQLITE "Use builtin sqlite library" YES)
+option(USE_BUILTIN_SQLITE "Use builtin sqlite library" NO)
 
 # Optional dependencies
 option(USE_PYTHON "Use Python for Plugins and Event-Scripts" YES)
@@ -213,12 +213,15 @@ hardware/eHouseTCP.cpp
 hardware/eHouse/EhouseEvents.cpp
 hardware/eHouse/EhouseTcpClient.cpp
 hardware/eHouse/EhouseUdpListener.cpp
+hardware/EnOceanEEP.cpp
 hardware/EnOceanESP2.cpp
 hardware/EnOceanESP3.cpp
+hardware/EnOceanRawValue.cpp
 hardware/EnphaseAPI.cpp
 hardware/Ec3kMeterTCP.cpp
 hardware/eVehicles/TeslaApi.cpp
 hardware/eVehicles/MercApi.cpp
+hardware/eVehicles/TestcarApi.cpp
 hardware/eVehicles/eVehicle.cpp
 hardware/EvohomeBase.cpp
 hardware/EvohomeRadio.cpp
@@ -309,6 +312,7 @@ hardware/TE923.cpp
 hardware/TE923Tool.cpp
 hardware/TeleinfoBase.cpp
 hardware/TeleinfoSerial.cpp
+hardware/TeleinfoTCP.cpp
 hardware/Tellstick.cpp
 hardware/TellstickFactory.cpp
 hardware/Thermosmart.cpp
@@ -321,6 +325,7 @@ hardware/Winddelen.cpp
 hardware/WOL.cpp
 hardware/Wunderground.cpp
 hardware/XiaomiGateway.cpp
+hardware/XiaomiDeviceSupport.cpp
 hardware/Yeelight.cpp
 hardware/YouLess.cpp
 hardware/ZiBlueBase.cpp
@@ -333,6 +338,7 @@ hardware/plugins/PluginManager.cpp
 hardware/plugins/PluginProtocols.cpp
 hardware/plugins/PluginTransports.cpp
 hardware/plugins/PythonObjects.cpp
+hardware/plugins/PythonObjectEx.cpp
 notifications/NotificationBase.cpp
 notifications/NotificationBrowser.cpp
 notifications/NotificationEmail.cpp
@@ -412,15 +418,14 @@ ELSE(LUA_LIBRARIES AND LUA_INCLUDE_DIRS)
 ENDIF(LUA_LIBRARIES AND LUA_INCLUDE_DIRS)
 
 IF(USE_PYTHON)
-  find_package(PythonInterp 3.4)
-  find_package(PythonLibs 3.4)
-  IF(PYTHONLIBS_FOUND)
-    MESSAGE(STATUS "Python3 includes found at: ${PYTHON_INCLUDE_PATH}")
-    INCLUDE_DIRECTORIES(${PYTHON_INCLUDE_PATH})
+  find_package(Python3 3.4 COMPONENTS Development)
+  IF(Python3_Development_FOUND)
+    MESSAGE(STATUS "Python3 version ${Python3_VERSION} includes found at: ${Python3_INCLUDE_DIRS}")
+    INCLUDE_DIRECTORIES(${Python3_INCLUDE_DIRS})
     add_definitions(-DENABLE_PYTHON)
-  ELSE(PYTHONLIBS_FOUND)
+  ELSE(Python3_Development_FOUND)
     MESSAGE(FATAL_ERROR "Python3 not found on your system, use USE_PYTHON=NO or sudo apt-get install python3-dev)")
-  ENDIF(PYTHONLIBS_FOUND)
+  ENDIF(Python3_Development_FOUND)
 ENDIF(USE_PYTHON)
 
 CHECK_INCLUDE_FILE (execinfo.h HAVE_EXECINFO_H)
@@ -718,7 +723,7 @@ ELSE()
   MESSAGE(STATUS "==== OpenZWave not found, support disabled!")
 ENDIF(OpenZWave)
 
-IF(EXISTS /sys/class/gpio)
+IF(EXISTS /sys/class/gpio OR FORCE_WITH_GPIO)
   message(STATUS "GPIO is available")
   add_definitions(-DWITH_GPIO)
 ELSE()

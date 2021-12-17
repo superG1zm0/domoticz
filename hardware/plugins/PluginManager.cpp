@@ -57,33 +57,29 @@ extern std::string szPyVersion;
 namespace Plugins {
 
 	PyMODINIT_FUNC PyInit_Domoticz(void);
+	PyMODINIT_FUNC PyInit_DomoticzEx(void);
 
 	// Need forward decleration
 	// PyMODINIT_FUNC PyInit_DomoticzEvents(void);
 
 	std::mutex PluginMutex;	// controls accessto the message queue and m_pPlugins map
-	std::queue<CPluginMessageBase*>	PluginMessageQueue;
 	boost::asio::io_service ios;
 
 	std::map<int, CDomoticzHardwareBase*>	CPluginSystem::m_pPlugins;
 	std::map<std::string, std::string>		CPluginSystem::m_PluginXml;
+	void *CPluginSystem::m_InitialPythonThread;
 
 	CPluginSystem::CPluginSystem()
 	{
 		m_bEnabled = false;
 		m_bAllPluginsStarted = false;
 		m_iPollInterval = 10;
-		m_InitialPythonThread = nullptr;
 	}
 
 	bool CPluginSystem::StartPluginSystem()
 	{
 		// Flush the message queue (should already be empty)
 		std::lock_guard<std::mutex> l(PluginMutex);
-		while (!PluginMessageQueue.empty())
-		{
-			PluginMessageQueue.pop();
-		}
 
 		m_pPlugins.clear();
 
@@ -96,7 +92,7 @@ namespace Plugins {
 		// Pull UI elements from plugins and create manifest map in memory
 		BuildManifest();
 
-		m_thread = std::make_shared<std::thread>(&CPluginSystem::Do_Work, this);
+		m_thread = std::make_shared<std::thread>([this] { Do_Work(); });
 		SetThreadName(m_thread->native_handle(), "PluginMgr");
 
 		szPyVersion = Py_GetVersion();
@@ -124,6 +120,12 @@ namespace Plugins {
 				return false;
 			}
 
+			if (PyImport_AppendInittab("DomoticzEx", PyInit_DomoticzEx) == -1)
+			{
+				_log.Log(LOG_ERROR, "PluginSystem: Failed to append 'DomoticzEx' to the existing table of built-in modules.");
+				return false;
+			}
+
 			if (PyImport_AppendInittab("DomoticzEvents", PyInit_DomoticzEvents) == -1)
 			{
 				_log.Log(LOG_ERROR, "PluginSystem: Failed to append 'DomoticzEvents' to the existing table of built-in modules.");
@@ -141,7 +143,7 @@ namespace Plugins {
 			m_InitialPythonThread = PyEval_SaveThread();
 
 			m_bEnabled = true;
-			_log.Log(LOG_STATUS, "PluginSystem: Started, Python version '%s'.", sVersion.c_str());
+			_log.Log(LOG_STATUS, "PluginSystem: Started, Python version '%s', %d plugin definitions loaded.", sVersion.c_str(), (int)m_PluginXml.size());
 		}
 		catch (...) {
 			_log.Log(LOG_ERROR, "PluginSystem: Failed to start, Python version '%s', Program '%S', Path '%S'.", szPyVersion.c_str(), Py_GetProgramFullPath(), Py_GetPath());
@@ -160,19 +162,6 @@ namespace Plugins {
 			RequestStop();
 			m_thread->join();
 			m_thread.reset();
-		}
-
-		// Hardware should already be stopped so just flush the queue (should already be empty)
-		std::lock_guard<std::mutex> l(PluginMutex);
-		while (!PluginMessageQueue.empty())
-		{
-			CPluginMessageBase* Message = PluginMessageQueue.front();
-			const CPlugin* pPlugin = Message->Plugin();
-			if (pPlugin)
-			{
-				_log.Log(LOG_NORM, "(" + pPlugin->m_Name + ") ' flushing " + std::string(Message->Name()) + "' queue entry");
-			}
-			PluginMessageQueue.pop();
 		}
 
 		m_pPlugins.clear();
@@ -197,7 +186,7 @@ namespace Plugins {
 			if (plugin.second)
 			{
 				auto pPlugin = reinterpret_cast<CPlugin *>(plugin.second);
-				pPlugin->MessagePlugin(new SettingsDirective(pPlugin));
+				pPlugin->MessagePlugin(new SettingsDirective());
 			}
 			else
 			{
@@ -303,12 +292,15 @@ namespace Plugins {
 
 	void CPluginSystem::Do_Work()
 	{
-		while (!m_bAllPluginsStarted)
+		while (!m_bAllPluginsStarted && !IsStopRequested(500))
 		{
-			sleep_milliseconds(500);
+			continue;
 		}
 
-		_log.Log(LOG_STATUS, "PluginSystem: Entering work loop.");
+		if (m_pPlugins.size())
+		{
+			_log.Log(LOG_STATUS, "PluginSystem: %d plugins started.", (int)m_pPlugins.size());
+		}
 
 		// Create initial IO Service thread
 		ios.restart();
@@ -321,78 +313,26 @@ namespace Plugins {
 			SetThreadName(bt->native_handle(), "Plugin_ASIO");
 		}
 
-		while (!IsStopRequested(50))
+		while (!IsStopRequested(500))
 		{
-			time_t Now = time(nullptr);
-			bool	bProcessed = true;
-			while (bProcessed)
-			{
-				CPluginMessageBase *Message = nullptr;
-				bProcessed = false;
-
-				// Cycle once through the queue looking for the 1st message that is ready to process
-				{
-					std::lock_guard<std::mutex> l(PluginMutex);
-					for (size_t i = 0; i < PluginMessageQueue.size(); i++)
-					{
-						CPluginMessageBase* FrontMessage = PluginMessageQueue.front();
-						PluginMessageQueue.pop();
-						if (!FrontMessage->m_Delay || FrontMessage->m_When <= Now)
-						{
-							// Message is ready now or was already ready (this is the case for almost all messages)
-							Message = FrontMessage;
-							break;
-						}
-						// Message is for sometime in the future so requeue it (this happens when the 'Delay' parameter is used on a Send)
-						PluginMessageQueue.push(FrontMessage);
-					}
-				}
-
-				if (Message)
-				{
-					bProcessed = true;
-					try
-					{
-						const CPlugin* pPlugin = Message->Plugin();
-						if (pPlugin && (pPlugin->m_bDebug & PDM_QUEUE))
-						{
-							_log.Log(LOG_NORM, "(" + pPlugin->m_Name + ") Processing '" + std::string(Message->Name()) + "' message");
-						}
-						Message->Process();
-					}
-					catch(...)
-					{
-						_log.Log(LOG_ERROR, "PluginSystem: Exception processing message.");
-					}
-				}
-				// Free the memory for the message
-				if (Message)
-				{
-					std::lock_guard<std::mutex> l(PythonMutex); // Take mutex to guard access to CPluginTransport::m_pConnection inside the message
-					CPlugin* pPlugin = (CPlugin*)Message->Plugin();
-					pPlugin->RestoreThread();
-					delete Message;
-					pPlugin->ReleaseThread();
-				}
-			}
 		}
 
 		// Shutdown IO workers
 		ios.stop();
 		BoostThreads.join_all();
 
-		_log.Log(LOG_STATUS, "PluginSystem: Exiting work loop.");
+		_log.Log(LOG_STATUS, "PluginSystem: Exited work loop.");
 	}
 
 	void CPluginSystem::DeviceModified(uint64_t DevIdx)
 	{
 		std::vector<std::vector<std::string> > result;
-		result = m_sql.safe_query("SELECT HardwareID, Unit FROM DeviceStatus WHERE (ID == %" PRIu64 ")", DevIdx);
+		result = m_sql.safe_query("SELECT HardwareID, DeviceID, Unit FROM DeviceStatus WHERE (ID == %" PRIu64 ")", DevIdx);
 		if (result.empty())
 			return;
 		std::vector<std::string> sd = result[0];
 		std::string sHwdID = sd[0];
-		std::string Unit = sd[1];
+		std::string Unit = sd[2];
 		CDomoticzHardwareBase *pHardware = m_mainworker.GetHardwareByIDType(sHwdID, HTYPE_PythonPlugin);
 		if (pHardware == nullptr)
 			return;
@@ -400,7 +340,7 @@ namespace Plugins {
 		//GizMoCuz: Why does this work with UNIT ? Why not use the device idx which is always unique ?
 		_log.Debug(DEBUG_NORM, "CPluginSystem::DeviceModified: Notifying plugin %u about modification of device %u", atoi(sHwdID.c_str()), atoi(Unit.c_str()));
 		Plugins::CPlugin *pPlugin = (Plugins::CPlugin*)pHardware;
-		pPlugin->DeviceModified(atoi(Unit.c_str()));
+		pPlugin->DeviceModified(sd[1], atoi(Unit.c_str()));
 	}
 } // namespace Plugins
 
@@ -489,6 +429,15 @@ namespace http {
 											iOptions++;
 										}
 									}
+
+									TiXmlNode* pXmlDescNode = pXmlEle->FirstChild("description");
+									if (pXmlDescNode)
+									{
+										TiXmlPrinter Xmlprinter;
+										Xmlprinter.SetStreamPrinting();
+										pXmlDescNode->Accept(&Xmlprinter);
+										root[iPluginCnt]["parameters"][iParams]["description"] = Xmlprinter.CStr();
+									}
 									iParams++;
 								}
 							}
@@ -564,17 +513,17 @@ namespace http {
 			if (sIdx.empty())
 				return;
 			std::vector<std::vector<std::string> > result;
-			result = m_sql.safe_query("SELECT HardwareID, Unit FROM DeviceStatus WHERE (ID=='%q') ", sIdx.c_str());
+			result = m_sql.safe_query("SELECT HardwareID, DeviceID, Unit FROM DeviceStatus WHERE (ID=='%q') ", sIdx.c_str());
 			if (result.size() == 1)
 			{
 				int HwID = atoi(result[0][0].c_str());
-				int Unit = atoi(result[0][1].c_str());
+				int Unit = atoi(result[0][2].c_str());
 				Plugins::CPluginSystem Plugins;
 				std::map<int, CDomoticzHardwareBase*>*	PluginHwd = Plugins.GetHardware();
 				Plugins::CPlugin*	pPlugin = (Plugins::CPlugin*)(*PluginHwd)[HwID];
 				if (pPlugin)
 				{
-					pPlugin->SendCommand(Unit, sAction, 0, NoColor);
+					pPlugin->SendCommand(result[0][1], Unit, sAction, 0, NoColor);
 				}
 			}
 		}

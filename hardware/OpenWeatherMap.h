@@ -9,7 +9,7 @@
 class COpenWeatherMap : public CDomoticzHardwareBase
 {
       public:
-	COpenWeatherMap(int ID, const std::string &APIKey, const std::string &Location, int adddayforecast, int addhourforecast);
+	COpenWeatherMap(int ID, const std::string &APIKey, const std::string &Location, int adddayforecast, int addhourforecast, int adddescdev, int owmforecastscreen);
 	~COpenWeatherMap() override = default;
 	bool WriteToHardware(const char *pdata, unsigned char length) override;
 	std::string GetForecastURL();
@@ -26,6 +26,8 @@ class COpenWeatherMap : public CDomoticzHardwareBase
 	bool ProcessForecast(Json::Value &forecast, const std::string &period, const std::string &periodname, uint8_t count, int startNodeID);
 
 	bool ResolveLocation(const std::string &Location, double &latitude, double &longitude, uint32_t &cityid, bool IsCityName = true);
+	bool ResolveLonLat(const std::string& Location, double& latitude, double& longitude, uint32_t& cityid);
+	bool ResolveOWMCityLonLat(const std::string sURL, double& latitude, double& longitude, uint32_t& cityid);
 
 	std::string m_APIKey;
 	std::string m_Location;
@@ -34,6 +36,8 @@ class COpenWeatherMap : public CDomoticzHardwareBase
 	bool m_itIsRaining = false;
 	bool m_add_dayforecast = false;
 	bool m_add_hourforecast = false;
+	bool m_add_descriptiondevices = false;
+	bool m_use_owminforecastscreen = false;
 	double m_Lat = 0;
 	double m_Lon = 0;
 	uint32_t m_CityID = 0;

@@ -14,7 +14,7 @@
 namespace http {
 	namespace server {
 
-		CWebsocketHandler::CWebsocketHandler(cWebem *pWebem, boost::function<void(const std::string &packet_data)> _MyWrite)
+		CWebsocketHandler::CWebsocketHandler(cWebem *pWebem, std::function<void(const std::string &packet_data)> _MyWrite)
 			: MyWrite(std::move(_MyWrite))
 			, myWebem(pWebem)
 			, m_Push(this)
@@ -101,7 +101,7 @@ namespace http {
 			m_Push.Start();
 
 			//Start worker thread
-			m_thread = std::make_shared<std::thread>(&CWebsocketHandler::Do_Work, this);
+			m_thread = std::make_shared<std::thread>([this] { Do_Work(); });
 		}
 
 		void CWebsocketHandler::Stop()
