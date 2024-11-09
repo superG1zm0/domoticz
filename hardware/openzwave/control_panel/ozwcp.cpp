@@ -188,9 +188,9 @@ void MyNode::addValue(OpenZWave::ValueID id)
  */
 void MyNode::removeValue(OpenZWave::ValueID id)
 {
-	values.erase(std::remove_if(values.begin(), values.end(), [=](MyValue *value) { return value->id == id; }), values.end());
+	values.erase(std::remove_if(values.begin(), values.end(), [id](MyValue *value) { return value->id == id; }), values.end());
 
-	bool found = std::any_of(values.begin(), values.end(), [=](MyValue *value) { return value->id == id; });
+	bool found = std::any_of(values.begin(), values.end(), [id](MyValue *value) { return value->id == id; });
 	if (!found)
 	{
 #ifdef OZW_WRITE_LOG
@@ -293,7 +293,7 @@ void MyNode::updateGroup(uint8 node, uint8 grp, char* glist)
 #ifdef OZW_WRITE_LOG
 	Log::Write(LogLevel_Info, "updateGroup: node %d group %d\n", node, grp);
 #endif
-	auto it = std::find_if(groups.begin(), groups.end(), [=](MyGroup *group) { return group->groupid == grp; });
+	auto it = std::find_if(groups.begin(), groups.end(), [grp](MyGroup *group) { return group->groupid == grp; });
 	if (it == groups.end()) {
 #ifdef OZW_WRITE_LOG
 		Log::Write(LogLevel_Error, "updateGroup: node %d group %d not found\n", node, grp);
@@ -360,8 +360,8 @@ void MyNode::updatePoll(char* ilist, char* plist)
 #endif
 			return;
 		}
-		std::vector<char*>::iterator it = ids.begin();
-		std::vector<bool>::iterator pit = polls.begin();
+		auto it = ids.begin();
+		auto pit = polls.begin();
 		while (it != ids.end() && pit != polls.end()) {
 			v = lookup(*it);
 			if (v == nullptr)
@@ -469,7 +469,7 @@ MyValue *MyNode::lookup(const std::string &data)
  */
 int32 MyNode::getValueCount()
 {
-	return values.size();
+	return static_cast<int32>(values.size());
 }
 
 /*
@@ -968,7 +968,7 @@ void COpenZWaveControlPanel::web_get_groups(int n, TiXmlElement* ep)
 
 /*
 * web_get_values
-* Retreive class values based on genres
+* Retrieve class values based on genres
 */
 void COpenZWaveControlPanel::web_get_values(int i, TiXmlElement* ep)
 {
@@ -999,7 +999,7 @@ void COpenZWaveControlPanel::web_get_values(int i, TiXmlElement* ep)
 			if (id.GetType() == OpenZWave::ValueID::ValueType_List) {
 				std::vector<std::string> strs;
 				OpenZWave::Manager::Get()->GetValueListItems(id, &strs);
-				valueElement->SetAttribute("count", strs.size());
+				valueElement->SetAttribute("count", static_cast<int>(strs.size()));
 				std::string str;
 				OpenZWave::Manager::Get()->GetValueListSelection(id, &str);
 				valueElement->SetAttribute("current", str.c_str());
@@ -1101,7 +1101,7 @@ std::string COpenZWaveControlPanel::SendPollResponse()
 					bcnt = buf.st_size - 100;
 			}
 			if (fseek(fp, bcnt, SEEK_SET) != -1) {
-				logread = fread(logbuffer, 1, logbufsz, fp);
+				logread = static_cast<int32>(fread(logbuffer, 1, logbufsz, fp));
 				while (logread > 0 && logbuffer[--logread] != '\n')
 					;
 				logbytes = bcnt + logread;

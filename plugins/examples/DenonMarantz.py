@@ -49,6 +49,7 @@ import Domoticz
 import base64
 import datetime
 
+
 class BasePlugin:
     DenonConn = None
 
@@ -59,11 +60,11 @@ class BasePlugin:
     mainOn = False
     mainSource = 0
     mainVolume1 = 0
-    
+
     zone2On = False
     zone2Source = 0
     zone2Volume = 0
-    
+
     zone3On = False
     zone3Source = 0
     zone3Volume = 0
@@ -75,7 +76,7 @@ class BasePlugin:
     lastHeartbeat = datetime.datetime.now()
 
     SourceOptions = {}
-    
+
     def onStart(self):
         if Parameters["Mode6"] == "Debug":
             Domoticz.Debugging(1)

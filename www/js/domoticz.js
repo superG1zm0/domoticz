@@ -1298,7 +1298,7 @@ function reload_cam_image() {
 	$('#dialog-camera-live #camfeed').attr("src", xx.src);
 }
 
-function ShowCameraLiveStream(Name, camIdx) {
+function ShowCameraLiveStream(Name, camIdx, AspectRatio) {
 	$.count = 0;
 	$.camfeed = "camsnapshot.jpg?idx=" + camIdx;
 
@@ -1307,8 +1307,8 @@ function ShowCameraLiveStream(Name, camIdx) {
 
 	var windowWidth = $(window).width() - 20;
 	var windowHeight = $(window).height() - 150;
-	
-	var AspectSource = 4 / 3;
+
+	var AspectSource = (AspectRatio == 0) ? (4/3) : (16/9);
 
 	var height = windowHeight;
 	var width = Math.round(height * AspectSource) & ~1;
@@ -1316,7 +1316,7 @@ function ShowCameraLiveStream(Name, camIdx) {
 		width = windowWidth;
 		height = Math.round(width / AspectSource) & ~1;
 	}
-	
+
 	//Set inner Camera feed width/height
 	$("#dialog-camera-live #camfeed").width(width - 30);
 	$("#dialog-camera-live #camfeed").height(height - 16);
@@ -1444,13 +1444,13 @@ function ShowMediaRemote(Name, devIdx, HWType) {
 			if ( HWType.indexOf('Panasonic') >= 0) {
 				// Here is a little painful because we need to get hardware id  first...
 				$.ajax({
-					url: "json.htm?type=devices&rid=" + devIdx,
+					url: "json.htm?type=command&param=getdevices&rid=" + devIdx,
 					async: true,
 					dataType: 'json',
 					success: function (data) { 
 						hwId = data.result[0].HardwareID;
 						$.ajax({
-							url: "json.htm?type=hardware",
+							url: "json.htm?type=command&param=gethardware",
 							async: true,
 							dataType: 'json',
 							success: function (data) { 
@@ -1836,7 +1836,7 @@ function ShowCurrentLog(contentdiv, backfunction, id, name, switchtype) {
 			},
 			events: {
 				load: function () {
-					$.getJSON("json.htm?type=graph&sensor=counter&idx=" + id + "&range=day", function (data) {
+					$.getJSON("json.htm?type=command&param=graph&sensor=counter&idx=" + id + "&range=day", function (data) {
 						if (typeof data.result != 'undefined') {
 							AddDataToCurrentChart(data, $.DayChart.highcharts(), switchtype, 1);
 							$.DayChart.highcharts().redraw();
@@ -1910,7 +1910,7 @@ function ShowCurrentLog(contentdiv, backfunction, id, name, switchtype) {
 			},
 			events: {
 				load: function () {
-					$.getJSON("json.htm?type=graph&sensor=counter&idx=" + id + "&range=month", function (data) {
+					$.getJSON("json.htm?type=command&param=graph&sensor=counter&idx=" + id + "&range=month", function (data) {
 						if (typeof data.result != 'undefined') {
 							AddDataToCurrentChart(data, $.MonthChart.highcharts(), switchtype, 0);
 							$.MonthChart.highcharts().redraw();
@@ -1985,7 +1985,7 @@ function ShowCurrentLog(contentdiv, backfunction, id, name, switchtype) {
 			events: {
 				load: function () {
 
-					$.getJSON("json.htm?type=graph&sensor=counter&idx=" + id + "&range=year", function (data) {
+					$.getJSON("json.htm?type=command&param=graph&sensor=counter&idx=" + id + "&range=year", function (data) {
 						if (typeof data.result != 'undefined') {
 							AddDataToCurrentChart(data, $.YearChart.highcharts(), switchtype, 0);
 							$.YearChart.highcharts().redraw();
@@ -2074,7 +2074,7 @@ function ShowUVLog(contentdiv, backfunction, id, name) {
 			marginRight: 10,
 			events: {
 				load: function () {
-					$.getJSON("json.htm?type=graph&sensor=uv&idx=" + id + "&range=day", function (data) {
+					$.getJSON("json.htm?type=command&param=graph&sensor=uv&idx=" + id + "&range=day", function (data) {
 						if (typeof data.result != 'undefined') {
 							var series = $.DayChart.highcharts().series[0];
 							var datatable = [];
@@ -2165,7 +2165,7 @@ function ShowUVLog(contentdiv, backfunction, id, name) {
 			events: {
 				load: function () {
 
-					$.getJSON("json.htm?type=graph&sensor=uv&idx=" + id + "&range=month", function (data) {
+					$.getJSON("json.htm?type=command&param=graph&sensor=uv&idx=" + id + "&range=month", function (data) {
 						if (typeof data.result != 'undefined') {
 							var series = $.MonthChart.highcharts().series[0];
 							var datatable = [];
@@ -2280,7 +2280,7 @@ function ShowUVLog(contentdiv, backfunction, id, name) {
 			events: {
 				load: function () {
 
-					$.getJSON("json.htm?type=graph&sensor=uv&idx=" + id + "&range=year", function (data) {
+					$.getJSON("json.htm?type=command&param=graph&sensor=uv&idx=" + id + "&range=year", function (data) {
 						if (typeof data.result != 'undefined') {
 							var series = $.YearChart.highcharts().series[0];
 							var datatable = [];
@@ -2445,7 +2445,7 @@ function ShowWindLog(contentdiv, backfunction, id, name) {
 			marginRight: 10,
 			events: {
 				load: function () {
-					$.getJSON("json.htm?type=graph&sensor=wind&idx=" + id + "&range=day", function (data) {
+					$.getJSON("json.htm?type=command&param=graph&sensor=wind&idx=" + id + "&range=day", function (data) {
 						if (typeof data.result != 'undefined') {
 							var seriessp = $.DayChart.highcharts().series[0];
 							var seriesgu = $.DayChart.highcharts().series[1];
@@ -2664,7 +2664,7 @@ function ShowWindLog(contentdiv, backfunction, id, name) {
 			type: 'column',
 			events: {
 				load: function () {
-					$.getJSON("json.htm?type=graph&sensor=winddir&idx=" + id + "&range=day", function (data) {
+					$.getJSON("json.htm?type=command&param=graph&sensor=winddir&idx=" + id + "&range=day", function (data) {
 						if (typeof data.result_speed != 'undefined') {
 							$.each(data.result_speed, function (i, item) {
 								//make the series
@@ -2753,7 +2753,7 @@ function ShowWindLog(contentdiv, backfunction, id, name) {
 			marginRight: 10,
 			events: {
 				load: function () {
-					$.getJSON("json.htm?type=graph&sensor=wind&idx=" + id + "&range=month", function (data) {
+					$.getJSON("json.htm?type=command&param=graph&sensor=wind&idx=" + id + "&range=month", function (data) {
 						if (typeof data.result != 'undefined') {
 							var seriessp = $.MonthChart.highcharts().series[0];
 							var seriesgu = $.MonthChart.highcharts().series[1];
@@ -3031,7 +3031,7 @@ function ShowWindLog(contentdiv, backfunction, id, name) {
 			events: {
 				load: function () {
 
-					$.getJSON("json.htm?type=graph&sensor=wind&idx=" + id + "&range=year", function (data) {
+					$.getJSON("json.htm?type=command&param=graph&sensor=wind&idx=" + id + "&range=year", function (data) {
 						if (typeof data.result != 'undefined') {
 							var seriessp = $.YearChart.highcharts().series[0];
 							var seriesgu = $.YearChart.highcharts().series[1];
@@ -3373,7 +3373,7 @@ function ShowMonthReportRain(actMonth, actYear) {
 	var highest_pos = 0;
 	var highest_date = {};
 
-	$.getJSON("json.htm?type=graph&sensor=rain&idx=" + $.devIdx + "&range=year&actmonth=" + actMonth + "&actyear=" + actYear,
+	$.getJSON("json.htm?type=command&param=graph&sensor=rain&idx=" + $.devIdx + "&range=year&actmonth=" + actMonth + "&actyear=" + actYear,
 		function (data) {
 			var lastTotal = -1;
 			$.each(data.result, function (i, item) {
@@ -3587,7 +3587,7 @@ function ShowYearReportRain(actYear) {
 	var highest_val = -1;
 	var highest_date = {};
 
-	$.getJSON("json.htm?type=graph&sensor=rain&idx=" + $.devIdx + "&range=year&actyear=" + actYear,
+	$.getJSON("json.htm?type=command&param=graph&sensor=rain&idx=" + $.devIdx + "&range=year&actyear=" + actYear,
 		function (data) {
 			var lastTotal = -1;
 			var lastMonth = -1;
@@ -3720,7 +3720,7 @@ function ShowRainLog(contentdiv, backfunction, id, name) {
 			type: 'column',
 			events: {
 				load: function () {
-					$.getJSON("json.htm?type=graph&sensor=rain&idx=" + id + "&range=day", function (data) {
+					$.getJSON("json.htm?type=command&param=graph&sensor=rain&idx=" + id + "&range=day", function (data) {
 						if (typeof data.result != 'undefined') {
 							var series = $.DayChart.highcharts().series[0];
 							var datatable = [];
@@ -3781,7 +3781,7 @@ function ShowRainLog(contentdiv, backfunction, id, name) {
 			type: 'column',
 			events: {
 				load: function () {
-					$.getJSON("json.htm?type=graph&sensor=rain&idx=" + id + "&range=week", function (data) {
+					$.getJSON("json.htm?type=command&param=graph&sensor=rain&idx=" + id + "&range=week", function (data) {
 						if (typeof data.result != 'undefined') {
 							var series = $.WeekChart.highcharts().series[0];
 							var datatable = [];
@@ -3853,7 +3853,7 @@ function ShowRainLog(contentdiv, backfunction, id, name) {
 			},
 			events: {
 				load: function () {
-					$.getJSON("json.htm?type=graph&sensor=rain&idx=" + id + "&range=month", function (data) {
+					$.getJSON("json.htm?type=command&param=graph&sensor=rain&idx=" + id + "&range=month", function (data) {
 						if (typeof data.result != 'undefined') {
 							var series = $.MonthChart.highcharts().series[0];
 							var datatable = [];
@@ -3966,7 +3966,7 @@ function ShowRainLog(contentdiv, backfunction, id, name) {
 			events: {
 				load: function () {
 
-					$.getJSON("json.htm?type=graph&sensor=rain&idx=" + id + "&range=year", function (data) {
+					$.getJSON("json.htm?type=command&param=graph&sensor=rain&idx=" + id + "&range=year", function (data) {
 						if (typeof data.result != 'undefined') {
 							var series = $.YearChart.highcharts().series[0];
 							var datatable = [];
@@ -4096,7 +4096,7 @@ function ShowBaroLog(contentdiv, backfunction, id, name) {
 			marginRight: 10,
 			events: {
 				load: function () {
-					$.getJSON("json.htm?type=graph&sensor=temp&idx=" + id + "&range=day", function (data) {
+					$.getJSON("json.htm?type=command&param=graph&sensor=temp&idx=" + id + "&range=day", function (data) {
 						if (typeof data.result != 'undefined') {
 							var series = $.DayChart.highcharts().series[0];
 							var datatable = [];
@@ -4190,7 +4190,7 @@ function ShowBaroLog(contentdiv, backfunction, id, name) {
 			marginRight: 10,
 			events: {
 				load: function () {
-					$.getJSON("json.htm?type=graph&sensor=temp&idx=" + id + "&range=month", function (data) {
+					$.getJSON("json.htm?type=command&param=graph&sensor=temp&idx=" + id + "&range=month", function (data) {
 						if (typeof data.result != 'undefined') {
 							var series = $.MonthChart.highcharts().series[0];
 							var datatable = [];
@@ -4311,7 +4311,7 @@ function ShowBaroLog(contentdiv, backfunction, id, name) {
 			marginRight: 10,
 			events: {
 				load: function () {
-					$.getJSON("json.htm?type=graph&sensor=temp&idx=" + id + "&range=year", function (data) {
+					$.getJSON("json.htm?type=command&param=graph&sensor=temp&idx=" + id + "&range=year", function (data) {
 						if (typeof data.result != 'undefined') {
 							var series = $.YearChart.highcharts().series[0];
 							var datatable = [];
@@ -4450,7 +4450,7 @@ function ShowAirQualityLog(contentdiv, backfunction, id, name) {
 			marginRight: 10,
 			events: {
 				load: function () {
-					$.getJSON("json.htm?type=graph&sensor=counter&idx=" + id + "&range=day", function (data) {
+					$.getJSON("json.htm?type=command&param=graph&sensor=counter&idx=" + id + "&range=day", function (data) {
 						if (typeof data.result != 'undefined') {
 							var series = $.DayChart.highcharts().series[0];
 							var datatable = [];
@@ -4593,7 +4593,7 @@ function ShowAirQualityLog(contentdiv, backfunction, id, name) {
 			marginRight: 10,
 			events: {
 				load: function () {
-					$.getJSON("json.htm?type=graph&sensor=counter&idx=" + id + "&range=month", function (data) {
+					$.getJSON("json.htm?type=command&param=graph&sensor=counter&idx=" + id + "&range=month", function (data) {
 						if (typeof data.result != 'undefined') {
 							var datatable1 = [];
 							var datatable2 = [];
@@ -4802,7 +4802,7 @@ function ShowAirQualityLog(contentdiv, backfunction, id, name) {
 			marginRight: 10,
 			events: {
 				load: function () {
-					$.getJSON("json.htm?type=graph&sensor=counter&idx=" + id + "&range=year", function (data) {
+					$.getJSON("json.htm?type=command&param=graph&sensor=counter&idx=" + id + "&range=year", function (data) {
 						if (typeof data.result != 'undefined') {
 							var datatable1 = [];
 							var datatable2 = [];
@@ -5030,7 +5030,7 @@ function ShowFanLog(contentdiv, backfunction, id, name, sensor) {
 			marginRight: 10,
 			events: {
 				load: function () {
-					$.getJSON("json.htm?type=graph&sensor=fan&idx=" + id + "&range=day", function (data) {
+					$.getJSON("json.htm?type=command&param=graph&sensor=fan&idx=" + id + "&range=day", function (data) {
 						if (typeof data.result != 'undefined') {
 							var series = $.DayChart.highcharts().series[0];
 							var datatable = [];
@@ -5125,7 +5125,7 @@ function ShowFanLog(contentdiv, backfunction, id, name, sensor) {
 			marginRight: 10,
 			events: {
 				load: function () {
-					$.getJSON("json.htm?type=graph&sensor=fan&idx=" + id + "&range=month", function (data) {
+					$.getJSON("json.htm?type=command&param=graph&sensor=fan&idx=" + id + "&range=month", function (data) {
 						if (typeof data.result != 'undefined') {
 							var datatable1 = [];
 							var datatable2 = [];
@@ -5234,7 +5234,7 @@ function ShowFanLog(contentdiv, backfunction, id, name, sensor) {
 			marginRight: 10,
 			events: {
 				load: function () {
-					$.getJSON("json.htm?type=graph&sensor=fan&idx=" + id + "&range=year", function (data) {
+					$.getJSON("json.htm?type=command&param=graph&sensor=fan&idx=" + id + "&range=year", function (data) {
 						if (typeof data.result != 'undefined') {
 							var datatable1 = [];
 							var datatable2 = [];
@@ -5333,506 +5333,6 @@ function ShowFanLog(contentdiv, backfunction, id, name, sensor) {
 	return false;
 }
 
-function AddDataToUtilityChart(data, chart, switchtype) {
-
-	var datatableEnergyUsed = [];
-	var datatableEnergyGenerated = [];
-
-	var datatableUsage1 = [];
-	var datatableUsage2 = [];
-	var datatableReturn1 = [];
-	var datatableReturn2 = [];
-	var datatableTotalUsage = [];
-	var datatableTotalReturn = [];
-
-	var datatableUsage1Prev = [];
-	var datatableUsage2Prev = [];
-	var datatableReturn1Prev = [];
-	var datatableReturn2Prev = [];
-	var datatableTotalUsagePrev = [];
-	var datatableTotalReturnPrev = [];
-
-	var bHaveFloat = false;
-
-	var valueQuantity = "Count";
-	if (typeof data.ValueQuantity != 'undefined') {
-		valueQuantity = data.ValueQuantity;
-	}
-
-	$.DividerWater = 1000;
-
-	var valueUnits = "";
-	if (typeof data.ValueUnits != 'undefined') {
-		valueUnits = data.ValueUnits;
-	}
-
-	var bHaveDelivered = (typeof data.delivered != 'undefined');
-	var bHavePrev = (typeof data.resultprev != 'undefined');
-
-	if (bHavePrev) {
-		$.each(data.resultprev, function (i, item) {
-			var cdate = GetPrevDateFromString(item.d);
-			datatableUsage1Prev.push([cdate, parseFloat(item.v)]);
-			if (typeof item.v2 != 'undefined') {
-				datatableUsage2Prev.push([cdate, parseFloat(item.v2)]);
-			}
-			if (bHaveDelivered) {
-				datatableReturn1Prev.push([cdate, parseFloat(item.r1)]);
-				if (typeof item.r2 != 'undefined') {
-					datatableReturn2Prev.push([cdate, parseFloat(item.r2)]);
-				}
-			}
-			if (datatableUsage2Prev.length > 0) {
-				datatableTotalUsagePrev.push([cdate, parseFloat(item.v) + parseFloat(item.v2)]);
-			}
-			else {
-				datatableTotalUsagePrev.push([cdate, parseFloat(item.v)]);
-			}
-			if (datatableUsage2Prev.length > 0) {
-				datatableTotalReturnPrev.push([cdate, parseFloat(item.r1) + parseFloat(item.r2)]);
-			}
-			else {
-				if (typeof item.r1 != 'undefined') {
-					datatableTotalReturnPrev.push([cdate, parseFloat(item.r1)]);
-				}
-			}
-		});
-	}
-
-	$.each(data.result, function (i, item) {
-		if (chart == $.DayChart) {
-			var cdate = GetUTCFromString(item.d);
-			if (typeof item.v != 'undefined') {
-				if (switchtype != 2) {
-					var fValue = parseFloat(item.v);
-					if (fValue % 1 != 0)
-						bHaveFloat = true;
-					datatableUsage1.push([cdate, fValue]);
-				}
-				else {
-					datatableUsage1.push([cdate, parseFloat(item.v) * $.DividerWater]);
-				}
-			}
-			if (typeof item.v2 != 'undefined') {
-				datatableUsage2.push([cdate, parseFloat(item.v2)]);
-			}
-			if (bHaveDelivered) {
-				datatableReturn1.push([cdate, parseFloat(item.r1)]);
-				if (typeof item.r2 != 'undefined') {
-					datatableReturn2.push([cdate, parseFloat(item.r2)]);
-				}
-			}
-			if (typeof item.eu != 'undefined') {
-				datatableEnergyUsed.push([cdate, parseFloat(item.eu)]);
-			}
-			if (typeof item.eg != 'undefined') {
-				datatableEnergyGenerated.push([cdate, parseFloat(item.eg)]);
-			}
-		}
-		else {
-			var cdate = GetDateFromString(item.d);
-			if (switchtype != 2) {
-				datatableUsage1.push([cdate, parseFloat(item.v)]);
-			}
-			else {
-				datatableUsage1.push([cdate, parseFloat(item.v) * $.DividerWater]);
-			}
-			if (typeof item.v2 != 'undefined') {
-				datatableUsage2.push([cdate, parseFloat(item.v2)]);
-			}
-			if (bHaveDelivered) {
-				datatableReturn1.push([cdate, parseFloat(item.r1)]);
-				if (typeof item.r2 != 'undefined') {
-					datatableReturn2.push([cdate, parseFloat(item.r2)]);
-				}
-			}
-			if (datatableUsage2.length > 0) {
-				datatableTotalUsage.push([cdate, parseFloat(item.v) + parseFloat(item.v2)]);
-			}
-			else {
-				datatableTotalUsage.push([cdate, parseFloat(item.v)]);
-			}
-			if (datatableUsage2.length > 0) {
-				datatableTotalReturn.push([cdate, parseFloat(item.r1) + parseFloat(item.r2)]);
-			}
-			else {
-				if (typeof item.r1 != 'undefined') {
-					datatableTotalReturn.push([cdate, parseFloat(item.r1)]);
-				}
-			}
-		}
-	});
-
-	var series;
-	if ((switchtype == 0) || (switchtype == 4)) {
-
-		//Electra Usage/Return
-		if ((chart == $.DayChart) || (chart == $.WeekChart)) {
-			var totDecimals = 3;
-			if (chart == $.DayChart) {
-				if (bHaveFloat == true) {
-					totDecimals = 1;
-				}
-				else {
-					totDecimals = 0;
-				}
-			}
-			if (datatableEnergyUsed.length > 0) {
-				if (datatableUsage2.length == 0) {
-					// instant + counter type
-					chart.highcharts().addSeries({
-						id: 'eUsed',
-						type: 'column',
-						pointRange: 3600 * 1000, // 1 hour in ms
-						zIndex: 5,
-						animation: false,
-						name: switchtype == 0 ? $.t('Energy Usage') : $.t('Energy Generated'),
-						tooltip: {
-							valueSuffix: (chart == $.WeekChart) ? ' kWh' : ' Wh',
-							valueDecimals: totDecimals
-						},
-						color: 'rgba(3,190,252,0.8)',
-						yAxis: 0,
-						visible: datatableUsage2.length == 0
-					}, false)
-				} else {
-					// p1 type
-					chart.highcharts().addSeries({
-						id: 'eUsed',
-						type: 'area',
-						name: $.t('Energy Usage'),
-						tooltip: {
-							valueSuffix: (chart == $.WeekChart) ? ' kWh' : ' Wh',
-							valueDecimals: totDecimals
-						},
-						color: 'rgba(120,150,220,0.9)',
-						fillOpacity: 0.2,
-						yAxis: 0,
-						visible: datatableUsage2.length == 0
-					}, false);
-				}
-				series = chart.highcharts().get('eUsed');
-				series.setData(datatableEnergyUsed, false);
-			}
-			if (datatableEnergyGenerated.length > 0) {
-				// p1 type
-				chart.highcharts().addSeries({
-					id: 'eGen',
-					type: 'area',
-					name: $.t('Energy Returned'),
-					tooltip: {
-						valueSuffix: (chart == $.WeekChart) ? ' kWh' : ' Wh',
-						valueDecimals: totDecimals
-					},
-					color: 'rgba(120,220,150,0.9)',
-					fillOpacity: 0.2,
-					yAxis: 0,
-					visible: false
-				}, false);
-				series = chart.highcharts().get('eGen');
-				series.setData(datatableEnergyGenerated, false);
-			}
-			if (datatableUsage1.length > 0) {
-				if (datatableUsage2.length == 0) {
-					if (datatableEnergyUsed.length == 0) {
-						// counter type (no power)
-						chart.highcharts().addSeries({
-							id: 'usage1',
-							name: switchtype == 0 ? $.t('Energy Usage') : $.t('Energy Generated'),
-							tooltip: {
-								valueSuffix: (chart == $.DayChart) ? ' Wh' : ' kWh',
-								valueDecimals: totDecimals
-							},
-							color: 'rgba(3,190,252,0.8)',
-							stack: 'susage',
-							yAxis: 0
-						}, false);
-					} else {
-						// instant + counter type
-						chart.highcharts().addSeries({
-							id: 'usage1',
-							name: switchtype == 0 ? $.t('Power Usage') : $.t('Power Generated'),
-							zIndex: 10,
-							type: (chart == $.DayChart) ? 'spline' : 'column', // power vs energy
-							tooltip: {
-								valueSuffix: (chart == $.DayChart) ? ' Watt' : ' kWh',
-								valueDecimals: totDecimals
-							},
-							color: (chart == $.DayChart) ? 'rgba(255,255,0,0.8)' : 'rgba(3,190,252,0.8)', // yellow vs blue
-							stack: 'susage',
-							yAxis: (chart == $.DayChart && chart.highcharts().yAxis.length > 1) ? 1 : 0
-						}, false);
-					}
-				} else {
-					// p1 type
-					chart.highcharts().addSeries({
-						id: 'usage1',
-						name: $.t('Usage') + ' 1',
-						tooltip: {
-							valueSuffix: (chart == $.WeekChart) ? ' kWh' : ' Watt',
-							valueDecimals: totDecimals
-						},
-						color: 'rgba(60,130,252,0.8)',
-						stack: 'susage',
-						yAxis: (chart == $.WeekChart) ? 0 : 1
-					}, false);
-				}
-				series = chart.highcharts().get('usage1');
-				series.setData(datatableUsage1, false);
-			}
-			if (datatableUsage2.length > 0) {
-				// p1 type
-				chart.highcharts().addSeries({
-					id: 'usage2',
-					name: $.t('Usage') + ' 2',
-					tooltip: {
-						valueSuffix: (chart == $.WeekChart) ? ' kWh' : ' Watt',
-						valueDecimals: totDecimals
-					},
-					color: 'rgba(3,190,252,0.8)',
-					stack: 'susage',
-					yAxis: (chart == $.WeekChart) ? 0 : 1
-				}, false);
-				series = chart.highcharts().get('usage2');
-				series.setData(datatableUsage2, false);
-			}
-			if (bHaveDelivered) {
-				if (datatableReturn1.length > 0) {
-					chart.highcharts().addSeries({
-						id: 'return1',
-						name: $.t('Return') + ' 1',
-						tooltip: {
-							valueSuffix: (chart == $.WeekChart) ? ' kWh' : ' Watt',
-							valueDecimals: totDecimals
-						},
-						color: 'rgba(30,242,110,0.8)',
-						stack: 'sreturn',
-						yAxis: (chart == $.WeekChart) ? 0 : 1
-					}, false);
-					series = chart.highcharts().get('return1');
-					series.setData(datatableReturn1, false);
-				}
-				if (datatableReturn2.length > 0) {
-					chart.highcharts().addSeries({
-						id: 'return2',
-						name: $.t('Return') + ' 2',
-						tooltip: {
-							valueSuffix: (chart == $.WeekChart) ? ' kWh' : ' Watt',
-							valueDecimals: totDecimals
-						},
-						color: 'rgba(3,252,190,0.8)',
-						stack: 'sreturn',
-						yAxis: (chart == $.WeekChart) ? 0 : 1
-					}, false);
-					series = chart.highcharts().get('return2');
-					series.setData(datatableReturn2, false);
-				}
-			}
-		}
-		else {
-			//month/year, show total for now
-			if (datatableTotalUsage.length > 0) {
-				chart.highcharts().addSeries({
-					id: 'usage',
-					name: (switchtype == 0) ? $.t('Total Usage') : ((switchtype == 4) ? $.t('Total Generated') : $.t('Total Return')),
-					zIndex: 2,
-					tooltip: {
-						valueSuffix: ' kWh',
-						valueDecimals: 3
-					},
-					color: 'rgba(3,190,252,0.8)',
-					yAxis: 0
-				}, false);
-				series = chart.highcharts().get('usage');
-				series.setData(datatableTotalUsage, false);
-				var trandLine = CalculateTrendLine(datatableTotalUsage);
-				if (typeof trandLine != 'undefined') {
-					var datatableTrendlineUsage = [];
-
-					datatableTrendlineUsage.push([trandLine.x0, trandLine.y0]);
-					datatableTrendlineUsage.push([trandLine.x1, trandLine.y1]);
-
-					chart.highcharts().addSeries({
-						id: 'usage_trendline',
-						name: $.t('Trendline') + ' ' + ((switchtype == 0) ? $.t('Usage') : ((switchtype == 4) ? $.t('Generated') : $.t('Return'))),
-						zIndex: 1,
-						tooltip: {
-							valueSuffix: ' kWh',
-							valueDecimals: 3
-						},
-						color: 'rgba(252,3,3,0.8)',
-						dashStyle: 'LongDash',
-						yAxis: 0,
-						visible: false
-					}, false);
-					series = chart.highcharts().get('usage_trendline');
-					series.setData(datatableTrendlineUsage, false);
-				}
-			}
-			if (bHaveDelivered) {
-				if (datatableTotalReturn.length > 0) {
-					chart.highcharts().addSeries({
-						id: 'return',
-						name: $.t('Total Return'),
-						zIndex: 1,
-						tooltip: {
-							valueSuffix: ' kWh',
-							valueDecimals: 3
-						},
-						color: 'rgba(3,252,190,0.8)',
-						yAxis: 0
-					}, false);
-					series = chart.highcharts().get('return');
-					series.setData(datatableTotalReturn, false);
-					var trandLine = CalculateTrendLine(datatableTotalReturn);
-					if (typeof trandLine != 'undefined') {
-						var datatableTrendlineReturn = [];
-
-						datatableTrendlineReturn.push([trandLine.x0, trandLine.y0]);
-						datatableTrendlineReturn.push([trandLine.x1, trandLine.y1]);
-
-						chart.highcharts().addSeries({
-							id: 'return_trendline',
-							name: $.t('Trendline') + ' ' + $.t('Return'),
-							zIndex: 1,
-							tooltip: {
-								valueSuffix: ' kWh',
-								valueDecimals: 3
-							},
-							color: 'rgba(255,127,39,0.8)',
-							dashStyle: 'LongDash',
-							yAxis: 0,
-							visible: false
-						}, false);
-						series = chart.highcharts().get('return_trendline');
-						series.setData(datatableTrendlineReturn, false);
-					}
-				}
-			}
-			if (datatableTotalUsagePrev.length > 0) {
-				chart.highcharts().addSeries({
-					id: 'usageprev',
-					name: $.t('Past') + ' ' + ((switchtype == 0) ? $.t('Usage') : ((switchtype == 4) ? $.t('Generated') : $.t('Return'))),
-					tooltip: {
-						valueSuffix: ' kWh',
-						valueDecimals: 3
-					},
-					color: 'rgba(190,3,252,0.8)',
-					yAxis: 0,
-					visible: false
-				}, false);
-				series = chart.highcharts().get('usageprev');
-				series.setData(datatableTotalUsagePrev, false);
-			}
-			if (bHaveDelivered) {
-				if (datatableTotalReturnPrev.length > 0) {
-					chart.highcharts().addSeries({
-						id: 'returnprev',
-						name: $.t('Past') + ' ' + $.t('Return'),
-						tooltip: {
-							valueSuffix: ' kWh',
-							valueDecimals: 3
-						},
-						color: 'rgba(252,190,3,0.8)',
-						yAxis: 0,
-						visible: false
-					}, false);
-					series = chart.highcharts().get('returnprev');
-					series.setData(datatableTotalReturnPrev, false);
-				}
-			}
-		}
-	}
-	else if (switchtype == 1) {
-		//gas
-		chart.highcharts().addSeries({
-			id: 'gas',
-			name: 'Gas',
-			zIndex: 2,
-			tooltip: {
-				valueSuffix: ' m3',
-				valueDecimals: 3
-			},
-			color: 'rgba(3,190,252,0.8)',
-			yAxis: 0
-		}, false);
-		if ((chart == $.MonthChart) || (chart == $.YearChart)) {
-			var trandLine = CalculateTrendLine(datatableUsage1);
-			if (typeof trandLine != 'undefined') {
-				var datatableTrendlineUsage = [];
-
-				datatableTrendlineUsage.push([trandLine.x0, trandLine.y0]);
-				datatableTrendlineUsage.push([trandLine.x1, trandLine.y1]);
-
-				chart.highcharts().addSeries({
-					id: 'usage_trendline',
-					name: 'Trendline ' + $.t('Gas'),
-					zIndex: 1,
-					tooltip: {
-						valueSuffix: ' m3',
-						valueDecimals: 3
-					},
-					color: 'rgba(252,3,3,0.8)',
-					dashStyle: 'LongDash',
-					yAxis: 0,
-					visible: false
-				}, false);
-				series = chart.highcharts().get('usage_trendline');
-				series.setData(datatableTrendlineUsage, false);
-			}
-			if (datatableUsage1Prev.length > 0) {
-				chart.highcharts().addSeries({
-					id: 'gasprev',
-					name: $.t('Past') + ' ' + $.t('Gas'),
-					tooltip: {
-						valueSuffix: ' m3',
-						valueDecimals: 3
-					},
-					color: 'rgba(190,3,252,0.8)',
-					yAxis: 0,
-					visible: false
-				}, false);
-				series = chart.highcharts().get('gasprev');
-				series.setData(datatableUsage1Prev, false);
-			}
-		}
-		series = chart.highcharts().get('gas');
-		series.setData(datatableUsage1, false);
-		chart.highcharts().yAxis[0].options.title.text = 'Gas m3';
-	}
-	else if (switchtype == 2) {
-		//water
-		chart.highcharts().addSeries({
-			id: 'water',
-			name: 'Water',
-			tooltip: {
-				valueSuffix: ' Liter',
-				valueDecimals: 0
-			},
-			color: 'rgba(3,190,252,0.8)',
-			yAxis: 0
-		}, false);
-		chart.highcharts().yAxis[0].options.title.text = 'Water Liter';
-		series = chart.highcharts().get('water');
-		series.setData(datatableUsage1, false);
-	}
-	else if (switchtype == 3) {
-		//counter
-		chart.highcharts().addSeries({
-			id: 'counter',
-			name: valueQuantity,
-			tooltip: {
-				valueSuffix: ' ' + valueUnits
-			},
-			color: 'rgba(3,190,252,0.8)',
-			yAxis: 0
-		}, false);
-		chart.highcharts().yAxis[0].options.title.text = valueQuantity + ' ' + valueUnits;
-		series = chart.highcharts().get('counter');
-		series.setData(datatableUsage1, false);
-	}
-}
-
 function GetGraphUnit(uname) {
 	if (uname == $.t('Usage'))
 		return 'kWh';
@@ -5873,291 +5373,6 @@ function addLeadingZeros(n, length) {
 		zeros += "0";
 	zeros += str;
 	return zeros;
-}
-
-function ShowCounterLog(contentdiv, backfunction, id, name, switchtype) {
-	clearInterval($.myglobals.refreshTimer);
-	$(window).scrollTop(0);
-	$('#modal').show();
-	$.content = contentdiv;
-	$.backfunction = backfunction;
-	$.devIdx = id;
-	$.devName = name;
-	if (typeof switchtype != 'undefined') {
-		$.devSwitchType = switchtype;
-	}
-	else {
-		switchtype = $.devSwitchType;
-	}
-	var htmlcontent = $('#dayweekmonthyearlog').html();
-	$($.content).html(htmlcontent);
-	$($.content).i18n();
-
-	var graph_title = (switchtype == 4) ? $.t('Generated') : $.t('Usage');
-	graph_title += ' ' + Get5MinuteHistoryDaysGraphTitle();
-
-	$.DayChart = $($.content + ' #daygraph');
-	$.DayChart.highcharts({
-		chart: {
-			type: 'column',
-			marginRight: 10,
-			zoomType: 'x',
-			events: {
-				load: function () {
-					$.getJSON("json.htm?type=graph&sensor=counter&idx=" + id + "&range=day",
-						function (data) {
-							if (typeof data.result != 'undefined') {
-								AddDataToUtilityChart(data, $.DayChart, switchtype);
-								$.DayChart.highcharts().redraw();
-							}
-						});
-				}
-			}
-		},
-		title: {
-			text: graph_title
-		},
-		xAxis: {
-			type: 'datetime',
-			labels: {
-				formatter: function () {
-					return Highcharts.dateFormat("%H:%M", this.value);
-				}
-			}
-		},
-		yAxis: {
-			title: {
-				text: $.t('Energy') + ' (Wh)'
-			}
-		},
-		tooltip: {
-			crosshairs: true,
-			shared: true
-		},
-		plotOptions: {
-			series: {
-				point: {
-					events: {
-						click: function (event) {
-							chartPointClickNew(event, true, ShowCounterLog);
-						}
-					}
-				}
-			},
-			column: {
-				minPointLength: 4,
-				pointPadding: 0.1,
-				groupPadding: 0
-			}
-		},
-		legend: {
-			enabled: true
-		}
-	});
-
-	$.WeekChart = $($.content + ' #weekgraph');
-	$.WeekChart.highcharts({
-		chart: {
-			type: 'column',
-			marginRight: 10,
-			events: {
-				load: function () {
-
-					$.getJSON("json.htm?type=graph&sensor=counter&idx=" + id + "&range=week",
-						function (data) {
-							if (typeof data.result != 'undefined') {
-								AddDataToUtilityChart(data, $.WeekChart, switchtype);
-								$.WeekChart.highcharts().redraw();
-							}
-						});
-				}
-			}
-		},
-		title: {
-			text: $.t('Last Week')
-		},
-		xAxis: {
-			type: 'datetime',
-			dateTimeLabelFormats: {
-				day: '%a'
-			},
-			tickInterval: 24 * 3600 * 1000
-		},
-		yAxis: {
-			title: {
-				text: $.t('Energy') + ' (kWh)'
-			},
-			maxPadding: 0.2
-		},
-		tooltip: {
-			crosshairs: true,
-			shared: true
-		},
-		plotOptions: {
-			column: {
-				minPointLength: 4,
-				pointPadding: 0.1,
-				groupPadding: 0,
-				dataLabels: {
-					enabled: true,
-					color: 'white'
-				}
-			}
-		},
-		legend: {
-			enabled: true
-		}
-	});
-
-	$.MonthChart = $($.content + ' #monthgraph');
-	$.MonthChart.highcharts({
-		chart: {
-			type: 'spline',
-			marginRight: 10,
-			zoomType: 'x',
-			resetZoomButton: {
-				position: {
-					x: -30,
-					y: -36
-				}
-			},
-			events: {
-				load: function () {
-
-					$.getJSON("json.htm?type=graph&sensor=counter&idx=" + id + "&range=month",
-						function (data) {
-							if (typeof data.result != 'undefined') {
-								AddDataToUtilityChart(data, $.MonthChart, switchtype);
-								$.MonthChart.highcharts().redraw();
-							}
-						});
-				}
-			}
-		},
-		title: {
-			text: $.t('Last Month')
-		},
-		xAxis: {
-			type: 'datetime'
-		},
-		yAxis: {
-			title: {
-				text: $.t('Energy') + ' (kWh)'
-			}
-		},
-		tooltip: {
-			crosshairs: true,
-			shared: true
-		},
-		plotOptions: {
-			series: {
-				point: {
-					events: {
-						click: function (event) {
-							chartPointClickNewEx(event, false, ShowCounterLog);
-						}
-					}
-				}
-			},
-			spline: {
-				lineWidth: 3,
-				states: {
-					hover: {
-						lineWidth: 3
-					}
-				},
-				marker: {
-					enabled: false,
-					states: {
-						hover: {
-							enabled: true,
-							symbol: 'circle',
-							radius: 5,
-							lineWidth: 1
-						}
-					}
-				}
-			}
-		},
-		legend: {
-			enabled: true
-		}
-	});
-
-	$.YearChart = $($.content + ' #yeargraph');
-	$.YearChart.highcharts({
-		chart: {
-			type: 'spline',
-			marginRight: 10,
-			zoomType: 'x',
-			resetZoomButton: {
-				position: {
-					x: -30,
-					y: -36
-				}
-			},
-			events: {
-				load: function () {
-
-					$.getJSON("json.htm?type=graph&sensor=counter&idx=" + id + "&range=year",
-						function (data) {
-							if (typeof data.result != 'undefined') {
-								AddDataToUtilityChart(data, $.YearChart, switchtype);
-								$.YearChart.highcharts().redraw();
-							}
-						});
-				}
-			}
-		},
-		title: {
-			text: $.t('Last Year')
-		},
-		xAxis: {
-			type: 'datetime'
-		},
-		yAxis: {
-			title: {
-				text: $.t('Energy') + ' (kWh)'
-			}
-		},
-		tooltip: {
-			crosshairs: true,
-			shared: true
-		},
-		plotOptions: {
-			series: {
-				point: {
-					events: {
-						click: function (event) {
-							chartPointClickNewEx(event, false, ShowCounterLog);
-						}
-					}
-				}
-			},
-			spline: {
-				lineWidth: 3,
-				states: {
-					hover: {
-						lineWidth: 3
-					}
-				},
-				marker: {
-					enabled: false,
-					states: {
-						hover: {
-							enabled: true,
-							symbol: 'circle',
-							radius: 5,
-							lineWidth: 1
-						}
-					}
-				}
-			}
-		},
-		legend: {
-			enabled: true
-		}
-	});
 }
 
 function SwitchLightPopup(idx, switchcmd, isprotected) {
@@ -6681,55 +5896,6 @@ function ShowTherm3Popup(event, idx, Protected, MaxDimLevel, LevelInt, hue) {
 	});
 }
 
-
-function CloseSetpointPopup() {
-	$("#setpoint_popup").hide();
-}
-
-function SetpointUp() {
-	var curValue = parseFloat($('#setpoint_popup #popup_setpoint').val());
-	curValue += 0.5;
-	curValue = Math.round(curValue / 0.5) * 0.5;
-	var curValueStr = curValue.toFixed(1);
-	$('#setpoint_popup #popup_setpoint').val(curValueStr);
-}
-
-function SetpointDown() {
-	var curValue = parseFloat($('#setpoint_popup #popup_setpoint').val());
-	curValue -= 0.5;
-	curValue = Math.round(curValue / 0.5) * 0.5;
-	if (curValue < 0) {
-		curValue = 0;
-	}
-	var curValueStr = curValue.toFixed(1);
-	$('#setpoint_popup #popup_setpoint').val(curValueStr);
-}
-
-function SetSetpoint() {
-	var curValue = parseFloat($('#setpoint_popup #popup_setpoint').val());
-	$.ajax({
-		url: "json.htm?type=command&param=setsetpoint&idx=" + $.devIdx +
-		"&setpoint=" + curValue,
-		async: false,
-		dataType: 'json',
-		success: function (data) {
-			CloseSetpointPopup();
-			if (data.status == "ERROR") {
-				HideNotify();
-				bootbox.alert($.t('Problem setting Setpoint value'));
-			}
-			//wait 1 second
-			setTimeout(function () {
-				HideNotify();
-			}, 1000);
-		},
-		error: function () {
-			HideNotify();
-			bootbox.alert($.t('Problem setting Setpoint value'));
-		}
-	});
-}
-
 function RFYEnableSunWind(bDoEnable) {
 	var switchcmd = "EnableSunWind";
 	if (bDoEnable == false) {
@@ -6739,13 +5905,21 @@ function RFYEnableSunWind(bDoEnable) {
 	SwitchLight($.devIdx, switchcmd, $.Protected);
 }
 
-function ShowSetpointPopupInt(mouseX, mouseY, idx, currentvalue, ismobile) {
+function ShowSetpointPopupInt(mouseX, mouseY, idx, currentvalue, ismobile, step, min, max) {
 	$.devIdx = idx;
-	var curValue = parseFloat(currentvalue).toFixed(1);
+	$.setstep = step;
+	$.setmin = min;
+	$.setmax = max;
+	var curValue = (Number.isInteger(currentvalue)) ? currentvalue : parseFloat(currentvalue).toFixed(1);
 	$('#setpoint_popup #actual_value').html(curValue);
 	$('#setpoint_popup #popup_setpoint').val(curValue);
 
-	if (typeof ismobile == 'undefined') {
+	var bIsMobile = false;
+	if (typeof ismobile !== 'undefined') {
+		bIsMobile = ismobile;
+	}
+
+	if (bIsMobile == false) {
 		$("#setpoint_popup").css({
 			"top": mouseY,
 			"left": mouseX + 15,
@@ -6771,8 +5945,71 @@ function ShowSetpointPopupInt(mouseX, mouseY, idx, currentvalue, ismobile) {
 	$("#setpoint_popup").show();
 }
 
-function ShowSetpointPopup(event, idx, Protected, currentvalue, ismobile) {
+function CloseSetpointPopup() {
+	$("#setpoint_popup").hide();
+}
+
+function SetpointUp() {
+	var curValue = parseFloat($('#setpoint_popup #popup_setpoint').val());
+	curValue += $.setstep;
+	curValue = Math.round(curValue / $.setstep) * $.setstep;
+	if (curValue > $.setmax)
+		curValue = $.setmax;
+	var curValueStr = (Number.isInteger(curValue)) ? curValue : curValue.toFixed(1);
+	$('#setpoint_popup #popup_setpoint').val(curValueStr);
+}
+
+function SetpointDown() {
+	var curValue = parseFloat($('#setpoint_popup #popup_setpoint').val());
+	curValue -= $.setstep;
+	curValue = Math.round(curValue / $.setstep) * $.setstep;
+	if (curValue < $.setmin)
+		curValue = $.setmin;
+	var curValueStr = (Number.isInteger(curValue)) ? curValue : curValue.toFixed(1);
+	$('#setpoint_popup #popup_setpoint').val(curValueStr);
+}
+
+function SetSetpoint() {
+	var currentvalue = parseFloat($('#setpoint_popup #popup_setpoint').val());
+	var curValue = (Number.isInteger(currentvalue)) ? currentvalue : currentvalue.toFixed(1);
+	if ((curValue < $.setmin) || (curValue > $.setmax)) {
+		var betmsg = "!";
+		betmsg = " " + $.t('between') + " " + $.setmin + " " + $.t('and') + " " + $.setmax + "!";
+		var msg = $.t('Please enter a valid integer') + betmsg;
+		bootbox.alert(msg);
+		return;
+	}
+	$.ajax({
+		url: "json.htm?type=command&param=setsetpoint&idx=" + $.devIdx +
+		"&setpoint=" + curValue,
+		async: false,
+		dataType: 'json',
+		success: function (data) {
+			CloseSetpointPopup();
+			if (data.status == "ERROR") {
+				HideNotify();
+				bootbox.alert($.t('Problem setting Setpoint value'));
+			}
+			//wait 1 second
+			setTimeout(function () {
+				HideNotify();
+			}, 1000);
+		},
+		error: function () {
+			HideNotify();
+			bootbox.alert($.t('Problem setting Setpoint value'));
+		}
+	});
+}
+
+
+function ShowSetpointPopup(event, idx, Protected, currentvalue, ismobile, step, min, max) {
 	$.Protected = Protected;
+
+	if (typeof step == 'undefined') step = 0.5;
+	if (typeof min == 'undefined') min = -200;
+	if (typeof max == 'undefined') max = 200;
+
 	event = event || window.event;
 	// If pageX/Y aren't available and clientX/Y are,
 	// calculate pageX/Y - logic taken from jQuery.
@@ -6791,8 +6028,9 @@ function ShowSetpointPopup(event, idx, Protected, currentvalue, ismobile) {
 	}
 	var mouseX = event.pageX;
 	var mouseY = event.pageY;
-
-	ShowSetpointPopupInt(mouseX, mouseY, idx, currentvalue, ismobile);
+	HandleProtection(Protected, function () {
+		ShowSetpointPopupInt(mouseX, mouseY, idx, currentvalue, ismobile, step, min, max);
+	});
 }
 
 function CloseRFYPopup() {
@@ -7054,3 +6292,218 @@ function MakeDatatableTranslations() {
 	$.DataTableLanguage["paginate"]["next"] = $.t("Next");
 	$.DataTableLanguage["paginate"]["last"] = $.t("Last");
 }
+
+function fromInstanceOrFunction(functionTemplate = f => f()) {
+	return function (instanceOrFunction) {
+		if (typeof instanceOrFunction === 'function') {
+			return functionTemplate(instanceOrFunction);
+		} else {
+			return instanceOrFunction;
+		}
+	}
+}
+
+
+/* LiveSearch Functions: Filters devices when typing in the INPUT field ##################################### */
+var _debug_livesearch= false;
+
+function AddToLiveSearch(current_data, new_value) {
+	if (
+		(typeof new_value == 'undefined') ||
+		(new_value === "")
+	   ) {
+		return current_data;
+	}
+	if (
+		(typeof current_data == 'undefined') ||
+		(current_data === "")
+	) {
+		return new_value;
+	}
+	if (current_data.includes(new_value))
+		return current_data;
+	return current_data + " " +  new_value;
+}
+
+GenerateLiveSearchTextDefault = function (item) {
+	var searchText = "";
+	searchText = AddToLiveSearch(searchText, item.idx);
+	searchText = AddToLiveSearch(searchText, item.Name);
+	searchText = AddToLiveSearch(searchText, item.Description.replace('"',"'"));
+	searchText = AddToLiveSearch(searchText, item.Type);
+	searchText = AddToLiveSearch(searchText, item.HardwareName);
+	if (typeof item.SubType != 'undefined') {
+		searchText = AddToLiveSearch(searchText, item.SubType);
+	}
+	return searchText;
+}
+//Lights
+GenerateLiveSearchTextL = function (item, bigtext) {
+	var searchText = GenerateLiveSearchTextDefault(item);
+	if (typeof (bigtext) !== 'undefined') {
+		if (bigtext !== "") {
+			if (bigtext.includes(' %')) {
+				if (item.SwitchType=="Dimmer") {
+					//treat dimmer percentage as on
+					searchText = AddToLiveSearch(searchText, "On");
+				} else {
+					//possible a blind
+				}
+			}
+			else 
+				searchText = AddToLiveSearch(searchText, bigtext);
+		}
+	}
+	if (item.SwitchType!=="On/Off") {
+		searchText = AddToLiveSearch(searchText, item.SwitchType);
+	}
+	return searchText;
+}
+//Scenes/Groups
+GenerateLiveSearchTextSG = function (item, bigtext) {
+	var searchText = GenerateLiveSearchTextDefault(item);
+	searchText = AddToLiveSearch(searchText, bigtext);
+	return searchText;
+}
+//Temperature (do we need to search for temp/humidity/gust or only name/type?)
+GenerateLiveSearchTextT = function (item) {
+	var searchText = GenerateLiveSearchTextDefault(item);
+	//searchText = AddToLiveSearch(searchText, item.Temp);
+	//searchText = AddToLiveSearch(searchText, item.Humidity);
+	searchText = AddToLiveSearch(searchText, item.HumidityStatus);
+	searchText = AddToLiveSearch(searchText, item.Gust);
+	return searchText;
+}
+
+//Weather (do we need to search for temp/humidity/gust or only name/type?)
+GenerateLiveSearchTextW = function (item) {
+	var searchText = GenerateLiveSearchTextDefault(item);
+	//searchText = AddToLiveSearch(searchText, item.Temp);
+	//searchText = AddToLiveSearch(searchText, item.Humidity);
+	searchText = AddToLiveSearch(searchText, item.HumidityStatus);
+	//searchText = AddToLiveSearch(searchText, item.Gust);
+	//searchText = AddToLiveSearch(searchText, item.Barometer);
+	searchText = AddToLiveSearch(searchText, item.ForecastStr);
+	//searchText = AddToLiveSearch(searchText, item.Rain);
+	//searchText = AddToLiveSearch(searchText, item.Radiation);
+	return searchText;
+}
+GenerateLiveSearchTextU = function (item, bigtext) {
+	var searchText = GenerateLiveSearchTextDefault(item);
+	//searchText = AddToLiveSearch(searchText, bigtext);
+	return searchText;
+}
+
+
+/* Triggers LiveSearch change ----------------------------------  */
+function RefreshLiveSearch(){
+	if(_debug_livesearch) console.log('LiveSearch: Refreshing...');
+	$('.jsLiveSearch').trigger('change');
+}
+
+/* Watches the LiveSearch INPUT field -------------------------------- */
+function WatchLiveSearch(){
+	if(_debug_livesearch) console.log('LiveSearch: Start Watching ...');
+	_tbDisplayResults(false,0);
+
+	/* Watches INPUT ++++++++++++++++++++ */
+	$('.jsLiveSearch').off().on('keyup change',function(e){
+		if(_debug_livesearch)  console.log('LiveSearch: processing on keyup - "'+$(this).val()+'"');
+		var query	=$(this).val();
+		var div		=$('.divider');
+		var cont	=$('.devicesList');
+		var items	=$('.itemBlock');
+		var cl_shown	='liveSearchShown';
+		var filt_search		=$(this).closest('.jsTbFiltSearch');
+		var cl_withres	='tbFiltSearchWithResults';
+
+		if(query.length == 0){
+			filt_search.removeClass(cl_withres);
+			if(cont.hasClass('devicesListFiltered')){
+				cont.removeClass('devicesListFiltered');
+				div.css('display','block');
+				div.addClass('row');
+				div.find('.clearfix').show(); /* only for Weather and Temperatures pages */
+				items.show().removeClass('liveSearchShown');	
+			}
+		}
+		else{
+			filt_search.addClass(cl_withres);
+			if(! cont.hasClass('devicesListFiltered')){
+				cont.addClass('devicesListFiltered');
+				div.css('display','inline');
+			}
+			div.removeClass('row');
+			div.find('.clearfix').hide();  /* only for Weather and Temperatures pages */
+
+			var searchString=query.replace('\\','').replace('[','\\[').replace(']','\\]').replace('.','\\.')
+			const regexStr = '(?=.*' + searchString.split(/\,|\s/).join(')(?=.*') + ')';
+			const searchRegEx = new RegExp(regexStr, 'gi');
+
+			items.each(function(index){
+				var searchText	=$(this).find('#name').attr('data-search')	|| '';
+				var to_hide=$(this);
+
+				if (searchText.match(searchRegEx) !== null) {
+					to_hide.show();
+					to_hide.addClass(cl_shown);
+				}
+				else{
+					to_hide.hide();
+					to_hide.removeClass(cl_shown);
+				}
+			});
+		}
+
+		var count   =$('.' + cl_shown).length;
+		if(_debug_livesearch)  console.log('LiveSearch: Found '+ count +' items');
+		_tbDisplayResults(count || query.length, count);
+	});
+
+	/* Watches Close icon ++++++++++++++++++++ */
+	$(".jsTbResultsClose,.jsTbResults").off().on('click',function(e) {
+		e.preventDefault();
+		if(_debug_livesearch)  console.log('LiveSearch: Close Clicked');
+		$('.jsLiveSearch').val('').trigger('change');
+	});
+}
+
+/* Toggle Results display ------------------------------------------ */
+function _tbDisplayResults(on, count){
+	if(on){
+		$('.jsTbSearch').hide();
+		$('.jsTbResults').show();
+		$('.jsTbResultsCount').html(_tbPadCount(count));
+	}
+	else{
+		$('.jsTbSearch').show();
+		$('.jsTbResults').hide();
+		$('.jsTbResultsCount').html('');
+	}
+}
+
+/* Pad Left with spaces ------------------------------------------- */
+function _tbPadCount(txt){
+	return String('xxx' + txt).slice(-4).replace(/x/g, '&nbsp;');
+}
+
+function truncateString(str, num) {
+  if (str.length <= num) {
+    return str
+  }
+  return str.slice(0, num) + '...'
+}
+
+/* Display descriptions when hovering name ################################################################## */
+function WatchDescriptions(){
+	/* Show description when hovering item's name */
+	$(".item-name").hover(function() {
+		if(_debug_livesearch) console.log("Hover Description!");
+		var desc=$(this).attr('data-desc');
+		if(desc.length > 0){
+			$(this).css('cursor','pointer').attr('title', desc);
+		}
+	}, function() {
+		$(this).css('cursor','auto');
+	});
+};

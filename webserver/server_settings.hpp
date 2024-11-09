@@ -39,6 +39,7 @@ public:
 		www_root = get_valid_value(listening_address, settings.www_root);
 		listening_address = get_valid_value(listening_address, settings.listening_address);
 		listening_port = get_valid_value(listening_port, settings.listening_port);
+		vhostname = get_valid_value(vhostname, settings.vhostname);
 		php_cgi_path = get_valid_value(php_cgi_path, settings.php_cgi_path);
 		if (listening_port == "0") {
 			listening_port.clear();// server NOT enabled
@@ -50,6 +51,7 @@ public:
 			", www_root='" + www_root + "'" +
 			", listening_address='" + listening_address + "'" +
 			", listening_port='" + listening_port + "'" +
+			", vhostname='" + vhostname + "'" +
 			", php_cgi_path='" + php_cgi_path + "'" +
 			"]'";
 	}
@@ -66,6 +68,7 @@ protected:
 	}
 public:
 	std::string www_root;
+	std::string vhostname;
 	std::string listening_address;
 	std::string listening_port;
 
@@ -94,6 +97,7 @@ public:
 	bool verify_peer{ false };
 	bool verify_fail_if_no_peer_cert{ false };
 	std::string verify_file_path;
+	std::string cipher_list;
 
 	ssl_server_settings()
 		: server_settings(true)
@@ -136,6 +140,22 @@ public:
 		else if (ssl_method == "tlsv12_server")
 		{
 			method = boost::asio::ssl::context::tlsv12_server;
+		}
+		else if (ssl_method == "tlsv13")
+		{
+			method = boost::asio::ssl::context::tlsv13;
+		}
+		else if (ssl_method == "tlsv13_server")
+		{
+			method = boost::asio::ssl::context::tlsv13_server;
+		}
+		else if (ssl_method == "tls")
+		{
+			method = boost::asio::ssl::context::tls;
+		}
+		else if (ssl_method == "tls_server")
+		{
+			method = boost::asio::ssl::context::tls_server;
 		}
 		else
 		{

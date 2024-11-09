@@ -15,7 +15,6 @@
 #include "EvohomeRadio.h"
 #include "hardwaretypes.h"
 #include "../main/Helper.h"
-#include "../main/localtime_r.h"
 #include "../main/Logger.h"
 #include "../main/mainworker.h"
 #include "../main/RFXtrx.h"
@@ -23,9 +22,6 @@
 #include "../main/WebServer.h"
 #include "../webserver/cWebem.h"
 #include <json/json.h>
-#include <boost/bind/bind.hpp>
-
-using namespace boost::placeholders;
 
 extern std::string szUserDataFolder;
 
@@ -72,8 +68,9 @@ CEvohomeRadio::CEvohomeRadio(const int ID, const std::string& UserContID)
 	m_HwdID = ID;
 	m_nDevID = 0;
 	m_nMyID = 0;
+	m_nOtbID = 0;
 	m_nBindID = 0;
-	std::fill(std::begin(m_bStartup), std::end(m_bStartup), true);
+	m_bStartup.fill(true);
 	m_nBufPtr = 0;
 	m_nSendFail = 0;
 	m_nZoneCount = 0;
@@ -88,28 +85,28 @@ CEvohomeRadio::CEvohomeRadio(const int ID, const std::string& UserContID)
 		s_strid >> std::hex >> m_UControllerID;
 	}
 
-	RegisterDecoder(cmdZoneTemp, boost::bind(&CEvohomeRadio::DecodeZoneTemp, this, _1));
-	RegisterDecoder(cmdSetPoint, boost::bind(&CEvohomeRadio::DecodeSetpoint, this, _1));
-	RegisterDecoder(cmdSetpointOverride, boost::bind(&CEvohomeRadio::DecodeSetpointOverride, this, _1));
-	RegisterDecoder(cmdDHWState, boost::bind(&CEvohomeRadio::DecodeDHWState, this, _1));
-	RegisterDecoder(cmdDHWTemp, boost::bind(&CEvohomeRadio::DecodeDHWTemp, this, _1));
-        RegisterDecoder(cmdDHWSettings, boost::bind(&CEvohomeRadio::DecodeDHWSettings, this, _1));
-	RegisterDecoder(cmdControllerMode, boost::bind(&CEvohomeRadio::DecodeControllerMode, this, _1));
-	RegisterDecoder(cmdSysInfo, boost::bind(&CEvohomeRadio::DecodeSysInfo, this, _1));
-	RegisterDecoder(cmdZoneName, boost::bind(&CEvohomeRadio::DecodeZoneName, this, _1));
-	RegisterDecoder(cmdZoneHeatDemand, boost::bind(&CEvohomeRadio::DecodeHeatDemand, this, _1));
-	RegisterDecoder(cmdOpenThermBridge, boost::bind(&CEvohomeRadio::DecodeOpenThermBridge, this, _1));
-	RegisterDecoder(cmdOpenThermSetpoint, boost::bind(&CEvohomeRadio::DecodeOpenThermSetpoint, this, _1));
- 	RegisterDecoder(cmdZoneInfo, boost::bind(&CEvohomeRadio::DecodeZoneInfo, this, _1));
-	RegisterDecoder(cmdControllerHeatDemand, boost::bind(&CEvohomeRadio::DecodeHeatDemand, this, _1));
-	RegisterDecoder(cmdBinding, boost::bind(&CEvohomeRadio::DecodeBinding, this, _1));
-	RegisterDecoder(cmdActuatorState, boost::bind(&CEvohomeRadio::DecodeActuatorState, this, _1));
-	RegisterDecoder(cmdActuatorCheck, boost::bind(&CEvohomeRadio::DecodeActuatorCheck, this, _1));
-	RegisterDecoder(cmdZoneWindow, boost::bind(&CEvohomeRadio::DecodeZoneWindow, this, _1));
-	RegisterDecoder(cmdExternalSensor, boost::bind(&CEvohomeRadio::DecodeExternalSensor, this, _1));
-	RegisterDecoder(cmdDeviceInfo, boost::bind(&CEvohomeRadio::DecodeDeviceInfo, this, _1));
-	RegisterDecoder(cmdBatteryInfo, boost::bind(&CEvohomeRadio::DecodeBatteryInfo, this, _1));
-	RegisterDecoder(cmdSync, boost::bind(&CEvohomeRadio::DecodeSync, this, _1));
+	RegisterDecoder(cmdZoneTemp, [this](auto &&msg) { return DecodeZoneTemp(msg); });
+	RegisterDecoder(cmdSetPoint, [this](auto &&msg) { return DecodeSetpoint(msg); });
+	RegisterDecoder(cmdSetpointOverride, [this](auto &&msg) { return DecodeSetpointOverride(msg); });
+	RegisterDecoder(cmdDHWState, [this](auto &&msg) { return DecodeDHWState(msg); });
+	RegisterDecoder(cmdDHWTemp, [this](auto &&msg) { return DecodeDHWTemp(msg); });
+	RegisterDecoder(cmdDHWSettings, [this](auto &&msg) { return DecodeDHWSettings(msg); });
+	RegisterDecoder(cmdControllerMode, [this](auto &&msg) { return DecodeControllerMode(msg); });
+	RegisterDecoder(cmdSysInfo, [this](auto &&msg) { return DecodeSysInfo(msg); });
+	RegisterDecoder(cmdZoneName, [this](auto &&msg) { return DecodeZoneName(msg); });
+	RegisterDecoder(cmdZoneHeatDemand, [this](auto &&msg) { return DecodeHeatDemand(msg); });
+	RegisterDecoder(cmdOpenThermBridge, [this](auto &&msg) { return DecodeOpenThermBridge(msg); });
+	RegisterDecoder(cmdOpenThermSetpoint, [this](auto &&msg) { return DecodeOpenThermSetpoint(msg); });
+	RegisterDecoder(cmdZoneInfo, [this](auto &&msg) { return DecodeZoneInfo(msg); });
+	RegisterDecoder(cmdControllerHeatDemand, [this](auto &&msg) { return DecodeHeatDemand(msg); });
+	RegisterDecoder(cmdBinding, [this](auto &&msg) { return DecodeBinding(msg); });
+	RegisterDecoder(cmdActuatorState, [this](auto &&msg) { return DecodeActuatorState(msg); });
+	RegisterDecoder(cmdActuatorCheck, [this](auto &&msg) { return DecodeActuatorCheck(msg); });
+	RegisterDecoder(cmdZoneWindow, [this](auto &&msg) { return DecodeZoneWindow(msg); });
+	RegisterDecoder(cmdExternalSensor, [this](auto &&msg) { return DecodeExternalSensor(msg); });
+	RegisterDecoder(cmdDeviceInfo, [this](auto &&msg) { return DecodeDeviceInfo(msg); });
+	RegisterDecoder(cmdBatteryInfo, [this](auto &&msg) { return DecodeBatteryInfo(msg); });
+	RegisterDecoder(cmdSync, [this](auto &&msg) { return DecodeSync(msg); });
 }
 
 CEvohomeRadio::~CEvohomeRadio()
@@ -135,7 +132,7 @@ bool CEvohomeRadio::StartHardware()
 		}
 		catch (...)
 		{
-			_log.Log(LOG_ERROR, "EvoHome: Could not open debug file!");
+			Log(LOG_ERROR, "Could not open debug file!");
 		}
 	}
 
@@ -151,14 +148,14 @@ bool CEvohomeRadio::StartHardware()
 		{
 			s_strid >> m_nDevID;
 			SetControllerID(m_nDevID);
-			Log(true, LOG_STATUS, "evohome: Controller ID (0x%x)", GetControllerID());
+			Log(LOG_STATUS, "Controller ID (0x%x)", GetControllerID());
 		}
 		else
 		{
 			if (m_UControllerID)  // Check whether controller ID has been entered on hardware settings page
 			{
 				SetControllerID(m_UControllerID);
-				Log(true, LOG_STATUS, "evohome: Controller ID specified (0x%x)", m_UControllerID);
+				Log(LOG_STATUS, "Controller ID specified (0x%x)", m_UControllerID);
 			}
 			else
 				SetControllerID(0xFFFFFF);  // Dummy value to allow detection of multiple controllers
@@ -170,7 +167,7 @@ bool CEvohomeRadio::StartHardware()
 		if (m_UControllerID)
 		{
 			SetControllerID(m_UControllerID);
-			Log(true, LOG_STATUS, "evohome: Controller ID specified (0x%x)", m_UControllerID);
+			Log(LOG_STATUS, "Controller ID specified (0x%x)", m_UControllerID);
 		}
 		else
 			SetControllerID(0xFFFFFF);  // Dummy valueto allow detection of multiple controllers
@@ -181,7 +178,7 @@ bool CEvohomeRadio::StartHardware()
 	m_RelayCheck.clear();
 	for (auto &i : result)
 	{
-		Log(true, LOG_STATUS, "evohome: Relay: devno=%d demmand=%d", atoi(i[0].c_str()), atoi(i[4].c_str()));
+		Debug(DEBUG_HARDWARE, "Relay: devno=%d demmand=%d", atoi(i[0].c_str()), atoi(i[4].c_str()));
 		m_RelayCheck.insert(
 			tmap_relay_check_pair(static_cast<uint8_t>(atoi(i[0].c_str())),
 					      _tRelayCheck(boost::get_system_time() - boost::posix_time::minutes(19),
@@ -191,7 +188,7 @@ bool CEvohomeRadio::StartHardware()
 
 	//Start worker thread
 	m_retrycntr = EVOHOME_RETRY_DELAY; //will force reconnect first thing
-	m_thread = std::make_shared<std::thread>(&CEvohomeRadio::Do_Work, this);
+	m_thread = std::make_shared<std::thread>([this] { Do_Work(); });
 	SetThreadNameInt(m_thread->native_handle());
 	m_bIsStarted = true;
 
@@ -414,6 +411,24 @@ void CEvohomeRadio::RequestDeviceInfo(uint8_t nAddr)
 }
 
 
+void CEvohomeRadio::RequestOpenThermBridge()
+{
+	// Manual requests since the Controller no longer requests this information from the OT Bridge
+	AddSendQueue(CEvohomeMsg(CEvohomeMsg::pktreq, GetOpenThermBridgeID(), cmdActuatorState).Add(uint8_t(0)));
+	AddSendQueue(CEvohomeMsg(CEvohomeMsg::pktreq, GetOpenThermBridgeID(), cmdOpenThermSetpoint).Add(uint8_t(0)));
+	AddSendQueue(CEvohomeMsg(CEvohomeMsg::pktreq, GetOpenThermBridgeID(), cmdOpenThermBridge).Add(uint8_t(0)).Add(uint8_t(0)).Add(uint8_t(0x00)).Add(uint8_t(0)).Add(uint8_t(0)));
+ 	AddSendQueue(CEvohomeMsg(CEvohomeMsg::pktreq, GetOpenThermBridgeID(), cmdOpenThermBridge).Add(uint8_t(0)).Add(uint8_t(0)).Add(uint8_t(0x05)).Add(uint8_t(0)).Add(uint8_t(0)));
+	AddSendQueue(CEvohomeMsg(CEvohomeMsg::pktreq, GetOpenThermBridgeID(), cmdOpenThermBridge).Add(uint8_t(0)).Add(uint8_t(0)).Add(uint8_t(0x11)).Add(uint8_t(0)).Add(uint8_t(0)));
+	AddSendQueue(CEvohomeMsg(CEvohomeMsg::pktreq, GetOpenThermBridgeID(), cmdOpenThermBridge).Add(uint8_t(0)).Add(uint8_t(0)).Add(uint8_t(0x12)).Add(uint8_t(0)).Add(uint8_t(0)));
+	AddSendQueue(CEvohomeMsg(CEvohomeMsg::pktreq, GetOpenThermBridgeID(), cmdOpenThermBridge).Add(uint8_t(0)).Add(uint8_t(0)).Add(uint8_t(0x13)).Add(uint8_t(0)).Add(uint8_t(0)));
+	AddSendQueue(CEvohomeMsg(CEvohomeMsg::pktreq, GetOpenThermBridgeID(), cmdOpenThermBridge).Add(uint8_t(0)).Add(uint8_t(0)).Add(uint8_t(0x19)).Add(uint8_t(0)).Add(uint8_t(0)));
+	AddSendQueue(CEvohomeMsg(CEvohomeMsg::pktreq, GetOpenThermBridgeID(), cmdOpenThermBridge).Add(uint8_t(0)).Add(uint8_t(0)).Add(uint8_t(0x1a)).Add(uint8_t(0)).Add(uint8_t(0)));
+	AddSendQueue(CEvohomeMsg(CEvohomeMsg::pktreq, GetOpenThermBridgeID(), cmdOpenThermBridge).Add(uint8_t(0)).Add(uint8_t(0)).Add(uint8_t(0x1b)).Add(uint8_t(0)).Add(uint8_t(0)));
+	AddSendQueue(CEvohomeMsg(CEvohomeMsg::pktreq, GetOpenThermBridgeID(), cmdOpenThermBridge).Add(uint8_t(0)).Add(uint8_t(0)).Add(uint8_t(0x1c)).Add(uint8_t(0)).Add(uint8_t(0)));
+	AddSendQueue(CEvohomeMsg(CEvohomeMsg::pktreq, GetOpenThermBridgeID(), cmdOpenThermBridge).Add(uint8_t(0)).Add(uint8_t(0)).Add(uint8_t(0x73)).Add(uint8_t(0)).Add(uint8_t(0))); 
+}
+
+
 void CEvohomeRadio::SendRelayHeatDemand(uint8_t nDevNo, uint8_t nDemand)
 {
 	AddSendQueue(CEvohomeMsg(CEvohomeMsg::pktinf, 0, GetGatewayID(), cmdControllerHeatDemand).Add(nDevNo).Add(nDemand));
@@ -441,7 +456,7 @@ void CEvohomeRadio::CheckRelayHeatDemand()
 	{
 		if ((boost::get_system_time() - it.second.m_stLastCheck) > boost::posix_time::seconds(1202)) //avg seems around 1202-1203 but not clear how reference point derived
 		{
-			Log(true, LOG_STATUS, "evohome: Relay: Refreshing heat demand devno=%d demand=%d", it.first, it.second.m_nDemand);
+			Debug(DEBUG_HARDWARE, "Relay: Refreshing heat demand devno=%d demand=%d", it.first, it.second.m_nDemand);
 			UpdateRelayHeatDemand(it.first, it.second.m_nDemand);
 		}
 	}
@@ -450,7 +465,7 @@ void CEvohomeRadio::CheckRelayHeatDemand()
 
 void CEvohomeRadio::SendRelayKeepAlive()
 {
-	Log(true, LOG_STATUS, "evohome: Relay: Sending keep alive");
+	Debug(DEBUG_HARDWARE, "Relay: Sending keep alive");
 	AddSendQueue(CEvohomeMsg(CEvohomeMsg::pktinf, 0, GetGatewayID(), cmdActuatorCheck).Add((uint8_t)0xFC).Add((uint8_t)0xC8));
 }
 
@@ -521,7 +536,7 @@ void CEvohomeRadio::SendZoneSensor()
 				StringSplit(result[0][0], ";", strarray);
 				if (!strarray.empty())
 					dbTemp = atof(strarray[0].c_str());
-				Log(true, LOG_STATUS, "evohome: Send Temp Zone msg Zone: %d DeviceID: 0x%x Name:%s Temp:%f ", i, ID, SensorName.c_str(), dbTemp);
+				Debug(DEBUG_HARDWARE, "Send Temp Zone msg Zone: %d DeviceID: 0x%x Name:%s Temp:%f ", i, ID, SensorName.c_str(), dbTemp);
 				AddSendQueue(CEvohomeMsg(CEvohomeMsg::pktinf, 0, ID, cmdZoneTemp).Add((uint8_t)0).Add(static_cast<int16_t>(dbTemp * 100.0)));
 				// Update the dummy Temp Zone device with the new temperature
 				_tEVOHOME2 tsen;
@@ -542,12 +557,12 @@ bool CEvohomeRadio::HandleLoopData(const char* data, size_t len)
 {
 	if (m_nBufPtr + len >= m_nBufSize)
 	{
-		Log(false, LOG_ERROR, "evohome: Buffer overflow");
+		Log(LOG_ERROR, "Buffer overflow");
 		m_nBufPtr = 0;
 		return false;
 	}
 	memcpy(m_buf + m_nBufPtr, data, len);
-	m_nBufPtr += len;
+	m_nBufPtr += (int)len;
 	m_nBufPtr = ProcessBuf(m_buf, m_nBufPtr);
 	return true;
 }
@@ -563,7 +578,7 @@ int CEvohomeRadio::ProcessBuf(char* buf, int size)
 		else if (buf[i] == 0x0A)//this is the end of packet marker...not sure if there is a CR before this?
 		{
 			if (i - start >= 2048) {
-				Log(false, LOG_ERROR, "evohome: Message length exceeds max message size");
+				Log(LOG_ERROR, "Message length exceeds max message size");
 				start = i + 1;
 				continue;
 			}
@@ -603,17 +618,17 @@ bool CEvohomeMsg::DecodePacket(const char* rawmsg)
 		{
 			if (!GetFlag(flgps))
 			{
-				CEvohomeRadio::Log(false, LOG_ERROR, "evohome: no payload size - possible corrupt message");
+				//Log(LOG_ERROR, "No payload size - possible corrupt message");
 				return false;
 			}
 			if (tkn.length() % 2)
 			{
-				CEvohomeRadio::Log(false, LOG_ERROR, "evohome: uneven payload - possible corrupt message");
+				//Log(LOG_ERROR, "Uneven payload - possible corrupt message");
 				return false;
 			}
 			if (tkn.length() / 2 > m_nBufSize)
 			{
-				CEvohomeRadio::Log(false, LOG_ERROR, "evohome: payload exceeds max buffer size");
+				//Log(LOG_ERROR, "Payload exceeds max buffer size");
 				return false;
 			}
 			int ps = 0;
@@ -629,7 +644,7 @@ bool CEvohomeMsg::DecodePacket(const char* rawmsg)
 			}
 			else
 			{
-				CEvohomeRadio::Log(false, LOG_ERROR, "evohome: payload size does not match specified size from packet header");
+				//Log(LOG_ERROR, "Payload size does not match specified size from packet header");
 				return false;
 			}
 
@@ -659,12 +674,12 @@ bool CEvohomeMsg::DecodePacket(const char* rawmsg)
 		}
 		else
 		{
-			int nPos = tkn.find(':');
+			size_t nPos = tkn.find(':');
 			if (nPos != std::string::npos)
 			{
 				if (nid >= 3)
 				{
-					CEvohomeRadio::Log(false, LOG_ERROR, "evohome: too many message ids - possible corrupt message");
+					//Log(LOG_ERROR, "Too many message ids - possible corrupt message");
 					continue;
 				}
 				if (tkn.find('-') == std::string::npos)
@@ -674,8 +689,8 @@ bool CEvohomeMsg::DecodePacket(const char* rawmsg)
 				}
 				nid++;
 			}
-			else
-				CEvohomeRadio::Log(false, LOG_STATUS, "evohome: WARNING unrecognised message structure - possible corrupt message '%s' (%d)", tkn.c_str(), i);
+			//else
+				//Log(false, LOG_STATUS, "WARNING unrecognised message structure - possible corrupt message '%s' (%d)", tkn.c_str(), i);
 		}
 	}
 	return IsValid();
@@ -685,7 +700,7 @@ bool CEvohomeMsg::DecodePacket(const char* rawmsg)
 void CEvohomeRadio::ProcessMsg(const char* rawmsg)
 {
 	CEvohomeMsg msg(rawmsg);
-	Log(rawmsg, msg);
+	Debug(DEBUG_HARDWARE, "RawMsg: .%s.", rawmsg);
 	if (msg.IsValid())
 	{
 		if (GetControllerID() == 0xFFFFFF) // If we still have a dummy controller update the controller DeviceID list
@@ -701,12 +716,20 @@ void CEvohomeRadio::ProcessMsg(const char* rawmsg)
 						if (i == 0)
 						{
 							i = msg.GetID(n);
-							_log.Log(LOG_STATUS, "evohome: controller detected, ID:0x%x", i);
+							Log(LOG_STATUS, "Controller detected, ID:0x%x", i);
 							break;
 						}
 					}
 				}
 			}
+		}
+		if (msg.id[0].GetIDType() == CEvohomeID::devBridge) //if we get a message from the OT Bridge capture it's ID
+		{
+                        if (!m_nOtbID)
+                        {
+                                m_nOtbID = msg.GetID(0);
+                                Log(LOG_STATUS, "Opentherm bridge detected, ID:0x%x", m_nOtbID);
+                         }		
 		}
 		if (msg.id[0].GetIDType() == CEvohomeID::devGateway) //if we just got an echo of a sent packet we don't need to process it
 		{
@@ -718,21 +741,21 @@ void CEvohomeRadio::ProcessMsg(const char* rawmsg)
 			DecodePayload(msg);
 	}
 	else
-		Log(true, LOG_ERROR, "evohome: invalid message structure - possible corrupt message");
+		Log(LOG_ERROR, "Invalid message structure - possible corrupt message");
 }
 
 
 bool CEvohomeRadio::DecodePayload(CEvohomeMsg& msg)
 {
-	std::map < unsigned int, fnc_evohome_decode >::iterator pf = m_Decoders.find(msg.command);
+	auto pf = m_Decoders.find(msg.command);
 	if (pf != m_Decoders.end())
 	{
 		bool ret = pf->second(msg);
 		if (!ret)
-			Log(false, LOG_ERROR, "evohome: unable to decode payload for command %04x", msg.command);
+			Log(LOG_ERROR, "Unable to decode payload for command %04x", msg.command);
 		return ret;
 	}
-	Log(true, LOG_ERROR, "evohome: unknown command %04x", msg.command);
+	Log(LOG_ERROR, "Unknown command %04x", msg.command);
 	return false;
 }
 
@@ -740,7 +763,7 @@ bool CEvohomeRadio::DecodePayload(CEvohomeMsg& msg)
 bool CEvohomeRadio::DumpMessage(CEvohomeMsg& msg)
 {
 	char tag[] = "DUMP_MSG";
-	Log(true, LOG_STATUS, "evohome: %s: CMD=%04x Len=%d", tag, msg.command, msg.payloadsize);
+	Debug(DEBUG_HARDWARE, "%s: CMD=%04x Len=%d", tag, msg.command, msg.payloadsize);
 	std::string strpayload, strascii;
 	char szTmp[1024];
 	for (int i = 0; i < msg.payloadsize; i++)
@@ -750,7 +773,7 @@ bool CEvohomeRadio::DumpMessage(CEvohomeMsg& msg)
 		sprintf(szTmp, "%c", msg.payload[i]);
 		strascii += szTmp;
 	}
-	Log(true, LOG_STATUS, "evohome: %s: payload=%s (ASCII)=%s", tag, strpayload.c_str(), strascii.c_str());
+	Debug(DEBUG_HARDWARE, "%s: payload=%s (ASCII)=%s", tag, strpayload.c_str(), strascii.c_str());
 	return true;
 }
 
@@ -845,11 +868,11 @@ bool CEvohomeRadio::DecodeSetpoint(CEvohomeMsg& msg)//0x2309
 		return true;
 
 	if (msg.payloadsize == 1) {
-		Log(true, LOG_STATUS, "evohome: %s: Request for zone %d", tag, msg.payload[0]);
+		Debug(DEBUG_HARDWARE, "%s: Request for zone %d", tag, msg.payload[0]);
 		return true;
 	}
 	if (msg.payloadsize % 3 != 0) {
-		Log(false, LOG_ERROR, "evohome: %s: Error decoding zone setpoint payload, size incorrect: %d", tag, msg.payloadsize);
+		Log(LOG_ERROR, "%s: Error decoding zone setpoint payload, size incorrect: %d", tag, msg.payloadsize);
 		return false;
 	}
 	_tEVOHOME2 tsen;
@@ -866,11 +889,11 @@ bool CEvohomeRadio::DecodeSetpoint(CEvohomeMsg& msg)//0x2309
 		tsen.temperature = msg.payload[i + 1] << 8 | msg.payload[i + 2];
 		if (tsen.temperature == 0x7FFF)
 		{
-			Log(true, LOG_STATUS, "evohome: %s: Warning setpoint not set for zone %d", tag, msg.payload[0]);
+			Debug(DEBUG_HARDWARE, "%s: Warning setpoint not set for zone %d", tag, msg.payload[0]);
 			continue;
 		}
 		SetMaxZoneCount(tsen.zone);//this should increase on startup as we poll all zones so we don't respond to changes here
-		Log(true, LOG_STATUS, "evohome: %s: Setting: %d: %d", tag, tsen.zone, tsen.temperature);
+		Debug(DEBUG_HARDWARE, "%s: Setting: %d: %d", tag, tsen.zone, tsen.temperature);
 		//It appears that the controller transmits the current setpoint for all zones periodically this is presumably so
 		//the zone controller can update to any changes as required
 		//The zone controllers also individually transmit their own setpoint as it is currently set
@@ -884,7 +907,7 @@ bool CEvohomeRadio::DecodeSetpoint(CEvohomeMsg& msg)//0x2309
 			char zstrname[40];
 			sprintf(zstrname, "Zone %d", tsen.zone);
 			tsen.zone += 12; //zone number offset by 12
-			Log(true, LOG_STATUS, "evohome: %s: Setting: %d (0x%x): %d", tag, tsen.zone, msg.GetID(0), tsen.temperature);
+			Debug(DEBUG_HARDWARE, "%s: Setting: %d (0x%x): %d", tag, tsen.zone, msg.GetID(0), tsen.temperature);
 			sDecodeRXMessage(this, (const unsigned char *)&tsen, zstrname, -1, nullptr);
 		}
 	}
@@ -900,12 +923,12 @@ bool CEvohomeRadio::DecodeSetpointOverride(CEvohomeMsg& msg)//0x2349
 		return true;
 
 	if (msg.payloadsize == 1) {
-		Log(true, LOG_STATUS, "evohome: %s: Request for zone %d", tag, msg.payload[0]);
+		Debug(DEBUG_HARDWARE, "%s: Request for zone %d", tag, msg.payload[0]);
 		return true;
 	}
 	//reply is 7 bytes or 13 bytes with a date?
 	if (msg.payloadsize != 7 && msg.payloadsize != 13) {
-		Log(false, LOG_ERROR, "evohome: %s: Error decoding payload unknown size: %d", tag, msg.payloadsize);
+		Log(LOG_ERROR, "%s: Error decoding payload unknown size: %d", tag, msg.payloadsize);
 		return false;
 	}
 	_tEVOHOME2 tsen;
@@ -918,26 +941,26 @@ bool CEvohomeRadio::DecodeSetpointOverride(CEvohomeMsg& msg)//0x2349
 		tsen.zone = msg.payload[0] + 1;//controller is 0 so let our zones start from 1...
 	if (tsen.zone > m_nMaxZones)
 	{
-		Log(false, LOG_ERROR, "evohome: %s: Error zone number out of bounds: %d", tag, tsen.zone);
+		Log(LOG_ERROR, "%s: Error zone number out of bounds: %d", tag, tsen.zone);
 		return false;
 	}
 	tsen.updatetype = updSetPoint;//setpoint
 	tsen.temperature = msg.payload[1] << 8 | msg.payload[2];
 	if (tsen.temperature == 0x7FFF)
 	{
-		Log(true, LOG_STATUS, "evohome: %s: Warning setpoint not set for zone %d", tag, tsen.zone);
+		Debug(DEBUG_HARDWARE, "%s: Warning setpoint not set for zone %d", tag, tsen.zone);
 		return true;
 	}
 	SetMaxZoneCount(tsen.zone);//this should increase on startup as we poll all zones so we don't respond to changes here
 	if (m_ZoneOverrideLocal[tsen.zone - 1] == zmWind || m_ZoneOverrideLocal[tsen.zone - 1] == zmLocal)
 	{
-		Log(true, LOG_STATUS, "evohome: %s: A local override is in effect for zone %d", tag, tsen.zone);
+		Debug(DEBUG_HARDWARE, "%s: A local override is in effect for zone %d", tag, tsen.zone);
 		return true;
 	}
 	int nMode = ConvertMode(m_evoToDczOverrideMode, msg.payload[3]);
 	if (nMode == -1)
 	{
-		Log(false, LOG_STATUS, "evohome: %s: WARNING unexpected mode %d", tag, msg.payload[3]);
+		Log(LOG_STATUS, "%s: WARNING unexpected mode %d", tag, msg.payload[3]);
 		return false;
 	}
 	tsen.mode = static_cast<uint8_t>(nMode);
@@ -945,11 +968,11 @@ bool CEvohomeRadio::DecodeSetpointOverride(CEvohomeMsg& msg)//0x2349
 	if (msg.payloadsize == 13)
 	{
 		CEvohomeDateTime::DecodeDateTime(tsen, msg.payload, 7);
-		Log(true, LOG_STATUS, "evohome: %s: Setting: %d (0x%x): %d (%d=%s) %s", tag, tsen.zone, msg.GetID(0), tsen.temperature, tsen.mode, GetZoneModeName(tsen.mode), CEvohomeDateTime::GetStrDate(tsen).c_str());
+		Debug(DEBUG_HARDWARE, "%s: Setting: %d (0x%x): %d (%d=%s) %s", tag, tsen.zone, msg.GetID(0), tsen.temperature, tsen.mode, GetZoneModeName(tsen.mode), CEvohomeDateTime::GetStrDate(tsen).c_str());
 	}
 	else
 	{
-		Log(true, LOG_STATUS, "evohome: %s: Setting: %d (0x%x): %d (%d=%s)", tag, tsen.zone, msg.GetID(0), tsen.temperature, tsen.mode, GetZoneModeName(tsen.mode));
+		Debug(DEBUG_HARDWARE, "%s: Setting: %d (0x%x): %d (%d=%s)", tag, tsen.zone, msg.GetID(0), tsen.temperature, tsen.mode, GetZoneModeName(tsen.mode));
 	}
 
 	sDecodeRXMessage(this, (const unsigned char *)&tsen, "Setpoint", -1, nullptr);
@@ -972,16 +995,16 @@ bool CEvohomeRadio::DecodeZoneTemp(CEvohomeMsg& msg)//0x30C9
 
 
 	if (msg.payloadsize == 1) {
-		Log(true, LOG_STATUS, "evohome: %s: Request for zone temp %d", tag, msg.payload[0]);
+		Debug(DEBUG_HARDWARE, "%s: Request for zone temp %d", tag, msg.payload[0]);
 		return true;
 	}
 	//blocks of 3 bytes
 	if (msg.payloadsize < 3) {//check below does not trap 0 byte payload
-		Log(false, LOG_ERROR, "evohome: %s: Error decoding zone temperature payload, size too small: %d", tag, msg.payloadsize);
+		Log(LOG_ERROR, "%s: Error decoding zone temperature payload, size too small: %d", tag, msg.payloadsize);
 		return false;
 	}
 	if (msg.payloadsize % 3 != 0) {
-		Log(false, LOG_ERROR, "evohome: %s: Error decoding zone temperature payload, size incorrect: %d", tag, msg.payloadsize);
+		Log(LOG_ERROR, "%s: Error decoding zone temperature payload, size incorrect: %d", tag, msg.payloadsize);
 		return false;
 	}
 
@@ -1001,7 +1024,7 @@ bool CEvohomeRadio::DecodeZoneTemp(CEvohomeMsg& msg)//0x30C9
 			tsen.zone = 0;
 		tsen.temperature = msg.payload[i + 1] << 8 | msg.payload[i + 2];
 		//this is sent for zones that use a zone temperature instead of the internal sensor.
-		Log(true, LOG_STATUS, "evohome: %s: Zone sensor msg: 0x%x: %d: %d", tag, msg.GetID(0), tsen.zone, tsen.temperature);
+		Debug(DEBUG_HARDWARE, "%s: Zone sensor msg: 0x%x: %d: %d", tag, msg.GetID(0), tsen.zone, tsen.temperature);
 		if (tsen.temperature != 0x7FFF)//afaik this is the error value just ignore it right now as we have no way to report errors...also perhaps could be returned if DHW is not installed?
 		{
 			sDecodeRXMessage(this, (const unsigned char *)&tsen, "Zone Temp", -1, nullptr);
@@ -1030,7 +1053,7 @@ bool CEvohomeRadio::DecodeZoneTemp(CEvohomeMsg& msg)//0x30C9
 			if (!result.empty()) // Update existing temp sensor with value directly from sensor
 			{
 				tsen.zone = (uint8_t)atoi(result[0][0].c_str());
-				Log(true, LOG_STATUS, "evohome: %s: Zone sensor msg: 0x%x: %d: %d", tag, msg.GetID(0), tsen.zone, tsen.temperature);
+				Debug(DEBUG_HARDWARE, "%s: Zone sensor msg: 0x%x: %d: %d", tag, msg.GetID(0), tsen.zone, tsen.temperature);
 				sDecodeRXMessage(this, (const unsigned char *)&tsen, "Zone Temp", -1, nullptr);
 			}
 			else // If matching relay with same deviceID then create a new Zone Temp sensor with zone number offset by 12
@@ -1041,17 +1064,17 @@ bool CEvohomeRadio::DecodeZoneTemp(CEvohomeMsg& msg)//0x30C9
 					tsen.zone = (uint8_t)(atoi(result[0][0].c_str()) + 12);
 					char zstrname[40];
 					sprintf(zstrname, "Zone %d", atoi(result[0][0].c_str()));
-					Log(true, LOG_STATUS, "evohome: %s: Zone sensor msg: 0x%x: %d: %d", tag, msg.GetID(0), tsen.zone, tsen.temperature);
+					Debug(DEBUG_HARDWARE, "%s: Zone sensor msg: 0x%x: %d: %d", tag, msg.GetID(0), tsen.zone, tsen.temperature);
 					sDecodeRXMessage(this, (const unsigned char *)&tsen, zstrname, -1, nullptr);
 				}
 			}
 		}
 		if (msg.payloadsize != 3) {
-			Log(true, LOG_STATUS, "evohome: %s: WARNING: got a sensor temperature msg with an unexpected payload size: %d", tag, msg.payloadsize);
+			Debug(DEBUG_HARDWARE, "%s: WARNING: got a sensor temperature msg with an unexpected payload size: %d", tag, msg.payloadsize);
 		}
 		//in this case the zoneID is always 0 and hence is worthless
 		if (msg.payload[0] != 0) {
-			Log(true, LOG_STATUS, "evohome: %s: WARNING: sensor reading with zone != 0: 0x%x - %d", tag, msg.GetID(0), msg.payload[0]);
+			Debug(DEBUG_HARDWARE, "%s: WARNING: sensor reading with zone != 0: 0x%x - %d", tag, msg.GetID(0), msg.payload[0]);
 		}
 	}
 	if ((msg.GetID(0) > m_MaxDeviceID))
@@ -1069,11 +1092,11 @@ bool CEvohomeRadio::DecodeDHWState(CEvohomeMsg& msg)//1F41
 		return true;
 
 	if (msg.payloadsize == 1) {
-		Log(true, LOG_STATUS, "evohome: %s: Request for DHW state %d", tag, msg.payload[0]);
+		Debug(DEBUG_HARDWARE, "%s: Request for DHW state %d", tag, msg.payload[0]);
 		return true;
 	}
 	if (msg.payloadsize != 6 && msg.payloadsize != 12) {
-		Log(false, LOG_ERROR, "evohome: %s: Error decoding DHW state / mode, size incorrect: %d", tag, msg.payloadsize);
+		Log(LOG_ERROR, "%s: Error decoding DHW state / mode, size incorrect: %d", tag, msg.payloadsize);
 		return false;
 	}
 
@@ -1093,7 +1116,7 @@ bool CEvohomeRadio::DecodeDHWState(CEvohomeMsg& msg)//1F41
 	int nMode = ConvertMode(m_evoToDczOverrideMode, msg.payload[2]);
 	if (nMode == -1)
 	{
-		Log(false, LOG_STATUS, "evohome: %s: WARNING unexpected mode %d", tag, msg.payload[2]);
+		Log(LOG_STATUS, "%s: WARNING unexpected mode %d", tag, msg.payload[2]);
 		return false;
 	}
 	tsen.mode = static_cast<uint8_t>(nMode);
@@ -1101,11 +1124,11 @@ bool CEvohomeRadio::DecodeDHWState(CEvohomeMsg& msg)//1F41
 	if (msg.payloadsize == 12)
 	{
 		CEvohomeDateTime::DecodeDateTime(tsen, msg.payload, 6);
-		Log(true, LOG_STATUS, "evohome: %s: Setting: %d: %d (%d=%s) %s", tag, tsen.zone, tsen.temperature, tsen.mode, GetZoneModeName(tsen.mode), CEvohomeDateTime::GetStrDate(tsen).c_str());
+		Debug(DEBUG_HARDWARE, "%s: Setting: %d: %d (%d=%s) %s", tag, tsen.zone, tsen.temperature, tsen.mode, GetZoneModeName(tsen.mode), CEvohomeDateTime::GetStrDate(tsen).c_str());
 	}
 	else
 	{
-		Log(true, LOG_STATUS, "evohome: %s: Setting: %d: %d (%d=%s)", tag, tsen.zone, tsen.temperature, tsen.mode, GetZoneModeName(tsen.mode));
+		Debug(DEBUG_HARDWARE, "%s: Setting: %d: %d (%d=%s)", tag, tsen.zone, tsen.temperature, tsen.mode, GetZoneModeName(tsen.mode));
 	}
 
 	sDecodeRXMessage(this, (const unsigned char *)&tsen, "DHW", -1, nullptr);
@@ -1123,24 +1146,24 @@ bool CEvohomeRadio::DecodeDHWTemp(CEvohomeMsg& msg)//1260
 		return true;
 
 	if (msg.payloadsize == 1) {
-		Log(true, LOG_STATUS, "evohome: %s: Request for DHW temp %d", tag, msg.payload[0]);
+		Debug(DEBUG_HARDWARE, "%s: Request for DHW temp %d", tag, msg.payload[0]);
 		return true;
 	}
 	//blocks of 3 bytes...only ever seen a 3 byte message with DevNo 0x00
 	if (msg.payloadsize < 3) {//check below does not trap 0 byte payload
-		Log(false, LOG_ERROR, "evohome: %s: Error decoding DHW temperature payload, size too small: %d", tag, msg.payloadsize);
+		Log(LOG_ERROR, "%s: Error decoding DHW temperature payload, size too small: %d", tag, msg.payloadsize);
 		return false;
 	}
 	if (msg.payloadsize % 3 != 0) {
-		Log(false, LOG_ERROR, "evohome: %s: Error decoding DHW temperature payload, size incorrect: %d", tag, msg.payloadsize);
+		Log(LOG_ERROR, "%s: Error decoding DHW temperature payload, size incorrect: %d", tag, msg.payloadsize);
 		return false;
 	}
 	if (msg.payloadsize != 3) {
-		Log(true, LOG_STATUS, "evohome: %s: WARNING: got a sensor temperature msg with an unexpected payload size: %d", tag, msg.payloadsize);
+		Debug(DEBUG_HARDWARE, "%s: WARNING: got a sensor temperature msg with an unexpected payload size: %d", tag, msg.payloadsize);
 	}
 	//for DHW DevNo is always 0 and not relevant
 	if (msg.payload[0] != 0) {
-		Log(true, LOG_STATUS, "evohome: %s: WARNING: sensor reading with zone != 0: 0x%x - %d", tag, msg.GetID(0), msg.payload[0]);
+		Debug(DEBUG_HARDWARE, "%s: WARNING: sensor reading with zone != 0: 0x%x - %d", tag, msg.GetID(0), msg.payload[0]);
 	}
 
 	_tEVOHOME2 tsen;
@@ -1153,7 +1176,7 @@ bool CEvohomeRadio::DecodeDHWTemp(CEvohomeMsg& msg)//1260
 	for (int i = 0; i < msg.payloadsize; i += 3) {
 		tsen.zone = msg.payload[i] + 1;//we're using zone 0 to trigger a lookup on ID rather than zone number (not relevant for DHW)
 		tsen.temperature = msg.payload[i + 1] << 8 | msg.payload[i + 2];
-		Log(true, LOG_STATUS, "evohome: %s: DHW sensor msg: 0x%x: %d: %d", tag, msg.GetID(0), tsen.zone, tsen.temperature);
+		Debug(DEBUG_HARDWARE, "%s: DHW sensor msg: 0x%x: %d: %d", tag, msg.GetID(0), tsen.zone, tsen.temperature);
 		if (tsen.temperature != 0x7FFF)// DHW is not installed, discard value
 			sDecodeRXMessage(this, (const unsigned char *)&tsen, "DHW Temp", -1, nullptr);
 	}
@@ -1172,24 +1195,24 @@ bool CEvohomeRadio::DecodeDHWSettings(CEvohomeMsg& msg)//10a0
                 return true;
 
         if (msg.payloadsize != 6) {
-                Log(false, LOG_STATUS, "evohome: %s: ERROR: DHW settings msg with an unexpected payload size: %d", tag, msg.payloadsize);
+                Log(LOG_STATUS, "%s: ERROR: DHW settings msg with an unexpected payload size: %d", tag, msg.payloadsize);
                 return false;
         }
 
         //for DHW DevNo is always 0 and not relevant
         if (msg.payload[0] != 0) {
-                Log(true, LOG_STATUS, "evohome: %s: WARNING: sensor reading with zone != 0: 0x%x - %d", tag, msg.GetID(0), msg.payload[0]);
+                Debug(DEBUG_HARDWARE, "%s: WARNING: sensor reading with zone != 0: 0x%x - %d", tag, msg.GetID(0), msg.payload[0]);
 		return true;
         }
 
 	// Store the m_DHWSetpoint for whenever the DHW Setpoint is used
         m_DHWSetpoint = msg.payload[1] << 8 | msg.payload[2];
-        Log(true, LOG_STATUS, "evohome: %s: DHW Setpoint Stored = %d C", tag, m_DHWSetpoint);
+        Debug(DEBUG_HARDWARE, "%s: DHW Setpoint Stored = %d C", tag, m_DHWSetpoint);
 
         // The DHW Overrun time is in byte 4
-        Log(true, LOG_STATUS, "evohome: %s: DHW Overrun Time = %d mins", tag, msg.payload[3]);
+        Debug(DEBUG_HARDWARE, "%s: DHW Overrun Time = %d mins", tag, msg.payload[3]);
         // The DHW Differential is in byte 5 and 6
-        Log(true, LOG_STATUS, "evohome: %s: DHW Differential Temperature = %d C", tag, msg.payload[4] << 8 | msg.payload[5]);
+        Debug(DEBUG_HARDWARE, "%s: DHW Differential Temperature = %d C", tag, msg.payload[4] << 8 | msg.payload[5]);
 
         return true;
 }
@@ -1203,11 +1226,11 @@ bool CEvohomeRadio::DecodeControllerMode(CEvohomeMsg& msg)//2E04
 		return true;
 
 	if (msg.payloadsize == 1) {
-		Log(true, LOG_STATUS, "evohome: %s: Request for controller mode %d", tag, msg.payload[0]);
+		Debug(DEBUG_HARDWARE, "%s: Request for controller mode %d", tag, msg.payload[0]);
 		return true;
 	}
 	if (msg.payloadsize != 8) {
-		Log(false, LOG_ERROR, "evohome: %s: Error decoding controller mode, size incorrect: %d", tag, msg.payloadsize);
+		Log(LOG_ERROR, "%s: Error decoding controller mode, size incorrect: %d", tag, msg.payloadsize);
 		return false;
 	}
 
@@ -1222,13 +1245,13 @@ bool CEvohomeRadio::DecodeControllerMode(CEvohomeMsg& msg)//2E04
 	int nMode = ConvertMode(m_evoToDczControllerMode, (uint8_t)nControllerMode);//this converts to the modes originally setup with the web client ver
 	if (nMode == -1)
 	{
-		Log(false, LOG_STATUS, "evohome: %s: WARNING unexpected mode %d", tag, nControllerMode);
+		Log(LOG_STATUS, "%s: WARNING unexpected mode %d", tag, nControllerMode);
 		return false;
 	}
 	tsen.status = static_cast<uint8_t>(nMode);
 	CEvohomeDateTime::DecodeDateTime(tsen, msg.payload, 1);
 	tsen.mode = msg.payload[7];//1 is tmp 0 is perm
-	Log(true, LOG_STATUS, "evohome: %s: Setting: (%d=%s) (%d=%s) %s", tag, tsen.status, GetControllerModeName(tsen.status), tsen.mode, tsen.mode ? "Temporary" : "Permanent", CEvohomeDateTime::GetStrDate(tsen).c_str());
+	Debug(DEBUG_HARDWARE, "%s: Setting: (%d=%s) (%d=%s) %s", tag, tsen.status, GetControllerModeName(tsen.status), tsen.mode, tsen.mode ? "Temporary" : "Permanent", CEvohomeDateTime::GetStrDate(tsen).c_str());
 	sDecodeRXMessage(this, (const unsigned char *)&tsen, "Controller Mode", -1, nullptr);
 
 	if (SetControllerMode((uint8_t)nControllerMode))//if only the until time changed we should be ok as the unit will broadcast a new controller mode when the current mode ends
@@ -1245,11 +1268,11 @@ bool CEvohomeRadio::DecodeSysInfo(CEvohomeMsg& msg)//10e0
 		return true;
 
 	if (msg.payloadsize == 1) {
-		Log(true, LOG_STATUS, "evohome: %s: Request for sysinfo %d", tag, msg.payload[0]);
+		Debug(DEBUG_HARDWARE, "%s: Request for sysinfo %d", tag, msg.payload[0]);
 		return true;
 	}
 	if (msg.payloadsize != 38) {
-		Log(false, LOG_ERROR, "evohome: %s: Error decoding sysinfo, unknown packet size: %d", tag, msg.payloadsize);
+		Log(LOG_ERROR, "%s: Error decoding sysinfo, unknown packet size: %d", tag, msg.payloadsize);
 		return false;
 	}
 	//Not sure what the first 10 bytes are for..some are masked anyway...the first bytes were always 000002FF in the captures I saw
@@ -1258,7 +1281,7 @@ bool CEvohomeRadio::DecodeSysInfo(CEvohomeMsg& msg)//10e0
 	msg.Get(edt, 10).Get(edtp2);
 	msg.payload[38] = '\0';//presumably not null terminated if name consumes all available bytes in the payload
 	SetControllerName((const char*)&msg.payload[msg.GetPos()]);
-	Log(false, LOG_STATUS, "evohome: %s: d1 %s App Ver %d (%s) Name %s", tag, edt.GetStrDate().c_str(), nAppVer, edtp2.GetStrDate().c_str(), &msg.payload[msg.GetPos()]);
+	Log(LOG_STATUS, "%s: d1 %s App Ver %d (%s) Name %s", tag, edt.GetStrDate().c_str(), nAppVer, edtp2.GetStrDate().c_str(), &msg.payload[msg.GetPos()]);
 	return true;
 }
 
@@ -1272,16 +1295,16 @@ bool CEvohomeRadio::DecodeZoneName(CEvohomeMsg& msg)
 		return true;
 
 	if (msg.payloadsize == 2) {
-		Log(true, LOG_STATUS, "evohome: %s: Request for zone name %d", tag, msg.payload[0]);
+		Debug(DEBUG_HARDWARE, "%s: Request for zone name %d", tag, msg.payload[0]);
 		return true;
 	}
 	if (msg.payloadsize != 22) {
-		Log(false, LOG_ERROR, "evohome: %s: Error decoding zone name, unknown packet size: %d", tag, msg.payloadsize);
+		Log(LOG_ERROR, "%s: Error decoding zone name, unknown packet size: %d", tag, msg.payloadsize);
 		return false;
 	}
 	if (memcmp(&msg.payload[2], m_szNameErr, 18) == 0)
 	{
-		Log(true, LOG_STATUS, "evohome: %s: Warning zone name not set: %d", tag, msg.payload[0] + 1);
+		Debug(DEBUG_HARDWARE, "%s: Warning zone name not set: %d", tag, msg.payload[0] + 1);
 		m_bStartup[0] = false;
 		return true;
 	}
@@ -1289,7 +1312,7 @@ bool CEvohomeRadio::DecodeZoneName(CEvohomeMsg& msg)
 	int nZone = msg.payload[0] + 1;
 	SetMaxZoneCount((uint8_t)nZone);//this should increase on startup as we poll all zones so we don't respond to changes here
 	SetZoneName(msg.payload[0], (const char*)&msg.payload[2]);
-	Log(true, LOG_STATUS, "evohome: %s: %d: Name %s", tag, nZone, &msg.payload[2]);
+	Debug(DEBUG_HARDWARE, "%s: %d: Name %s", tag, nZone, &msg.payload[2]);
 	if (m_bStartup[0] && nZone < m_nMaxZones)
 		RequestZoneStartupInfo((uint8_t)nZone);
 
@@ -1313,15 +1336,15 @@ bool CEvohomeRadio::DecodeZoneInfo(CEvohomeMsg& msg)
 		return true;
 
 	if (msg.payloadsize == 1) {
-		Log(true, LOG_STATUS, "evohome: %s: Request for zone info %d", tag, msg.payload[0]);
+		Debug(DEBUG_HARDWARE, "%s: Request for zone info %d", tag, msg.payload[0]);
 		return true;
 	}
 	if (msg.payloadsize < 6) {
-		Log(false, LOG_ERROR, "evohome: %s: Error decoding zone info, packet size too small: %d", tag, msg.payloadsize);
+		Log(LOG_ERROR, "%s: Error decoding zone info, packet size too small: %d", tag, msg.payloadsize);
 		return false;
 	}
 	if (msg.payloadsize % 6 != 0) {
-		Log(false, LOG_ERROR, "evohome: %s: Error decoding zone info, incorrect packet size: %d", tag, msg.payloadsize);
+		Log(LOG_ERROR, "%s: Error decoding zone info, incorrect packet size: %d", tag, msg.payloadsize);
 		return false;
 	}
 	for (int i = 0; i < msg.payloadsize; i += 6) {
@@ -1331,11 +1354,11 @@ bool CEvohomeRadio::DecodeZoneInfo(CEvohomeMsg& msg)
 		nZone++;
 		if (!min.IsValid() && !max.IsValid())
 		{
-			Log(true, LOG_STATUS, "evohome: %s: Warning zone info not set %d", tag, nZone);
+			Debug(DEBUG_HARDWARE, "%s: Warning zone info not set %d", tag, nZone);
 			continue;
 		}
 		SetMaxZoneCount(nZone);//this should increase on startup as we poll all zones so we don't respond to changes here
-		Log(true, LOG_STATUS, "evohome: %s: %d: Min %.1f Max %.1f Flags %d %s", tag, nZone, min.GetTemp(), max.GetTemp(), nFlags, CEvohomeZoneFlags::GetFlags(nFlags).c_str());
+		Debug(DEBUG_HARDWARE, "%s: %d: Min %.1f Max %.1f Flags %d %s", tag, nZone, min.GetTemp(), max.GetTemp(), nFlags, CEvohomeZoneFlags::GetFlags(nFlags).c_str());
 	}
 
 	return true;
@@ -1350,11 +1373,11 @@ bool CEvohomeRadio::DecodeZoneWindow(CEvohomeMsg& msg)
 		return true;
 
 	if (msg.payloadsize == 1) {
-		Log(true, LOG_STATUS, "evohome: %s: Request for zone window %d", tag, msg.payload[0]);
+		Debug(DEBUG_HARDWARE, "%s: Request for zone window %d", tag, msg.payload[0]);
 		return true;
 	}
 	if (msg.payloadsize < 3) {
-		Log(false, LOG_ERROR, "evohome: %s: Error decoding command, packet size too small: %d", tag, msg.payloadsize);
+		Log(LOG_ERROR, "%s: Error decoding command, packet size too small: %d", tag, msg.payloadsize);
 		return false;
 	}
 	_tEVOHOME2 tsen;
@@ -1368,7 +1391,7 @@ bool CEvohomeRadio::DecodeZoneWindow(CEvohomeMsg& msg)
 	msg.Get(tsen.zone).Get(nWindow).Get(nMisc);//not sure what the last byte is seems to always be 0
 	if (tsen.zone >= m_nMaxZones)
 	{
-		Log(false, LOG_ERROR, "evohome: %s: Error zone number out of bounds: %d", tag, tsen.zone + 1);
+		Log(LOG_ERROR, "%s: Error zone number out of bounds: %d", tag, tsen.zone + 1);
 		return false;
 	}
 	tsen.mode = (uint8_t)(nWindow ? zmWind : zmAuto);
@@ -1379,10 +1402,10 @@ bool CEvohomeRadio::DecodeZoneWindow(CEvohomeMsg& msg)
 	SetMaxZoneCount(tsen.zone);//this should increase on startup as we poll all zones so we don't respond to changes here
 
 	if (nWindow != 0 && nWindow != 0xC8)
-		Log(true, LOG_STATUS, "evohome: %s: Unexpected zone state Window=%d", tag, nWindow);
+		Debug(DEBUG_HARDWARE, "%s: Unexpected zone state Window=%d", tag, nWindow);
 	if (nMisc != 0)
-		Log(true, LOG_STATUS, "evohome: %s: Unexpected zone state nMisc=%d", tag, nMisc);
-	Log(true, LOG_STATUS, "evohome: %s: %d: Window %d", tag, tsen.zone, nWindow);
+		Debug(DEBUG_HARDWARE, "%s: Unexpected zone state nMisc=%d", tag, nMisc);
+	Debug(DEBUG_HARDWARE, "%s: %d: Window %d", tag, tsen.zone, nWindow);
 
 	if (msg.GetID(0) == GetControllerID())
 		sDecodeRXMessage(this, (const unsigned char *)&tsen, "Zone Window", -1, nullptr);
@@ -1395,11 +1418,11 @@ bool CEvohomeRadio::DecodeBinding(CEvohomeMsg& msg)
 {
 	char tag[] = "BINDING";
 	if (msg.payloadsize < 6) {
-		Log(false, LOG_ERROR, "evohome: %s: Error decoding binding, packet size too small: %d", tag, msg.payloadsize);
+		Log(LOG_ERROR, "%s: Error decoding binding, packet size too small: %d", tag, msg.payloadsize);
 		return false;
 	}
 	if (msg.payloadsize % 6 != 0) {
-		Log(false, LOG_ERROR, "evohome: %s: Error decoding binding, incorrect packet size: %d", tag, msg.payloadsize);
+		Log(LOG_ERROR, "%s: Error decoding binding, incorrect packet size: %d", tag, msg.payloadsize);
 		return false;
 	}
 	for (int i = 0; i < msg.payloadsize; i += 6) {
@@ -1407,7 +1430,7 @@ bool CEvohomeRadio::DecodeBinding(CEvohomeMsg& msg)
 		uint16_t nCmd;
 		CEvohomeID idDev;
 		msg.Get(nDevNo).Get(nCmd).Get(idDev);
-		Log(true, LOG_STATUS, "evohome: %s: Dev No %d: Cmd 0x%04x DeviceID 0x%06x (%s)", tag, nDevNo, nCmd, idDev.GetID(), idDev.GetStrID().c_str());
+		Debug(DEBUG_HARDWARE, "%s: Dev No %d: Cmd 0x%04x DeviceID 0x%06x (%s)", tag, nDevNo, nCmd, idDev.GetID(), idDev.GetStrID().c_str());
 	}
 	if (msg.type == CEvohomeMsg::pktwrt)
 	{
@@ -1446,7 +1469,7 @@ bool CEvohomeRadio::DecodeHeatDemand(CEvohomeMsg& msg)
 		return true;
 
 	if (msg.payloadsize != 2) {
-		Log(false, LOG_ERROR, "evohome: %s: Error decoding heat demand, unknown packet size: %d", tag, msg.payloadsize);
+		Log(LOG_ERROR, "%s: Error decoding heat demand, unknown packet size: %d", tag, msg.payloadsize);
 		return false;
 	}
 	int nDevNo = msg.payload[0];
@@ -1492,7 +1515,7 @@ bool CEvohomeRadio::DecodeHeatDemand(CEvohomeMsg& msg)
 		RXRelay(static_cast<uint8_t>(nDevNo), static_cast<uint8_t>(nDemand), msg.GetID(0));
 	}
 
-	Log(true, LOG_STATUS, "evohome: %s: %s (0x%x) DevNo 0x%02x %d (0x%x)", tag, szSourceType.c_str(), msg.GetID(0), nDevNo, nDemand, msg.command);
+	Debug(DEBUG_HARDWARE, "%s: %s (0x%x) DevNo 0x%02x %d (0x%x)", tag, szSourceType.c_str(), msg.GetID(0), nDevNo, nDemand, msg.command);
 
 	return true;
 }
@@ -1545,7 +1568,7 @@ bool CEvohomeRadio::DecodeActuatorCheck(CEvohomeMsg& msg)
 {
 	char tag[] = "ACTUATOR_CHECK"; //this is used to synchronise time periods for each relay bound to a controller i.e. all relays get this message and use it to determine when to start each cycle (demand is just a % of the cycle length)
 	if (msg.payloadsize != 2) {
-		Log(false, LOG_ERROR, "evohome: %s: Error decoding command, unknown packet size: %d", tag, msg.payloadsize);
+		Log(LOG_ERROR, "%s: Error decoding command, unknown packet size: %d", tag, msg.payloadsize);
 		return false;
 	}
 	int nDevNo = msg.payload[0];
@@ -1555,7 +1578,7 @@ bool CEvohomeRadio::DecodeActuatorCheck(CEvohomeMsg& msg)
 	if (nDevNo == 0xfc)//252...afaik this is also some sort of broadcast channel so maybe there is more to this device number than representing the boiler
 		szDevType = "All";// not sure if any other device would be valid here??
 
-	Log(true, LOG_STATUS, "evohome: %s: DevNo 0x%02x %s: %d", tag, nDevNo, szDevType.c_str(), nDemand);
+	Debug(DEBUG_HARDWARE, "%s: DevNo 0x%02x %s: %d", tag, nDevNo, szDevType.c_str(), nDemand);
 	return true;
 }
 
@@ -1568,35 +1591,45 @@ bool CEvohomeRadio::DecodeActuatorState(CEvohomeMsg& msg)
 		//      A payload of size 1 is normally just 0x00
 		return true;
 	}
-	// The OT Bridge responds to the RQ with a RP with payload size of 6
-	if (msg.payloadsize == 6) {
+	// The R8810A OT Bridge responds to the RQ with a RP with payload size of 6
+	// The R8820A OT Bridge responds to the RQ with a RP with payload side of 9
+	if ((msg.payloadsize == 6) || (msg.payloadsize == 9)) {
 		// msg.payload[1] is the Relative modulation level
 		bool bExists = CheckPercentageSensorExists(17, 1);
 		if ((msg.payload[1] != 0) || (bExists))
 		{
 			SendPercentageSensor(17, 1, 255, static_cast<float>(msg.payload[1]), "Relative modulation level");
 		}
-		// msg.payload[3] is the Flame Status
+		// msg.payload[3] contains the Flame Status as a bit mask on Bit 3
 		bool bFlameOn{ false };
-		if (msg.payload[3] == 0x0A) {
+		if (msg.payload[3] & (1 << 3)) {
 			bFlameOn = true;
 		}
 		// Record the Flame status in the same way that the OTGW hardware device currently does
 		UpdateSwitch(113, bFlameOn, "FlameOn");
 
-		Log(true, LOG_STATUS, "evohome: %s: OT Bridge full payload %02X%02X%02X%02X%02X%02X, packet size: %d", tag, msg.payload[0], msg.payload[1], msg.payload[2], msg.payload[3], msg.payload[4], msg.payload[5], msg.payloadsize);
+		if (msg.payloadsize == 9) {
+			// The CH Setpoint is returned back in the R8820A OT Bridge
+			SendTempSensor(1, 255, msg.payload[7], "Control Setpoint");
+		}
+
+		if (msg.payloadsize == 6)
+			Debug(DEBUG_HARDWARE, "%s: R8810A OT Bridge full payload %02X%02X%02X%02X%02X%02X, packet size: %d", tag, msg.payload[0], msg.payload[1], msg.payload[2], msg.payload[3], msg.payload[4], msg.payload[5], msg.payloadsize);
+		else if (msg.payloadsize == 9)
+			Debug(DEBUG_HARDWARE, "%s: R8820A OT Bridge full payload %02X%02X%02X%02X%02X%02X%02X%02X%02X, packet size: %d", tag, msg.payload[0], msg.payload[1], msg.payload[2], msg.payload[3], msg.payload[4], msg.payload[5], msg.payload[6], msg.payload[7], msg.payload[8], msg.payloadsize);
+
 		return true;
 	}
 	// All other relays should have a payload size of 3	
 	if (msg.payloadsize != 3) {
-		Log(false, LOG_ERROR, "evohome: %s: Error decoding command, unknown packet size: %d", tag, msg.payloadsize);
+		Log(LOG_ERROR, "%s: Error decoding command, unknown packet size: %d", tag, msg.payloadsize);
 		return false;
 	}
 	int nDevNo = msg.payload[0];
 	int nDemand = msg.payload[1]; //(0 for off or 0xc8 i.e. 100% for on)
 	//The relay does not appear to always announce its state but this is probably due to the wireless signal and collisions etc
 
-	Log(true, LOG_STATUS, "evohome: %s: ID:0x%06x (%s) DevNo 0x%02x: %d", tag, msg.GetID(0), msg.GetStrID(0).c_str(), nDevNo, nDemand);
+	Debug(DEBUG_HARDWARE, "%s: ID:0x%06x (%s) DevNo 0x%02x: %d", tag, msg.GetID(0), msg.GetStrID(0).c_str(), nDevNo, nDemand);
 	RXRelay(static_cast<uint8_t>(0xFF), static_cast<uint8_t>(nDemand));//devno is always 0 and therefore not valid
 	
 	//Log all received relay activity (green led) to a device, note this is different from Heat Demand
@@ -1615,26 +1648,63 @@ bool CEvohomeRadio::DecodeOpenThermBridge(CEvohomeMsg& msg)
 {
 	char tag[] = "OPENTHERM_BRIDGE";
 
-	// Only look for responses from the OT Bridge and Filter out messages from other controllers 
-	if (msg.GetID(1) != GetControllerID())
+	// Only look for responses from the OT Bridge 
+	if (msg.GetID(0) != GetOpenThermBridgeID())
 		return true;
 
 	// All OT messages should have a payload size of 5	
 	if (msg.payloadsize != 5) {
-		Log(false, LOG_ERROR, "evohome: %s: Error decoding command, unknown packet size: %d", tag, msg.payloadsize);
+		Log(LOG_ERROR, "%s: Error decoding command, unknown packet size: %d", tag, msg.payloadsize);
 		return false;
 	}
 	// The OT command response is in byte 4 and 5
 	int nOTResponse = msg.payload[3] << 8 | msg.payload[4];
+	// Check if f8.8 field is negative. Bit 15 will be 1 if negative
+	if (nOTResponse & (1 << 15)) {
+		nOTResponse = - (0x10000 - nOTResponse);
+	}
 	float fOTResponse = static_cast<float>(nOTResponse) / 256.0F;
 
 	// The OT commands are as per the OT Specification
+        // 00 (ID.00) = Status
+        if (msg.payload[2] == 0x00) {
+		// Record all status flags in the same way that the OTGW hardware device currently does
+		// However Evohome seems not to use all of them
+		bool bCH_enabled=(nOTResponse & (1 << 8));
+			UpdateSwitch(101,bCH_enabled,"CH_enabled");
+		bool bDHW_enabled=(nOTResponse & (1 << 9));
+			UpdateSwitch(102,bDHW_enabled,"DHW_enabled");
+		bool bCooling_enable=(nOTResponse & (1 << 10));
+			UpdateSwitch(103,bCooling_enable,"Cooling_enable");
+		bool bOTC_active=(nOTResponse & (1 << 11));
+			UpdateSwitch(104,bOTC_active,"OTC_active");
+		bool bCH2_enabled=(nOTResponse & (1 << 12));
+			UpdateSwitch(105,bCH2_enabled,"CH2_enabled");
+
+		bool bFault_indication=(nOTResponse & (1 << 0));
+			UpdateSwitch(110,bFault_indication,"Fault_indication");
+		bool bCH_active=(nOTResponse & (1 << 1));
+			UpdateSwitch(111,bCH_active,"CH_active");
+		bool bDHW_active=(nOTResponse & (1 << 2));
+			UpdateSwitch(112,bDHW_active,"DHW_active");
+		bool bFlameOn=(nOTResponse & (1 << 3));
+			UpdateSwitch(113,bFlameOn,"FlameOn");
+		bool bCooling_Mode_Active=(nOTResponse & (1 << 4));
+			UpdateSwitch(114,bCooling_Mode_Active,"Cooling_Mode_Active");
+		bool bCH2_Active=(nOTResponse & (1 << 5));
+			UpdateSwitch(115,bCH2_Active,"CH2_Active");
+		bool bDiagnosticEvent=(nOTResponse & (1 << 6));
+			UpdateSwitch(116,bDiagnosticEvent,"DiagnosticEvent");
+
+                Debug(DEBUG_HARDWARE, "%s: Master Status %02X Slave Status %02X", tag, msg.payload[3], msg.payload[4]);
+                return true;
+        }
 	// 05 (ID.05) = Fault Code
 	if (msg.payload[2] == 0x05) {
 		SendCustomSensor(0, 5, 255, static_cast<float>(msg.payload[3]), "Application fault flags", "");
 		SendCustomSensor(1, 5, 255, static_cast<float>(msg.payload[4]), "OEM fault code", "");
 
-		Log(true, LOG_STATUS, "evohome: %s: Application-specific flags %02X OEM fault code %d", tag, msg.payload[3], msg.payload[4]);
+		Debug(DEBUG_HARDWARE, "%s: Application-specific flags %02X OEM fault code %02X", tag, msg.payload[3], msg.payload[4]);
 		return true;
 	}
 	// 11 (ID.17) = Relative modulation level
@@ -1644,49 +1714,56 @@ bool CEvohomeRadio::DecodeOpenThermBridge(CEvohomeMsg& msg)
 		{
 			SendPercentageSensor(17, 1, 255, fOTResponse, "Relative modulation level");
 		}
-		Log(true, LOG_STATUS, "evohome: %s: Relative modulation level = %.2f %%", tag, fOTResponse);
+		Debug(DEBUG_HARDWARE, "%s: Relative modulation level = %.2f %%", tag, fOTResponse);
 		return true;
 	}
 	// 12 (ID.18) = CH water pressure
 	if (msg.payload[2] == 0x12) {
 		SendPressureSensor(0, 18, 255, fOTResponse, "CH Water Pressure");
 
-		Log(true, LOG_STATUS, "evohome: %s: CH water pressure = %.2f bar", tag, fOTResponse);
+		Debug(DEBUG_HARDWARE, "%s: CH water pressure = %.2f bar", tag, fOTResponse);
 		return true;
 	}
 	// 13 (ID.19) = DHW flow rate
 	if (msg.payload[2] == 0x13) {
 		SendWaterflowSensor(0, 19, 255, fOTResponse, "DHW flow rate");
 
-		Log(true, LOG_STATUS, "evohome: %s: DHW flow rate = %.2f l/min", tag, fOTResponse);
+		Debug(DEBUG_HARDWARE, "%s: DHW flow rate = %.2f l/min", tag, fOTResponse);
 		return true;
 	}
 	// 19 (ID.25) = Boiler Water Temperature
 	if (msg.payload[2] == 0x19) {
 		SendTempSensor(25, 255, fOTResponse, "Boiler Water Temperature");
 
-		Log(true, LOG_STATUS, "evohome: %s: Boiler Water Temperature = %.2f C", tag, fOTResponse);
+		Debug(DEBUG_HARDWARE, "%s: Boiler Water Temperature = %.2f C", tag, fOTResponse);
 		return true;
 	}
 	// 1A (ID.26) = DHW Temperature
 	if (msg.payload[2] == 0x1a) {
 		SendTempSensor(26, 255, fOTResponse, "DHW Temperature");
 
-		Log(true, LOG_STATUS, "evohome: %s: DHW Temperature = %.2f C", tag, fOTResponse);
+		Debug(DEBUG_HARDWARE, "%s: DHW Temperature = %.2f C", tag, fOTResponse);
 		return true;
 	}
+        // 1B (ID.27) = Outside Temperature
+        if (msg.payload[2] == 0x1b) {
+                SendTempSensor(27, 255, fOTResponse, "Outside Temperature");
+
+                Debug(DEBUG_HARDWARE, "%s: Outside Temperature = %.2f C %02X %02X", tag, fOTResponse, msg.payload[3], msg.payload[4]);
+                return true;
+        }
 	// 1C (ID.28) = Return Water Temperature
 	if (msg.payload[2] == 0x1c) {
 		SendTempSensor(28, 255, fOTResponse, "Return Water Temperature");
 
-		Log(true, LOG_STATUS, "evohome: %s: Return Water Temperature = %.2f C", tag, fOTResponse);
+		Debug(DEBUG_HARDWARE, "%s: Return Water Temperature = %.2f C", tag, fOTResponse);
 		return true;
 	}
 	// 73 (ID.115) = OEM diagnostic code
 	if (msg.payload[2] == 0x73) {
 		SendCustomSensor(0, 115, 255, static_cast<float>(nOTResponse), "OEM diagnostic code", "");
 
-		Log(true, LOG_STATUS, "evohome: %s: OEM diagnostic code = %d", tag, nOTResponse);
+		Debug(DEBUG_HARDWARE, "%s: OEM diagnostic code = %d", tag, nOTResponse);
 		return true;
 	}
 	return true;
@@ -1696,13 +1773,13 @@ bool CEvohomeRadio::DecodeOpenThermSetpoint(CEvohomeMsg& msg)
 {
 	char tag[] = "OPENTHERM_SETPOINT";
 
-	// Only look for responses from the OT Bridge and Filter out messages from other controllers
-	if (msg.GetID(1) != GetControllerID())
-		return true;
+        // Only look for responses from the OT Bridge
+        if (msg.GetID(0) != GetOpenThermBridgeID())
+                return true;
 
 	// All OT messages should have a payload size of 3
 	if (msg.payloadsize != 3) {
-		Log(false, LOG_ERROR, "evohome: %s: Error decoding command, unknown packet size: %d", tag, msg.payloadsize);
+		Log(LOG_ERROR, "%s: Error decoding command, unknown packet size: %d", tag, msg.payloadsize);
 		return false;
 	}
 
@@ -1710,7 +1787,7 @@ bool CEvohomeRadio::DecodeOpenThermSetpoint(CEvohomeMsg& msg)
 	float fOTSetpoint = static_cast<float>(msg.payload[1] << 8 | msg.payload[2]) / 100.0F;
 
 	SendTempSensor(1, 255, fOTSetpoint, "Control Setpoint");
-	Log(true, LOG_STATUS, "evohome: %s: Boiler Water Temperature = %.2f C", tag, fOTSetpoint);
+	Debug(DEBUG_HARDWARE, "%s: Boiler Setpoint Temperature = %.2f C", tag, fOTSetpoint);
 
 	return true;
 }
@@ -1719,18 +1796,18 @@ bool CEvohomeRadio::DecodeExternalSensor(CEvohomeMsg& msg)
 {
 	char tag[] = "EXTERNAL_SENSOR";
 	if (msg.payloadsize < 4) {
-		Log(false, LOG_ERROR, "evohome: %s: Error decoding command, packet size too small: %d", tag, msg.payloadsize);
+		Log(LOG_ERROR, "%s: Error decoding command, packet size too small: %d", tag, msg.payloadsize);
 		return false;
 	}
 	if (msg.payloadsize % 4 != 0) {
-		Log(false, LOG_ERROR, "evohome: %s: Error decoding command, incorrect packet size: %d", tag, msg.payloadsize);
+		Log(LOG_ERROR, "%s: Error decoding command, incorrect packet size: %d", tag, msg.payloadsize);
 		return false;
 	}
 	for (int i = 0; i < msg.payloadsize; i += 4) {
 		uint8_t nDevNo, nType;
 		CEvohomeTemp temp;
 		msg.Get(nDevNo).Get(temp).Get(nType);
-		Log(true, LOG_STATUS, "evohome: %s: %d: Temp %.1f Type %d", tag, nDevNo, temp.GetTemp(), nType);
+		Debug(DEBUG_HARDWARE, "%s: %d: Temp %.1f Type %d", tag, nDevNo, temp.GetTemp(), nType);
 	}
 	return true;
 }
@@ -1740,11 +1817,11 @@ bool CEvohomeRadio::DecodeDeviceInfo(CEvohomeMsg& msg)
 {
 	char tag[] = "DEVICE_INFO";
 	if (msg.payloadsize == 3) {
-		Log(true, LOG_STATUS, "evohome: %s: Request for device info %d", tag, msg.payload[2]);
+		Debug(DEBUG_HARDWARE, "%s: Request for device info %d", tag, msg.payload[2]);
 		return true;
 	}
 	if (msg.payloadsize != 22) {
-		Log(false, LOG_ERROR, "evohome: %s: Error decoding command, unknown packet size: %d", tag, msg.payloadsize);
+		Log(LOG_ERROR, "%s: Error decoding command, unknown packet size: %d", tag, msg.payloadsize);
 		return false;
 	}
 	uint8_t nAddr, nDevNo, nDevType;
@@ -1755,7 +1832,7 @@ bool CEvohomeRadio::DecodeDeviceInfo(CEvohomeMsg& msg)
 		m_bStartup[1] = false;
 		return true;
 	}
-	Log(true, LOG_STATUS, "evohome: %s: %d: Addr=%d Type=%d ID:0x%06x (%s)", tag, nDevNo, nAddr, nDevType, idDev.GetID(), idDev.GetStrID().c_str());
+	Debug(DEBUG_HARDWARE, "%s: %d: Addr=%d Type=%d ID:0x%06x (%s)", tag, nDevNo, nAddr, nDevType, idDev.GetID(), idDev.GetStrID().c_str());
 
 	// Report the Fault Log entries for the devices
 	sprintf(tag, "FAULT_LOG");
@@ -1766,7 +1843,7 @@ bool CEvohomeRadio::DecodeDeviceInfo(CEvohomeMsg& msg)
 	char sFaultType[15], sFaultCode[20], sDevType[15], sFaultDateTime[21];
 
 	msg.Get(nFaultType, 1).Get(nFaultCode, 4);
-	nFaultDateTime = static_cast<long long>(msg.payload[10]) << 32 | static_cast<long long>(msg.payload[11]) << 24 | msg.payload[12] << 16 | msg.payload[13] << 8 | msg.payload[14];
+	nFaultDateTime = static_cast<int64_t>(msg.payload[10]) << 32 | static_cast<int64_t>(msg.payload[11]) << 24 | msg.payload[12] << 16 | msg.payload[13] << 8 | msg.payload[14];
 
 	nFaultYear = static_cast<uint8_t>((nFaultDateTime >> 24) & 127);
 	nFaultMonth = static_cast<uint8_t>((nFaultDateTime >> 36) & 15);
@@ -1805,6 +1882,10 @@ bool CEvohomeRadio::DecodeDeviceInfo(CEvohomeMsg& msg)
 	if (nDevType == 0x04) { sprintf(sDevType, "ACTUATOR"); }
 	else if (nDevType == 0x01) { sprintf(sDevType, "SENSOR"); }
 	else if (nDevType == 0x05) { sprintf(sDevType, "HOT WATER"); }
+	else if (nDevType == 0x06)
+	{
+		sprintf(sDevType, "REMOTE GW");
+	}
 	else if (nDevType == 0x00)
 	{
 		sprintf(sDevType, "CONTROLLER");
@@ -1815,7 +1896,7 @@ bool CEvohomeRadio::DecodeDeviceInfo(CEvohomeMsg& msg)
 	}
 
 	// Log all Fault Logbook entries to the Status log
-        Log(false, LOG_STATUS, "evohome: %s: %s %s Device:%06x %s %s", tag, sFaultDateTime, sFaultType, idDev.GetID(), sDevType, sFaultCode);
+        Log(LOG_STATUS, "%s: %s %s Device:%06x %s %s", tag, sFaultDateTime, sFaultType, idDev.GetID(), sDevType, sFaultCode);
 
 	// Log current error condition to an Alert device
         if (nAddr == 0x00) {
@@ -1838,7 +1919,7 @@ bool CEvohomeRadio::DecodeBatteryInfo(CEvohomeMsg& msg)
 		return true;
 
 	if (msg.payloadsize != 3) {
-		Log(false, LOG_ERROR, "evohome: %s: Error decoding command, unknown packet size: %d", tag, msg.payloadsize);
+		Log(LOG_ERROR, "%s: Error decoding command, unknown packet size: %d", tag, msg.payloadsize);
 		return false;
 	}
 	std::string szType("Unknown");
@@ -1908,7 +1989,7 @@ bool CEvohomeRadio::DecodeBatteryInfo(CEvohomeMsg& msg)
 		RFX_SETID3(GetControllerID(), tsen.id1, tsen.id2, tsen.id3);
 		sDecodeRXMessage(this, (const unsigned char *)&tsen, "DHW Temp", nBattery, nullptr); // Update DHW Zone sensor
 	}
-	Log(true, LOG_STATUS, "evohome: %s: %s=%d charge=%d(%%) level=%d (%s)", tag, szType.c_str(), nDevNo, nBattery, nLowBat, (nLowBat == 0) ? "Low" : "OK");
+	Debug(DEBUG_HARDWARE, "%s: %s=%d charge=%d(%%) level=%d (%s)", tag, szType.c_str(), nDevNo, nBattery, nLowBat, (nLowBat == 0) ? "Low" : "OK");
 
 	return true;
 }
@@ -1919,17 +2000,17 @@ bool CEvohomeRadio::DecodeSync(CEvohomeMsg& msg) //0x1F09
 
 	if (msg.payloadsize != 1 && msg.payloadsize != 3)
 	{
-		Log(false, LOG_ERROR, "evohome: %s: unexpected payload size: %d", tag, msg.payloadsize);
+		Log(LOG_ERROR, "%s: unexpected payload size: %d", tag, msg.payloadsize);
 		return false;
 	}
 
 	if (msg.payloadsize == 1)
 	{
-		Log(true, LOG_STATUS, "evohome: %s: Type 0x%02x", tag, msg.payload[0]);
+		Debug(DEBUG_HARDWARE, "%s: Type 0x%02x", tag, msg.payload[0]);
 	}
 	else
 	{
-		Log(true, LOG_STATUS, "evohome: %s: Type 0x%02x (%d)", tag, msg.payload[0], msg.payload[1] << 8 | msg.payload[2]);
+		Debug(DEBUG_HARDWARE, "%s: Type 0x%02x (%d)", tag, msg.payload[0], msg.payload[1] << 8 | msg.payload[2]);
 	}
 
 	return true;
@@ -2002,12 +2083,12 @@ void CEvohomeRadio::Idle_Work()
 					uint8_t MultiControllerCount = sizeof(MultiControllerID) - 1;
 					if (MultiControllerCount > 1) // If multiple controllers detected then stop and user required to set controller ID on hardware settings page
 					{
-						_log.Log(LOG_ERROR, "evohome serial: multiple controllers detected!  Please set controller ID in hardware settings.");
+						Log(LOG_ERROR, "Evohome serial: multiple controllers detected!  Please set controller ID in hardware settings.");
 						StopHardware();
 					}
 					else if (MultiControllerCount == 1) // If only 1 controller detected then proceed, otherwise continue searching for controller
 					{
-						Log(true, LOG_STATUS, "evohome serial: Multi-controller check passed. Controller ID: 0x%x", MultiControllerID[0]);
+						Log(LOG_STATUS, "Evohome serial: Multi-controller check passed. Controller ID: 0x%x", MultiControllerID[0]);
 						SetControllerID(MultiControllerID[0]);
 						startup = false;
 					}
@@ -2023,6 +2104,7 @@ void CEvohomeRadio::Idle_Work()
 					RequestZoneTemp(i);
 				RequestDHWTemp();  // Request DHW temp from controller as workaround for being unable to identify DeviceID
  			        RequestDHWSettings();
+				RequestOpenThermBridge();  //Request OpenTherm information as the controller no longer requests it
  			}
 			if (AllSensors == false) // Check whether individual zone sensors has been activated
 			{
@@ -2061,7 +2143,7 @@ void CEvohomeRadio::Idle_Work()
 //Webserver helpers
 namespace http {
 	namespace server {
-		void CWebServer::RType_BindEvohome(WebEmSession& session, const request& req, Json::Value& root)
+		void CWebServer::Cmd_BindEvohome(WebEmSession& session, const request& req, Json::Value& root)
 		{
 			if (session.rights != 2)
 			{
@@ -2077,7 +2159,7 @@ namespace http {
 				return;
 			if (pHardware->HwdType != HTYPE_EVOHOME_SERIAL && pHardware->HwdType != HTYPE_EVOHOME_TCP)
 				return;
-			CEvohomeRadio* pEvoHW = reinterpret_cast<CEvohomeRadio*>(pHardware);
+			CEvohomeRadio* pEvoHW = dynamic_cast<CEvohomeRadio*>(pHardware);
 
 			int nDevNo = 0;
 			int nID = 0;
@@ -2112,7 +2194,7 @@ namespace http {
 				if (result.empty())
 				{
 					std::string devname = "Zone Temp";
-					m_sql.UpdateValue(HwdID, "FFFFFF", 13, pTypeEvohomeZone, sTypeEvohomeZone, 10, 255, 0, "0.0;0.0;Auto", devname);
+					m_sql.UpdateValue(HwdID, 0, "FFFFFF", 13, pTypeEvohomeZone, sTypeEvohomeZone, 10, 255, 0, "0.0;0.0;Auto", devname, true, "");
 				}
 				root["status"] = "OK";
 				root["title"] = "CreateEvohomeSensor";
@@ -2164,7 +2246,7 @@ namespace http {
 				}
 
 				std::string devname;
-				m_sql.UpdateValue(HwdID, devid.c_str(), (uint8_t)nDevNo, pTypeEvohomeRelay, sTypeEvohomeRelay, 10, 255, 0, "Off", devname);
+				m_sql.UpdateValue(HwdID, 0, devid.c_str(), (uint8_t)nDevNo, pTypeEvohomeRelay, sTypeEvohomeRelay, 10, 255, 0, "Off", devname, true, "");
 				pEvoHW->SetRelayHeatDemand((uint8_t)nDevNo, 0);//initialize heat demand
 			}
 			else if (type == "ZoneSensor")
@@ -2184,7 +2266,7 @@ namespace http {
 				}
 
 				std::string devname; // = "Zone Temp";
-				m_sql.UpdateValue(HwdID, ID, (const unsigned char)nDevNo, pTypeEvohomeZone, sTypeEvohomeZone, 10, 255, 0, "0.0;0.0;Auto", devname);
+				m_sql.UpdateValue(HwdID, 0, ID, (const unsigned char)nDevNo, pTypeEvohomeZone, sTypeEvohomeZone, 10, 255, 0, "0.0;0.0;Auto", devname, true, "");
 			}
 			root["status"] = "OK";
 			root["title"] = "BindEvohome";

@@ -14,10 +14,12 @@ define(['app', 'notifications/constants', 'notifications/factories'], function (
             $ctrl.$onInit = function () {
                 table = $element.find('table').dataTable(Object.assign({}, dataTableDefaultSettings, {
                     columns: [
+                        {title: $.t('Active'), data: 'Active', render: activeRenderer},
                         {title: $.t('Type'), width: '120px', data: 'Params', render: typeRenderer},
                         {title: $.t('When'), width: '160px', data: 'Params', render: whenRenderer},
                         {title: $.t('Active Systems'), data: 'ActiveSystems', render: activeSystemsRenderer},
                         {title: $.t('Custom Message'), data: 'CustomMessage', render: customMessageRenderer},
+                        {title: $.t('Action'), data: 'CustomAction', render: customActionRenderer},
                         {title: $.t('Priority'), width: '120px', data: 'Priority', render: priorityRenderer},
                         {title: $.t('Ignore Interval'), width: '120px', data: 'SendAlways', render: sendAlwaysRenderer},
                         {title: $.t('Recovery'), width: '80px', data: 'Params', render: recoveryRenderer}
@@ -48,6 +50,10 @@ define(['app', 'notifications/constants', 'notifications/factories'], function (
                         .draw();
                 }
             };
+
+            function activeRenderer(value) {
+				return $.t(value === true ? 'Yes' : 'No');
+            }
 
             function typeRenderer(value) {
                 var parts = value.split(';');
@@ -97,8 +103,12 @@ define(['app', 'notifications/constants', 'notifications/factories'], function (
                 return parts.length > 0 ? parts[0] : value;
             }
 
+            function customActionRenderer(value) {
+                return $.t(value.length > 0 ? 'Yes' : 'No');
+            }
+
             function sendAlwaysRenderer(value) {
-                return $.t(value === true ? 'Yes' : 'No')
+                return $.t(value === true ? 'Yes' : 'No');
             }
 
             function recoveryRenderer(value) {
@@ -143,13 +153,14 @@ define(['app', 'notifications/constants', 'notifications/factories'], function (
                         : [];
 
                     var params = notification.Params.split(';');
-
                     vm.notification = {
+                        active: notification.Active,
                         type: params[0],
                         condition: params[1],
-                        level: parseInt(params[2]),
+                        level: parseFloat(params[2]),
                         priority: notification.Priority,
                         customMessage: notification.CustomMessage,
+                        customAction: decodeURIComponent(notification.CustomAction),
                         ignoreInterval: notification.SendAlways,
                         sendRecovery: params[3] ? parseInt(params[3]) === 1 : false,
                         systems: vm.notifiers.reduce(function (acc, item) {
@@ -179,9 +190,11 @@ define(['app', 'notifications/constants', 'notifications/factories'], function (
                 }
 
                 var value = Object.assign({}, vm.ngModelCtrl.$modelValue, {
+                    Active: vm.notification.active,
                     Params: params.join(';'),
                     Priority: vm.notification.priority,
                     CustomMessage: vm.notification.customMessage,
+                    CustomAction: vm.notification.customAction,
                     SendAlways: vm.notification.ignoreInterval,
                     ActiveSystems: activeSystems.length === vm.notifiers.length
                         ? ''
@@ -217,8 +230,10 @@ define(['app', 'notifications/constants', 'notifications/factories'], function (
 
         function init() {
             vm.notification = {
+                Active: true,
                 Priority: 0,
                 CustomMessage: '',
+                CustomAction: '',
                 SendAlways: false,
                 ActiveSystems: ''
             };
@@ -279,18 +294,19 @@ define(['app', 'notifications/constants', 'notifications/factories'], function (
         function getNotificationData(notification) {
             var params = notification.Params.split(';');
 
-            var norificationType = vm.notificationTypes.find(function (item) {
+            var notificationType = vm.notificationTypes.find(function (item) {
                 return item.ptag === params[0];
             });
 
             return {
-                ttype: norificationType.val,
+                tactive: notification.Active,
+                ttype: notificationType.val,
                 twhen: params[1]
                     ? Object.keys(deviceNotificationsConstants.whenByConditionMap).indexOf(params[1])
                     : 0,
                 tvalue: params[2] || 0,
-                //tmsg: encodeURIComponent(notification.CustomMessage),
                 tmsg: notification.CustomMessage,
+                taction: encodeURIComponent(notification.CustomAction),
                 tsystems: notification.ActiveSystems,
                 tpriority: notification.Priority,
                 tsendalways: notification.SendAlways,

@@ -55,6 +55,22 @@
     <table class="display table-details table-details-lg">
         <tr>
             <td>
+                <label for="checkactive">{{:: 'Enabled' | translate }}:</label>
+            </td>
+            <td>
+                <div id="id_checkactive">
+                    <input type="checkbox"
+                           id="checkactive"
+                           ng-model="$ctrl.notification.active"
+                           ng-change="$ctrl.updateViewValue()"
+                    >&nbsp;
+                    <label for="checkactive"></label>
+                </div>
+            </td>
+        </tr>
+
+        <tr>
+            <td>
                 <label for="combotype">{{:: 'Type' | translate }}:</label>
             </td>
             <td>
@@ -176,7 +192,22 @@
                 <span>{{:: '(Optional)' | translate}}</span>
             </td>
         </tr>
-
+        <tr style="vertical-align:top">
+            <td>
+                <label for="custommessage">{{:: 'Action' | translate }}:</label>
+            </td>
+            <td>
+                <textarea id="customaction"
+                          rows="4"
+                          class="text ui-widget-content ui-corner-all"
+                          style="width: 356px; padding: .2em;"
+                          ng-model="$ctrl.notification.customAction"
+                          ng-change="$ctrl.updateViewValue()"
+                          >
+                </textarea>&nbsp;<span>{{:: '(Optional)' | translate}}</span><br>
+                <span>{{:: '(Should start with http:// or script://)' | translate}} #MESSAGE</span>
+            </td>
+        </tr>
         <tr>
             <td>
                 <label>{{:: 'Active Systems' | translate }}:</label>

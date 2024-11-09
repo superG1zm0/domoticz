@@ -1,7 +1,5 @@
 #pragma once
 
-#include "../../main/StoppableTask.h"
-
 //
 //	Domoticz Plugin System - Dnpwwo, 2016
 //
@@ -17,13 +15,12 @@ namespace Plugins {
 		bool	m_bAllPluginsStarted;
 		int		m_iPollInterval;
 
-		void*	m_InitialPythonThread;
+		static	void*	m_InitialPythonThread;
 
 		static	std::map<int, CDomoticzHardwareBase*>	m_pPlugins;
 		static	std::map<std::string, std::string>		m_PluginXml;
 
 		std::shared_ptr<std::thread> m_thread;
-		std::mutex m_mutex;
 
 		void Do_Work();
 	public:

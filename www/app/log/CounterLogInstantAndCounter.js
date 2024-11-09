@@ -1,6 +1,6 @@
-define(['app', 'log/CounterLogParams', 'log/CounterLogEnergySeriesSuppliers'], function (app) {
+define(['app', 'log/Chart', 'log/CounterLogParams', 'log/CounterLogEnergySeriesSuppliers'], function (app) {
 
-    app.directive('registerInstantAndCounter', function (counterLogSubtypeRegistry, counterLogEnergySeriesSuppliers) {
+    app.directive('registerInstantAndCounter', function (chart, counterLogSubtypeRegistry, counterLogParams, counterLogEnergySeriesSuppliers, counterLogSeriesSupplier) {
         counterLogSubtypeRegistry.register('instantAndCounter', {
             chartParamsDayTemplate: {
                 highchartTemplate: {
@@ -10,65 +10,75 @@ define(['app', 'log/CounterLogParams', 'log/CounterLogEnergySeriesSuppliers'], f
                 },
                 synchronizeYaxes: true
             },
-            chartParamsWeekTemplate: {
-                highchartTemplate: {
-                    plotOptions: {
-                        column: {
-                            dataLabels: {
-                                enabled: true
-                            }
-                        }
-                    }
-                }
-            },
             chartParamsMonthYearTemplate: {
 
+            },
+            chartParamsCompareTemplate: function (ctrl) {
+                return counterLogParams.chartParamsCompareTemplate(ctrl, chart.valueUnits.energy(chart.valueMultipliers.m1000));
             },
             extendDataRequestDay: function (dataRequest) {
                 dataRequest.method = 1;
                 return dataRequest;
             },
-            yAxesDay: [
-                {
-                    title: {
-                        text: $.t('Energy') + ' (Wh)'
-                    }
-                },
-                {
-                    title: {
-                        text: $.t('Power') + ' (Watt)'
+            yAxesDay: function (deviceType) {
+                return [
+                    {
+                        title: {
+                            text: $.t('Energy') + ' (' + chart.valueUnits.energy(chart.valueMultipliers.m1) + ')'
+                        }
                     },
-                    opposite: true
-                }
-            ],
-            yAxesWeek: [
-                {
-                    maxPadding: 0.2,
-                    title: {
-                        text: $.t('Energy') + ' (kWh)'
+                    {
+                        title: {
+                            text: $.t('Power') + ' (' + chart.valueUnits.power(chart.valueMultipliers.m1) + ')'
+                        },
+                        opposite: true
                     }
-                }
-            ],
-            yAxesMonthYear: [
-                {
-                    title: {
-                        text: $.t('Energy') + ' (kWh)'
+                ];
+            },
+            yAxesMonthYear: function (deviceType) {
+                return [
+                    {
+                        title: {
+                            text: $.t('Energy') + ' (' + chart.valueUnits.energy(chart.valueMultipliers.m1000) + ')'
+                        },
+                    },
+                    {
+                        title: {
+                            text: $.t('Price') + ' (' + $.myglobals.currencysign + ')'
+                        },
+						visible: true,
+						showEmpty: false,
+						opposite: true
                     }
-                }
-            ],
+                ];
+            },
+            yAxesCompare: function (deviceTypeIndex) {
+                return [
+                    {
+                        title: {
+                            text: $.t('Energy') + ' (' + chart.valueUnits.energy(chart.valueMultipliers.m1000) + ')'
+                        }
+                    }
+                ];
+            },
             daySeriesSuppliers: function (deviceType) {
                 return []
                     .concat(counterLogEnergySeriesSuppliers.instantAndCounterDaySeriesSuppliers(deviceType))
                     .concat(counterLogEnergySeriesSuppliers.counterDaySeriesSuppliers(deviceType));
             },
-            weekSeriesSuppliers: function (deviceType) {
-                return []
-                    .concat(counterLogEnergySeriesSuppliers.instantAndCounterWeekSeriesSuppliers(deviceType))
-                    .concat(counterLogEnergySeriesSuppliers.counterWeekSeriesSuppliers(deviceType));
-            },
             monthYearSeriesSuppliers: function (deviceType) {
                 return []
-                    .concat(counterLogEnergySeriesSuppliers.counterMonthYearSeriesSuppliers(deviceType));
+                    .concat(counterLogEnergySeriesSuppliers.counterMonthYearSeriesSuppliers(deviceType))
+                    .concat(counterLogEnergySeriesSuppliers.trendlineMonthYearSeriesSuppliers(deviceType))
+					.concat(counterLogEnergySeriesSuppliers.pastMonthYearSeriesSuppliers(deviceType))
+					.concat(counterLogEnergySeriesSuppliers.priceMonthYearSeriesSuppliers(deviceType));
+                    
+            },
+            extendDataRequestCompare: function (dataRequest) {
+                return dataRequest;
+            },
+            compareSeriesSuppliers: function (ctrl) {
+                return counterLogSeriesSupplier.counterCompareSeriesSuppliers(ctrl);
             }
         });
         return {

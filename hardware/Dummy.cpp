@@ -70,7 +70,7 @@ namespace http {
 		};
 
 		constexpr std::array<_mappedsensorname, 40> mappedsensorname{ {
-			{ 249, pTypeAirQuality, sTypeVoltcraft },	   // Air Quality
+			{ 249, pTypeAirQuality, sTypeVoc },	   // Air Quality
 			{ 7, pTypeGeneral, sTypeAlert },		   // Alert
 			{ 9, pTypeCURRENT, sTypeELEC1 },		   // Ampere (3 Phase)
 			{ 19, pTypeGeneral, sTypeCurrent },		   // Ampere (1 Phase)
@@ -102,7 +102,7 @@ namespace http {
 			{ 84, pTypeTEMP_HUM_BARO, sTypeTHB1 },		   // Temp+Hum+Baro
 			{ 247, pTypeTEMP_BARO, sTypeBMP085 },		   // Temp+Baro
 			{ 5, pTypeGeneral, sTypeTextStatus },		   // Text
-			{ 8, pTypeThermostat, sTypeThermSetpoint },	   // Thermostat Setpoint
+			{ 8, pTypeSetpoint, sTypeSetpoint },	   // Thermostat Setpoint
 			{ 248, pTypeUsage, sTypeElectric },		   // Usage (Electric)
 			{ 87, pTypeUV, sTypeUV1 },			   // UV
 			{ 12, pTypeGeneral, sTypeVisibility },		   // Visibility
@@ -113,8 +113,8 @@ namespace http {
 		} };
 
 		//TODO: Is this function called from anywhere, or can it be removed?
-		void CWebServer::RType_CreateMappedSensor(WebEmSession & session, const request& req, Json::Value &root)
-		{ // deprecated (for dzVents). Use RType_CreateDevice
+		void CWebServer::Cmd_CreateMappedSensor(WebEmSession & session, const request& req, Json::Value &root)
+		{ // deprecated (for dzVents). Use Cmd_CreateDevice
 			std::string Username = "Admin";
 			if (!session.username.empty())
 				Username = session.username;
@@ -178,7 +178,7 @@ namespace http {
 			}
 		}
 
-		void CWebServer::RType_CreateDevice(WebEmSession & session, const request& req, Json::Value &root)
+		void CWebServer::Cmd_CreateDevice(WebEmSession & session, const request& req, Json::Value &root)
 		{
 			std::string Username = "Admin";
 			if (!session.username.empty())
@@ -235,23 +235,40 @@ namespace http {
 			{
 				nid = atol(result[0][0].c_str()) + 1;
 			}
-			unsigned long vs_idx = nid; // OTO keep idx to be returned before masking
-			nid += 82000;
 
 			bool bPrevAcceptNewHardware = m_sql.m_bAcceptNewHardware;
 			m_sql.m_bAcceptNewHardware = true;
 
-			std::string szCreateUser = Username + " (IP: " + session.remote_host + ")";
-			uint64_t DeviceRowIdx = m_sql.CreateDevice(HwdID, type, subType, ssensorname, nid, soptions, szCreateUser);
+			unsigned long vs_idx = nid; // keep idx to be returned before masking
 
+			//make sure we created a new device
+			bool bOK = false;
+			while (!bOK)
+			{
+				unsigned long devid = nid + 82000;
+
+				std::string szCreateUser = Username + " (IP: " + session.remote_host + ")";
+
+				std::string newSensorName = ssensorname;
+
+				uint64_t DeviceRowIdx = m_sql.CreateDevice(HwdID, type, subType, newSensorName, devid, soptions, szCreateUser);
+				if (DeviceRowIdx == (uint64_t)-1)
+					break; //something went wrong
+				if (DeviceRowIdx == vs_idx)
+				{
+					bOK = true;
+					break;
+				}
+				nid++;
+			}
 			m_sql.m_bAcceptNewHardware = bPrevAcceptNewHardware;
-
-			if (DeviceRowIdx != (uint64_t)-1)
+			if (bOK)
 			{
 				root["status"] = "OK";
 				root["title"] = "CreateSensor";
 				root["idx"] = std::to_string(vs_idx);
 			}
+
 		}
 
 	} // namespace server

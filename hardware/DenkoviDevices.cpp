@@ -4,7 +4,6 @@
 #include "../main/Logger.h"
 #include "../httpclient/HTTPClient.h"
 #include "hardwaretypes.h"
-#include "../main/localtime_r.h"
 #include "../main/mainworker.h"
 #include "../main/SQLHelper.h"
 #include <sstream>
@@ -118,8 +117,8 @@ bool CDenkoviDevices::StartHardware()
 
 	Init();
 
-	//Start worker thread 
-	m_thread = std::make_shared<std::thread>(&CDenkoviDevices::Do_Work, this);
+	// Start worker thread
+	m_thread = std::make_shared<std::thread>([this] { Do_Work(); });
 	SetThreadNameInt(m_thread->native_handle());
 	m_bIsStarted = true;
 	sOnConnected(this);
@@ -243,7 +242,7 @@ bool CDenkoviDevices::WriteToHardware(const char *pdata, const unsigned char /*l
 		}
 
 		std::string sResult;
-		if (!HTTPClient::GET(szURL.str(), sResult)) {
+		if (!dHttpGet(szURL.str(), sResult)) {
 			Log(LOG_ERROR, "%s: Error sending command to: %s",szDenkoviHardwareNames[m_iModel], m_szIPAddress.c_str());
 			return false;
 		}
@@ -270,7 +269,7 @@ bool CDenkoviDevices::WriteToHardware(const char *pdata, const unsigned char /*l
 		std::string sResult;
 
 		szURL << "http://" << sPass << "@" << m_szIPAddress << ":" << m_usIPPort << "/ioreg.js";
-		if (!HTTPClient::GET(szURL.str(), sResult)) {
+		if (!dHttpGet(szURL.str(), sResult)) {
 			Log(LOG_ERROR, "%s: Error sending command to: %s", m_szIPAddress.c_str(),szDenkoviHardwareNames[m_iModel]);
 			return false;
 		}
@@ -301,7 +300,7 @@ bool CDenkoviDevices::WriteToHardware(const char *pdata, const unsigned char /*l
 		sprintf(port3Val, "%02X", port3);
 		sprintf(port5Val, "%02X", port5);
 		szURL << "http://" << sPass << "@" << m_szIPAddress << ":" << m_usIPPort << "/iochange.cgi?ref=re-io&01=" << port3Val << "&02=" << port5Val;
-		if (!HTTPClient::GET(szURL.str(), sResult)) {
+		if (!dHttpGet(szURL.str(), sResult)) {
 			Log(LOG_ERROR, "%s: Error sending command to: %s!",szDenkoviHardwareNames[m_iModel], m_szIPAddress.c_str());
 			return false;
 		}		
@@ -323,13 +322,15 @@ bool CDenkoviDevices::WriteToHardware(const char *pdata, const unsigned char /*l
 		std::stringstream szURL;
 		std::string sResult;
 
+		//szURL << "http://" << sPass << "@" << m_szIPAddress << ":" << m_usIPPort << "/iochange.cgi?ref=re-io&01=FF&02=FF";
 		szURL << "http://" << sPass << "@" << m_szIPAddress << ":" << m_usIPPort << "/ioreg.js";
-		if (!HTTPClient::GET(szURL.str(), sResult)) {
+		if (!dHttpGet(szURL.str(), sResult)) {
 			Log(LOG_ERROR, "%s: Error sending command to: %s",szDenkoviHardwareNames[m_iModel], m_szIPAddress.c_str());
 			return false;
 		}
 		uint8_t port3 = DAEnetIP2GetIoPort(sResult, DAENETIP2_PORT_3_VAL);
 		uint8_t port5 = DAEnetIP2GetIoPort(sResult, DAENETIP2_PORT_5_VAL);
+		//Log(LOG_NORM, "P3=%u, P5=%u",port3,port5);
 		if (io < 9) { //DIO1 to DIO8 are from Port 3
 			if (command== light2_sOff)
 				port3 = port3 & (~(0x01 << (io - 1)));
@@ -354,12 +355,13 @@ bool CDenkoviDevices::WriteToHardware(const char *pdata, const unsigned char /*l
 		char port3Val[3], port5Val[3];
 		sprintf(port3Val, "%02X", port3);
 		sprintf(port5Val, "%02X", port5);
-		szURL << "http://" << sPass << "@" << m_szIPAddress << ":" << m_usIPPort << "/iochange.cgi?ref=re-io&01=" << port3Val << "&02=" << port5Val;
-		if (!HTTPClient::GET(szURL.str(), sResult)) {
+		szURL << "http://" << sPass << "@" << m_szIPAddress << ":" << m_usIPPort << "/iochange.cgi?ref=re-io&01=" << port3Val << "&02=" << port5Val;	
+		if (!dHttpGet(szURL.str(), sResult)) {
 			Log(LOG_ERROR, "%s: Error sending command to: %s",szDenkoviHardwareNames[m_iModel], m_szIPAddress.c_str());
 			return false;
 		}		
 		return true;
+		//return dHttpGet(szURL.str(), sResult);
 	}
 	case DDEV_DAEnet_IP3: {
 		//int ioType = pSen->id;
@@ -391,7 +393,7 @@ bool CDenkoviDevices::WriteToHardware(const char *pdata, const unsigned char /*l
 			return false;
 		}
 		std::string sResult;
-		if (!HTTPClient::GET(szURL.str(), sResult)) {
+		if (!dHttpGet(szURL.str(), sResult)) {
 			Log(LOG_ERROR, "%s: Error sending command to: %s",szDenkoviHardwareNames[m_iModel], m_szIPAddress.c_str());
 			return false;
 		}
@@ -445,7 +447,7 @@ bool CDenkoviDevices::WriteToHardware(const char *pdata, const unsigned char /*l
 		else
 			szURL << "1";
 		std::string sResult;
-		if (!HTTPClient::GET(szURL.str(), sResult)) {
+		if (!dHttpGet(szURL.str(), sResult)) {
 			Log(LOG_ERROR, "%s Error sending command to: %s!",szDenkoviHardwareNames[m_iModel], m_szIPAddress.c_str());
 			return false;
 		}
@@ -486,7 +488,7 @@ bool CDenkoviDevices::WriteToHardware(const char *pdata, const unsigned char /*l
 		else
 			szURL << "1";
 		std::string sResult;
-		if (!HTTPClient::GET(szURL.str(), sResult)) {
+		if (!dHttpGet(szURL.str(), sResult)) {
 			Log(LOG_ERROR, "%s: Error sending command to: %s!",szDenkoviHardwareNames[m_iModel], m_szIPAddress.c_str());
 			return false;
 		}
@@ -528,7 +530,7 @@ bool CDenkoviDevices::WriteToHardware(const char *pdata, const unsigned char /*l
 			return false;
 		}
 		std::string sResult;
-		if (!HTTPClient::GET(szURL.str(), sResult))
+		if (!dHttpGet(szURL.str(), sResult))
 		{
 			Log(LOG_ERROR, "%s: Error sending relay command to: %s!",szDenkoviHardwareNames[m_iModel], m_szIPAddress.c_str());			 
 			return false;
@@ -655,7 +657,8 @@ uint8_t CDenkoviDevices::DAEnetIP2GetIoPort(const std::string &tmpstr, const int
 std::string CDenkoviDevices::DAEnetIP2GetName(const std::string &tmpstr, const int &nmr)
 { // nmr should be from 1 to 24
 	size_t pos1 = 0, pos2 = 0;
-	for (uint8_t ii = 0; ii < (((nmr - 1) * 2) + 1); ii++) {
+	for (int ii = 0; ii < (((nmr - 1) * 2) + 1); ii++)
+	{
 		pos1 = tmpstr.find('"', pos1 + 1);
 	}
 	pos2 = tmpstr.find('"', pos1 + 1);
@@ -696,7 +699,15 @@ void CDenkoviDevices::SendDenkoviTextSensor(const int NodeID, const int ChildID,
 		SendTextSensor(NodeID, ChildID, BatteryLevel, textMessage, defaultname);
 }
 
-
+bool CDenkoviDevices::dHttpGet(const std::string &url, std::string &sResult)
+{
+	for (int ii=0; ii<3; ii++)
+	{
+		//Log(LOG_NORM,"Retry: %u",ii);
+		if (HTTPClient::GET(url, sResult)) return true;
+	}
+	return false;
+}
 
 void CDenkoviDevices::GetMeterDetails()
 {
@@ -711,13 +722,13 @@ void CDenkoviDevices::GetMeterDetails()
 
 	if (m_iModel == DDEV_DAEnet_IP2 || m_iModel == DDEV_DAEnet_IP2_8_RELAYS) {
 		std::string sPass = m_Password;
-		if (sPass.find("%3A") == std::string::npos) {
+		/*if (sPass.find("%3A") == std::string::npos) {
 			if (m_iModel == DDEV_DAEnet_IP2)
 				Log(LOG_ERROR, "%s: Please enter username and password in format username:password. Example admin:admin!",szDenkoviHardwareNames[m_iModel]);
 			else if (m_iModel == DDEV_DAEnet_IP2_8_RELAYS)
 				Log(LOG_ERROR, "%s: Please enter username and password in format username:password. Example admin:admin!",szDenkoviHardwareNames[m_iModel]);
 			return;
-		}
+		}*/
 		sPass.replace(sPass.find("%3A"), 3, ":");
 		szURL << "http://" << sPass << "@" << m_szIPAddress << ":" << m_usIPPort << "/ioreg.js";
 	}
@@ -737,7 +748,7 @@ void CDenkoviDevices::GetMeterDetails()
 			szURL << "?pw=" << m_Password;
 	}
 
-	if (!HTTPClient::GET(szURL.str(), sResult) || (m_iModel == DDEV_DAEnet_IP3 && !HTTPClient::GET(szURL2.str(), sResult2)))
+	if (!dHttpGet(szURL.str(), sResult) || (m_iModel == DDEV_DAEnet_IP3 && !dHttpGet(szURL2.str(), sResult2)))
 	{
 		Log(LOG_ERROR, "%s: Error connecting to: %s!",szDenkoviHardwareNames[m_iModel], m_szIPAddress.c_str()); 
 		return;
@@ -855,7 +866,7 @@ void CDenkoviDevices::GetMeterDetails()
 			{
 				std::vector<std::string> vMeasure;
 				StringSplit(tmpMeasure, " ", vMeasure); 
-				int len = tmpMeasure.length() - tmpMeasure.find_first_of('.', 0) - 2;
+				size_t len = tmpMeasure.length() - tmpMeasure.find_first_of('.', 0) - 2;
 				std::string units = tmpMeasure.substr(tmpMeasure.find_first_of('.',0)+2, len);
 				SendCustomSensor(Idx, 1, 255, static_cast<float>(atof(vMeasure[0].c_str())), "Analog Input Scaled (" + name + ")", units);
 

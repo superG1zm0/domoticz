@@ -1,5 +1,6 @@
 #pragma once
 
+#ifdef WITH_OPENZWAVE
 #include <time.h>
 #include "DomoticzHardware.h"
 
@@ -90,6 +91,9 @@ class ZWaveBase : public CDomoticzHardwareBase
 		std::string label;
 		std::string custom_label;
 
+		//Unit
+		std::string unit;
+
 		time_t lastreceived{ 0 };
 		unsigned char sequence_number;
 
@@ -159,7 +163,6 @@ class ZWaveBase : public CDomoticzHardwareBase
 	virtual bool SwitchLight(_tZWaveDevice *pDevice, int instanceID, int value) = 0;
 	virtual bool SwitchColor(uint8_t nodeID, uint8_t instanceID, const std::string &ColorStr) = 0;
 	virtual void SetThermostatSetPoint(uint8_t nodeID, uint8_t instanceID, uint8_t commandClass, float value) = 0;
-	virtual void SetClock(uint8_t nodeID, uint8_t instanceID, uint8_t commandClass, uint8_t day, uint8_t hour, uint8_t minute) = 0;
 	virtual void SetThermostatMode(uint8_t nodeID, uint8_t instanceID, uint8_t commandClass, int tMode) = 0;
 	virtual void SetThermostatFanMode(uint8_t nodeID, uint8_t instanceID, uint8_t commandClass, int fMode) = 0;
 	virtual std::string GetSupportedThermostatFanModes(unsigned long ID) = 0;
@@ -180,3 +183,4 @@ class ZWaveBase : public CDomoticzHardwareBase
 	std::map<std::string, _tZWaveDevice> m_devices;
 	std::shared_ptr<std::thread> m_thread;
 };
+#endif // WITH_OPENZWAVE

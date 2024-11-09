@@ -50,6 +50,9 @@ struct _tColor
 	std::string toJSONString() const;
 	Json::Value toJSONValue() const;
 	std::string toString() const;
+
+	static void RgbFromXY(const double x, const double y, uint8_t &r8, uint8_t &g8, uint8_t &b8);
+	static void XYFromRGB(const uint8_t r8, const uint8_t g8, const uint8_t b8, double &x, double &y, double &Y);
 };
 
 const _tColor NoColor = _tColor();
@@ -64,18 +67,6 @@ struct _tColorSwitch
 	uint8_t command;
 	uint32_t value; // Value of command
 	_tColor color;	// Color
-
-	template <class Archive> void serialize(Archive &ar)
-	{
-		ar &cereal::make_nvp("len", len);
-		ar &cereal::make_nvp("type", type);
-		ar &cereal::make_nvp("subtype", subtype);
-		ar &cereal::make_nvp("id", id);
-		ar &cereal::make_nvp("dunit", dunit);
-		ar &cereal::make_nvp("command", command);
-		ar &cereal::make_nvp("value", value);
-		ar &cereal::make_nvp("color", color);
-	}
 
 	_tColorSwitch()
 	{

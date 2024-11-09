@@ -4,7 +4,6 @@
 #include "../main/Logger.h"
 #include "../httpclient/HTTPClient.h"
 #include "hardwaretypes.h"
-#include "../main/localtime_r.h"
 #include "../main/mainworker.h"
 #include "../main/SQLHelper.h"
 #include <sstream>
@@ -57,7 +56,7 @@ bool CDenkoviTCPDevices::StartHardware()
 	m_uiReceivedDataLength = 0;
 
 	//Start worker thread
-	m_thread = std::make_shared<std::thread>(&CDenkoviTCPDevices::Do_Work, this);
+	m_thread = std::make_shared<std::thread>([this] { Do_Work(); });
 	m_bIsStarted = true;
 	Log(LOG_STATUS, "%s: Started.",szDenkoviHardwareNamesTCP[m_iModel]);
 	return (m_thread != nullptr);
@@ -91,7 +90,7 @@ void CDenkoviTCPDevices::CreateRequest(uint8_t * pData, size_t length)
 	pData[7] = m_pReq.fc;
 	pData[8] = m_pReq.address[0];
 	pData[9] = m_pReq.address[1];
-	for (uint8_t ii = 10; ii < length; ii++)
+	for (size_t ii = 10; ii < length; ii++)
 		pData[ii] = m_pReq.data[ii - 10];
 
 }

@@ -7,7 +7,9 @@ namespace Plugins {
 
 	class CPlugin;
 
-	typedef struct {
+	class CImage
+	{
+    public:
 		PyObject_HEAD
 		int			ImageID;
 		PyObject*	Base;
@@ -15,7 +17,7 @@ namespace Plugins {
 		PyObject*	Description;
 		PyObject*	Filename;
 		CPlugin*	pPlugin;
-	} CImage;
+	};
 
 	void CImage_dealloc(CImage* self);
 	PyObject* CImage_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
@@ -38,49 +40,11 @@ namespace Plugins {
 		{ nullptr } /* Sentinel */
 	};
 
-	static PyTypeObject CImageType = {
-		PyVarObject_HEAD_INIT(nullptr, 0) "Domoticz.Image", /* tp_name */
-		sizeof(CImage),					    /* tp_basicsize */
-		0,						    /* tp_itemsize */
-		(destructor)CImage_dealloc,			    /* tp_dealloc */
-		0,						    /* tp_print */
-		nullptr,					    /* tp_getattr */
-		nullptr,					    /* tp_setattr */
-		nullptr,					    /* tp_reserved */
-		nullptr,					    /* tp_repr */
-		nullptr,					    /* tp_as_number */
-		nullptr,					    /* tp_as_sequence */
-		nullptr,					    /* tp_as_mapping */
-		nullptr,					    /* tp_hash  */
-		nullptr,					    /* tp_call */
-		(reprfunc)CImage_str,				    /* tp_str */
-		nullptr,					    /* tp_getattro */
-		nullptr,					    /* tp_setattro */
-		nullptr,					    /* tp_as_buffer */
-		Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,	   /* tp_flags */
-		"Domoticz Image",				    /* tp_doc */
-		nullptr,					    /* tp_traverse */
-		nullptr,					    /* tp_clear */
-		nullptr,					    /* tp_richcompare */
-		0,						    /* tp_weaklistoffset */
-		nullptr,					    /* tp_iter */
-		nullptr,					    /* tp_iternext */
-		CImage_methods,					    /* tp_methods */
-		CImage_members,					    /* tp_members */
-		nullptr,					    /* tp_getset */
-		nullptr,					    /* tp_base */
-		nullptr,					    /* tp_dict */
-		nullptr,					    /* tp_descr_get */
-		nullptr,					    /* tp_descr_set */
-		0,						    /* tp_dictoffset */
-		(initproc)CImage_init,				    /* tp_init */
-		nullptr,					    /* tp_alloc */
-		CImage_new					    /* tp_new */
-	};
-
-	typedef struct {
+	class CDevice
+	{
+	public:
 		PyObject_HEAD
-			PyObject*	PluginKey;
+		PyObject*	PluginKey;
 		int			HwdID;
 		PyObject*	DeviceID;
 		int			Unit;
@@ -102,7 +66,7 @@ namespace Plugins {
 		PyObject*	Description;
 		PyObject*	Color;
 		CPlugin*	pPlugin;
-	} CDevice;
+	};
 
 	void CDevice_dealloc(CDevice* self);
 	PyObject* CDevice_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
@@ -134,6 +98,7 @@ namespace Plugins {
 		{ "TimedOut", T_INT, offsetof(CDevice, TimedOut), READONLY, "Is the device marked as timed out" },
 		{ "Description", T_OBJECT, offsetof(CDevice, Description), READONLY, "Description" },
 		{ "Color", T_OBJECT, offsetof(CDevice, Color), READONLY, "Color JSON dictionary" },
+		{ "Key", T_INT, offsetof(CDevice, Unit), READONLY, "Device dictionary key" },
 		{ nullptr } /* Sentinel */
 	};
 
@@ -146,55 +111,19 @@ namespace Plugins {
 		{ nullptr } /* Sentinel */
 	};
 
-	static PyTypeObject CDeviceType = {
-		PyVarObject_HEAD_INIT(nullptr, 0) "Domoticz.Device", /* tp_name */
-		sizeof(CDevice),				     /* tp_basicsize */
-		0,						     /* tp_itemsize */
-		(destructor)CDevice_dealloc,			     /* tp_dealloc */
-		0,						     /* tp_print */
-		nullptr,					     /* tp_getattr */
-		nullptr,					     /* tp_setattr */
-		nullptr,					     /* tp_reserved */
-		nullptr,					     /* tp_repr */
-		nullptr,					     /* tp_as_number */
-		nullptr,					     /* tp_as_sequence */
-		nullptr,					     /* tp_as_mapping */
-		nullptr,					     /* tp_hash  */
-		nullptr,					     /* tp_call */
-		(reprfunc)CDevice_str,				     /* tp_str */
-		nullptr,					     /* tp_getattro */
-		nullptr,					     /* tp_setattro */
-		nullptr,					     /* tp_as_buffer */
-		Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,	    /* tp_flags */
-		"Domoticz Device",				     /* tp_doc */
-		nullptr,					     /* tp_traverse */
-		nullptr,					     /* tp_clear */
-		nullptr,					     /* tp_richcompare */
-		0,						     /* tp_weaklistoffset */
-		nullptr,					     /* tp_iter */
-		nullptr,					     /* tp_iternext */
-		CDevice_methods,				     /* tp_methods */
-		CDevice_members,				     /* tp_members */
-		nullptr,					     /* tp_getset */
-		nullptr,					     /* tp_base */
-		nullptr,					     /* tp_dict */
-		nullptr,					     /* tp_descr_get */
-		nullptr,					     /* tp_descr_set */
-		0,						     /* tp_dictoffset */
-		(initproc)CDevice_init,				     /* tp_init */
-		nullptr,					     /* tp_alloc */
-		CDevice_new					     /* tp_new */
-	};
-
 	class CPluginTransport;
 	class CPluginProtocol;
 
-	typedef struct {
+	class CConnection
+	{
+    public:
 		PyObject_HEAD
 		PyObject*			Name;
+		PyObject*			Target;
 		PyObject*			Address;
 		PyObject*			Port;
 		int					Baud;
+		int					Timeout;
 		PyObject*			LastSeen;
 		CPlugin*			pPlugin;
 		PyObject*			Transport;
@@ -202,14 +131,14 @@ namespace Plugins {
 		PyObject*			Protocol;
 		CPluginProtocol*	pProtocol;
 		PyObject*			Parent;
-	} CConnection;
+	};
 
 	void CConnection_dealloc(CConnection* self);
 	PyObject* CConnection_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
 	int CConnection_init(CConnection *self, PyObject *args, PyObject *kwds);
-	PyObject* CConnection_connect(CConnection* self);
-	PyObject* CConnection_listen(CConnection* self);
-	PyObject* CConnection_send(CConnection *self, PyObject *args, PyObject *kwds);
+	PyObject *CConnection_connect(CConnection *self, PyObject *args, PyObject *kwds);
+	PyObject *CConnection_listen(CConnection *self, PyObject *args, PyObject *kwds);
+	PyObject *CConnection_send(CConnection *self, PyObject *args, PyObject *kwds);
 	PyObject* CConnection_disconnect(CConnection* self);
 	PyObject* CConnection_bytes(CConnection* self);
 	PyObject* CConnection_isconnecting(CConnection* self);
@@ -219,17 +148,18 @@ namespace Plugins {
 
 	static PyMemberDef CConnection_members[] = {
 		{ "Name", T_OBJECT, offsetof(CConnection, Name), READONLY, "Name" },
-		{ "Address", T_OBJECT, offsetof(CConnection, Address), READONLY, "Address" },
-		{ "Port", T_OBJECT, offsetof(CConnection, Port), READONLY, "Port" },
+		{ "Address", T_OBJECT, offsetof(CConnection, Address), 0, "Address" },
+		{ "Port", T_OBJECT, offsetof(CConnection, Port), 0, "Port" },
 		{ "Baud", T_INT, offsetof(CConnection, Baud), READONLY, "Baud" },
+		{ "Target", T_OBJECT, offsetof(CConnection, Target), 0, "Event target this connection" },
 		{ "Parent", T_OBJECT, offsetof(CConnection, Parent), READONLY, "Parent connection" },
 		{ nullptr } /* Sentinel */
 	};
 
 	static PyMethodDef CConnection_methods[] = {
-		{ "Connect", (PyCFunction)CConnection_connect, METH_NOARGS, "Connect to specified Address/Port)" },
+		{ "Connect", (PyCFunction)CConnection_connect, METH_VARARGS | METH_KEYWORDS, "Connect to specified Address/Port)" },
 		{ "Send", (PyCFunction)CConnection_send, METH_VARARGS | METH_KEYWORDS, "Send data to connection." },
-		{ "Listen", (PyCFunction)CConnection_listen, METH_NOARGS, "Listen on specified Port." },
+		{ "Listen", (PyCFunction)CConnection_listen, METH_VARARGS | METH_KEYWORDS, "Listen on specified Port." },
 		{ "Disconnect", (PyCFunction)CConnection_disconnect, METH_NOARGS, "Disconnect connection or stop listening." },
 		{ "BytesTransferred", (PyCFunction)CConnection_bytes, METH_NOARGS, "Bytes transferred since connection was opened." },
 		{ "Connecting", (PyCFunction)CConnection_isconnecting, METH_NOARGS, "Connection in progress." },
@@ -238,43 +168,5 @@ namespace Plugins {
 		{ nullptr } /* Sentinel */
 	};
 
-	static PyTypeObject CConnectionType = {
-		PyVarObject_HEAD_INIT(nullptr, 0) "Domoticz.Connection", /* tp_name */
-		sizeof(CConnection),					 /* tp_basicsize */
-		0,							 /* tp_itemsize */
-		(destructor)CConnection_dealloc,			 /* tp_dealloc */
-		0,							 /* tp_print */
-		nullptr,						 /* tp_getattr */
-		nullptr,						 /* tp_setattr */
-		nullptr,						 /* tp_reserved */
-		nullptr,						 /* tp_repr */
-		nullptr,						 /* tp_as_number */
-		nullptr,						 /* tp_as_sequence */
-		nullptr,						 /* tp_as_mapping */
-		nullptr,						 /* tp_hash  */
-		nullptr,						 /* tp_call */
-		(reprfunc)CConnection_str,				 /* tp_str */
-		nullptr,						 /* tp_getattro */
-		nullptr,						 /* tp_setattro */
-		nullptr,						 /* tp_as_buffer */
-		Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,		 /* tp_flags */
-		"Domoticz Connection",					 /* tp_doc */
-		nullptr,						 /* tp_traverse */
-		nullptr,						 /* tp_clear */
-		nullptr,						 /* tp_richcompare */
-		0,							 /* tp_weaklistoffset */
-		nullptr,						 /* tp_iter */
-		nullptr,						 /* tp_iternext */
-		CConnection_methods,					 /* tp_methods */
-		CConnection_members,					 /* tp_members */
-		nullptr,						 /* tp_getset */
-		nullptr,						 /* tp_base */
-		nullptr,						 /* tp_dict */
-		nullptr,						 /* tp_descr_get */
-		nullptr,						 /* tp_descr_set */
-		0,							 /* tp_dictoffset */
-		(initproc)CConnection_init,				 /* tp_init */
-		nullptr,						 /* tp_alloc */
-		CConnection_new						 /* tp_new */
-	};
 } // namespace Plugins
+

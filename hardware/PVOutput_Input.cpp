@@ -3,14 +3,11 @@
 #include "../main/Helper.h"
 #include "../main/Logger.h"
 #include "hardwaretypes.h"
-#include "../main/localtime_r.h"
 #include <json/json.h>
 #include "../main/RFXtrx.h"
 #include "../main/SQLHelper.h"
 #include "../httpclient/HTTPClient.h"
 #include "../main/mainworker.h"
-
-#define round(a) ( int ) ( a + .5 )
 
 //#define DEBUG_PVOutputInput
 
@@ -33,7 +30,7 @@ bool CPVOutputInput::StartHardware()
 
 	Init();
 	//Start worker thread
-	m_thread = std::make_shared<std::thread>(&CPVOutputInput::Do_Work, this);
+	m_thread = std::make_shared<std::thread>([this] { Do_Work(); });
 	SetThreadNameInt(m_thread->native_handle());
 	m_bIsStarted = true;
 	sOnConnected(this);
@@ -57,7 +54,7 @@ bool CPVOutputInput::StopHardware()
 void CPVOutputInput::Do_Work()
 {
 	int LastMinute = -1;
-	_log.Log(LOG_STATUS, "PVOutput (Input): Worker started...");
+	Log(LOG_STATUS, "Worker started...");
 	while (!IsStopRequested(1000))
 	{
 		time_t atime = mytime(nullptr);
@@ -70,7 +67,7 @@ void CPVOutputInput::Do_Work()
 			GetMeterDetails();
 		}
 	}
-	_log.Log(LOG_STATUS, "PVOutput (Input): Worker stopped...");
+	Log(LOG_STATUS, "Worker stopped...");
 }
 
 bool CPVOutputInput::WriteToHardware(const char* pdata, const unsigned char length)
@@ -85,20 +82,39 @@ void CPVOutputInput::GetMeterDetails()
 	if (m_KEY.empty())
 		return;
 
+	bool success = false;
+	int connectTries = 3;
+
 	std::string sResult;
 
 	std::stringstream sstr;
 	sstr << "https://pvoutput.org/service/r2/getstatus.jsp?sid=" << m_SID << "&key=" << m_KEY;
-	if (!HTTPClient::GET(sstr.str(), sResult))
+
+	for (int i = 0; i < connectTries; i++)
 	{
-		_log.Log(LOG_ERROR, "PVOutput (Input): Error login!");
-		return;
+		if (!HTTPClient::GET(sstr.str(), sResult))
+		{
+			Log(LOG_ERROR, "GetStatus failed: %s", sResult.c_str());
+			sleep_milliseconds(400);
+		}
+		else
+		{
+			success = true;
+			if (i > 0) {
+				Log(LOG_STATUS, "GetStatus succeeded after %d tries", i + 1);
+			}
+			break;
+		}
 	}
+
+	if (!success)
+		return;
+
 	std::vector<std::string> splitresult;
 	StringSplit(sResult, ",", splitresult);
 	if (splitresult.size() < 9)
 	{
-		_log.Log(LOG_ERROR, "PVOutput (Input): Invalid Data received!");
+		Log(LOG_ERROR, "Invalid Data received!");
 		return;
 	}
 	/*
@@ -155,13 +171,13 @@ void CPVOutputInput::GetMeterDetails()
 	sstr << "https://pvoutput.org/service/r2/getstatistic.jsp?sid=" << m_SID << "&key=" << m_KEY << "&c=1&df=19700101&dt=26000101";
 	if (!HTTPClient::GET(sstr.str(), sResult))
 	{
-		_log.Log(LOG_ERROR, "PVOutput (Input): Error login!");
+		Log(LOG_ERROR, "Error login!");
 		return;
 	}
 	StringSplit(sResult, ",", splitresult);
 	if (splitresult.size() < 11)
 	{
-		_log.Log(LOG_ERROR, "PVOutput (Input): Invalid Data received!");
+		Log(LOG_ERROR, "Invalid Data received!");
 		return;
 	}
 /*

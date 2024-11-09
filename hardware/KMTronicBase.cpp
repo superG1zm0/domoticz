@@ -4,23 +4,18 @@
 #include "../main/Helper.h"
 #include "../main/RFXtrx.h"
 #include "../main/SQLHelper.h"
-#include "../main/localtime_r.h"
 #include "hardwaretypes.h"
 #include <string>
 #include <sstream>
 #include <algorithm>
 #include <iostream>
-#include <boost/bind/bind.hpp>
-
 #include <ctime>
-
-#define round(a) ( int ) ( a + .5 )
 
 KMTronicBase::KMTronicBase()
 {
 	m_bufferpos = 0;
 	m_TotRelais = 0;
-	std::fill(std::begin(m_bRelaisStatus), std::end(m_bRelaisStatus), false);
+	m_bRelaisStatus = {};
 }
 
 void KMTronicBase::ParseData(const unsigned char *pData, int Len)

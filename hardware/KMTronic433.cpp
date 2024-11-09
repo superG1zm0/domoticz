@@ -3,18 +3,14 @@
 #include "../main/Logger.h"
 #include "../main/Helper.h"
 #include "../main/RFXtrx.h"
-#include "../main/localtime_r.h"
 #include "P1MeterBase.h"
 #include "hardwaretypes.h"
 #include <string>
 #include <algorithm>
 #include <iostream>
-#include <boost/bind/bind.hpp>
 #include <boost/exception/diagnostic_information.hpp>
 
 #include <ctime>
-
-using namespace boost::placeholders;
 
 //#define DEBUG_KMTronic
 
@@ -40,7 +36,7 @@ bool KMTronic433::StartHardware()
 	m_retrycntr = RETRY_DELAY; //will force reconnect first thing
 
 	//Start worker thread
-	m_thread = std::make_shared<std::thread>(&KMTronic433::Do_Work, this);
+	m_thread = std::make_shared<std::thread>([this] { Do_Work(); });
 	SetThreadNameInt(m_thread->native_handle());
 
 	return (m_thread != nullptr);
@@ -74,7 +70,7 @@ void KMTronic433::Do_Work()
 		{
 			if (m_retrycntr == 0)
 			{
-				_log.Log(LOG_STATUS, "KMTronic: retrying in %d seconds...", RETRY_DELAY);
+				Log(LOG_STATUS, "retrying in %d seconds...", RETRY_DELAY);
 			}
 			m_retrycntr++;
 			if (m_retrycntr >= RETRY_DELAY)
@@ -89,7 +85,7 @@ void KMTronic433::Do_Work()
 	}
 	terminate();
 
-	_log.Log(LOG_STATUS, "KMTronic: Worker stopped...");
+	Log(LOG_STATUS, "Worker stopped...");
 }
 
 bool KMTronic433::OpenSerialDevice()
@@ -97,7 +93,7 @@ bool KMTronic433::OpenSerialDevice()
 	//Try to open the Serial Port
 	try
 	{
-		_log.Log(LOG_STATUS, "KMTronic: Using serial port: %s", m_szSerialPort.c_str());
+		Log(LOG_STATUS, "Using serial port: %s", m_szSerialPort.c_str());
 #ifndef WIN32
 		openOnlyBaud(
 			m_szSerialPort,
@@ -116,9 +112,9 @@ bool KMTronic433::OpenSerialDevice()
 	}
 	catch (boost::exception & e)
 	{
-		_log.Log(LOG_ERROR, "KMTronic: Error opening serial port!");
+		Log(LOG_ERROR, "Error opening serial port!");
 #ifdef _DEBUG
-		_log.Log(LOG_ERROR, "-----------------\n%s\n-----------------", boost::diagnostic_information(e).c_str());
+		Log(LOG_ERROR, "-----------------\n%s\n-----------------", boost::diagnostic_information(e).c_str());
 #else
 		(void)e;
 #endif
@@ -126,12 +122,12 @@ bool KMTronic433::OpenSerialDevice()
 	}
 	catch (...)
 	{
-		_log.Log(LOG_ERROR, "KMTronic: Error opening serial port!!!");
+		Log(LOG_ERROR, "Error opening serial port!!!");
 		return false;
 	}
 	m_bIsStarted = true;
 	m_bufferpos = 0;
-	setReadCallback(boost::bind(&KMTronic433::readCallback, this, _1, _2));
+	setReadCallback([this](auto d, auto l) { readCallback(d, l); });
 	sOnConnected(this);
 	return true;
 }
@@ -150,7 +146,7 @@ void KMTronic433::readCallback(const char *data, size_t len)
 		return; //receiving not enabled
 
 	memcpy(m_buffer, data, len);
-	m_bufferpos = len;
+	m_bufferpos = (int)len;
 }
 
 bool KMTronic433::WriteInt(const unsigned char *data, const size_t len, const bool bWaitForReturn)

@@ -5,10 +5,6 @@ local _ = require 'lodash'
 local scriptPath = ''
 package.path = ";../?.lua;" .. scriptPath .. '/?.lua;../device-adapters/?.lua;../../../scripts/lua/?.lua;' .. package.path
 
-local LOG_INFO = 2
-local LOG_DEBUG = 3
-local LOG_ERROR = 1
-
 describe('event helpers', function()
 	local utils
 
@@ -100,7 +96,7 @@ describe('event helpers', function()
 			_G.logLevel = utils.LOG_ERROR
 			utils.log('error', utils.LOG_INFO)
 			assert.is_nil(printed)
-			utils.log('error', utils.LOG_WARNING)
+			utils.log('error', utils.LOG_STATUS)
 			assert.is_nil(printed)
 
 			_G.logLevel = 0
@@ -232,6 +228,34 @@ describe('event helpers', function()
 			local json = '{ "a": 1 }'
 			local t = utils.fromJSON(json)
 			assert.is_same(1, t['a'])
+		end)
+
+		it('should convert a serialized json to a table when set to true', function()
+			local json = '{"level 1":{"level 2_1":{"level 3":{\"level 4\":'..
+						 '{\"level 5_1\":[\"a\"],\"level 5_2\":[\"b\",\"c"]}}},' ..
+						 '"level 2_2":{"level 3":"[\"found\",\"1\",\"2\",\"3\"]},' ..
+						 '"level 2_3":{"level 3":"[block] as data"}}}'
+			local t = utils.fromJSON(json)
+			assert.is_nil(t)
+
+			local t = utils.fromJSON(json, json)
+			assert.is_same(t,json)
+
+			local t = utils.fromJSON(json, json, true)
+			assert.is_same('found', t['level 1']['level 2_2']['level 3'][1])
+			assert.is_same('[block] as data', t['level 1']['level 2_3']['level 3'])
+		end)
+
+		it('should round a number', function()
+			local number = '2.43'
+			assert.is_same(2, utils.round(number) )
+
+			number = -2.43
+			assert.is_same(-2, utils.round(number) )
+
+			number = {}
+			assert.is_nil( utils.round(number) )
+
 		end)
 
 		it('should recognize an xml string', function()
@@ -375,6 +399,11 @@ describe('event helpers', function()
 		it('should split a string ', function()
 			assert.is_same(utils.stringSplit("A-B-C", "-")[2],"B")
 			assert.is_same(utils.stringSplit("I forgot to include this in Domoticz.lua")[7],"Domoticz.lua")
+		end)
+
+		it('should split a line', function()
+			assert.is_same(utils.splitLine("segment one or segment two or segment 3", "or")[2],"segment two")
+			assert.is_same(utils.splitLine("segment one or segment two or segment 3", "or")[3],"segment 3")
 		end)
 
 		it('should fuzzy match  a string ', function()

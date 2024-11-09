@@ -4,7 +4,6 @@
 #include "../main/Logger.h"
 #include "../main/Helper.h"
 #include <iostream>
-#include "../main/localtime_r.h"
 #include "../main/mainworker.h"
 
 #define TOPIC_DEFAULT	"MyMQTT"
@@ -13,7 +12,7 @@
 
 MySensorsMQTT::MySensorsMQTT(const int ID, const std::string &Name, const std::string &IPAddress, const unsigned short usIPPort, const std::string &Username, const std::string &Password,
 			     const std::string &CAfilenameExtra, const int TLS_Version, const int PublishScheme, const bool PreventLoop)
-	: MQTT(ID, IPAddress, usIPPort, Username, Password, CAfilenameExtra, TLS_Version, (int)MQTT::PT_out, std::string("Domoticz-MySensors") + std::string(GenerateUUID()), PreventLoop)
+	: MQTT(ID, IPAddress, usIPPort, Username, Password, CAfilenameExtra, TLS_Version, (int)MQTT::PT_out, std::string("Domoticz-MySensors") + GenerateUUID() + std::to_string(ID), PreventLoop)
 	, MyTopicIn(TOPIC_IN)
 	, MyTopicOut(TOPIC_OUT)
 {
@@ -48,7 +47,7 @@ MySensorsMQTT::MySensorsMQTT(const int ID, const std::string &Name, const std::s
 		if (std::string::npos == nextPiece)
 		{
 			// No second to last delimiter? Shouldn't happen.
-			_log.Log(LOG_ERROR, "MySensorsMQTT: Truncating CAfilename; Stray topic was present.");
+			Log(LOG_ERROR, "Truncating CAfilename; Stray topic was present.");
 			break;
 		}
 
@@ -105,7 +104,7 @@ void MySensorsMQTT::on_message(const struct mosquitto_message *message)
 	std::string topic = message->topic;
 	std::string qMessage = std::string((char*)message->payload, (char*)message->payload + message->payloadlen);
 
-	_log.Log(LOG_NORM, "MySensorsMQTT: Topic: %s, Message: %s", topic.c_str(), qMessage.c_str());
+	Log(LOG_NORM, "Topic: %s, Message: %s", topic.c_str(), qMessage.c_str());
 
 	if (topic.empty() && qMessage.empty())
 		return;
@@ -118,7 +117,7 @@ std::string MySensorsMQTT::ConvertMessageToMySensorsLine(const std::string &topi
 {
 	std::string sMessage = topic + "/" + qMessage;
 	boost::replace_all(sMessage, m_TopicInWithoutHash, "");
-	boost::replace_all(sMessage, "/", ";");
+	std::replace(sMessage.begin(), sMessage.end(), '/', ';');
 	if (sMessage[0] == ';')
 	{
 		sMessage = sMessage.substr(1);
@@ -133,7 +132,7 @@ void MySensorsMQTT::on_connect(int rc)
 
 	if (m_IsConnected)
 	{
-		_log.Log(LOG_STATUS, "MySensorsMQTT: connected to: %s:%d", m_szIPAddress.c_str(), m_usIPPort);
+		Log(LOG_STATUS, "Connected to: %s:%d", m_szIPAddress.c_str(), m_usIPPort);
 
 		//Request gateway version
 		std::string sRequest = "0;0;3;0;2;";
@@ -171,7 +170,7 @@ void MySensorsMQTT::ConvertMySensorsLineToMessage(const std::string &sLine, std:
 	}
 
 	sTopic = std::string(sLine.substr(0, indexLastSeperator));
-	boost::replace_all(sTopic, ";", "/");
+	std::replace(sTopic.begin(), sTopic.end(), ';', '/');
 	sTopic.insert(0, m_TopicOut + "/");
 
 	sPayload = std::string(sLine.substr(indexLastSeperator + 1));

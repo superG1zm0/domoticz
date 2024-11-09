@@ -2,9 +2,10 @@
         class="device-log-chart"
         device="::$ctrl.device"></counter-day-chart>
 
-<counter-week-chart
+<counter-hour-chart
+		ng-if="$ctrl.subtype=='p1Energy'"
         class="device-log-chart"
-        device="::$ctrl.device"></counter-week-chart>
+        device="::$ctrl.device"></counter-hour-chart>
 
 <counter-month-chart
         class="device-log-chart"
@@ -13,3 +14,8 @@
 <counter-year-chart
         class="device-log-chart"
         device="::$ctrl.device"></counter-year-chart>
+
+<counter-compare-chart
+        ng-if="::$ctrl.subtype=='energy-used' || $ctrl.subtype=='gas' || $ctrl.subtype=='water' || $ctrl.subtype=='counter' || $ctrl.subtype=='energy-generated' || $ctrl.subtype=='time' || $ctrl.subtype=='p1Energy' || $ctrl.subtype=='instantAndCounter'"
+        class="device-log-chart"
+        device="::$ctrl.device"></counter-compare-chart>

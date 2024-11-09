@@ -4,7 +4,6 @@
 #include "../httpclient/HTTPClient.h"
 #include "../main/Helper.h"
 #include "../main/Logger.h"
-#include "../main/localtime_r.h"
 #include "../main/mainworker.h"
 #include "../main/RFXtrx.h"
 #include "../main/SQLHelper.h"
@@ -49,7 +48,7 @@ std::string ReadFile(std::string filename)
 #endif
 
 const std::string TOON_HOST = "https://toonopafstand.eneco.nl";
-//const std::string TOON_HOST = "https://toonopafstand-acc.quby.nl"; //needs URL encoding
+// const std::string TOON_HOST = "https://toonopafstand-acc.quby.nl"; //needs URL encoding
 const std::string TOON_LOGIN_PATH = "/toonMobileBackendWeb/client/login";
 const std::string TOON_LOGOUT_PATH = "/toonMobileBackendWeb/client/auth/logout";
 const std::string TOON_LOGINCHECK_PATH = "/toonMobileBackendWeb/client/checkIfLoggedIn";
@@ -64,7 +63,7 @@ const std::string TOON_GET_GAS_GRAPH = "/toonMobileBackendWeb/client/auth/getGas
 const std::string TOON_SWITCH_POWER = "/toonMobileBackendWeb/client/auth/smartplug/setTarget";
 const std::string TOON_SWITCH_ALL = "/toonMobileBackendWeb/client/auth/smartplug/switchAll";
 
-//enum _eProgramStates {
+// enum _eProgramStates {
 //	PROG_MANUAL = 0,
 //	PROG_BASE,			//1
 //	PROG_TEMPOVERRIDE,	//2
@@ -76,7 +75,7 @@ const std::string TOON_SWITCH_ALL = "/toonMobileBackendWeb/client/auth/smartplug
 //	PROG_LOCKEDBASE		//8
 //};
 
-//enum _eActiveStates {
+// enum _eActiveStates {
 //	STATE_RELAX = 0,
 //	STATE_ACTIVE,	//1
 //	STATE_SLEEP,	//2
@@ -84,22 +83,22 @@ const std::string TOON_SWITCH_ALL = "/toonMobileBackendWeb/client/auth/smartplug
 //	STATE_HOLIDAY	//4
 //};
 
-CToonThermostat::CToonThermostat(const int ID, const std::string &Username, const std::string &Password, const int &Agreement) :
-m_UserName(Username),
-m_Password(Password),
-m_Agreement(Agreement)
+CToonThermostat::CToonThermostat(const int ID, const std::string &Username, const std::string &Password, const int &Agreement)
+	: m_UserName(Username)
+	, m_Password(Password)
+	, m_Agreement(Agreement)
 {
-	m_HwdID=ID;
+	m_HwdID = ID;
 
 	memset(&m_p1power, 0, sizeof(m_p1power));
 	memset(&m_p1gas, 0, sizeof(m_p1gas));
 
-	m_p1power.len = sizeof(P1Power)-1;
+	m_p1power.len = sizeof(P1Power) - 1;
 	m_p1power.type = pTypeP1Power;
 	m_p1power.subtype = sTypeP1Power;
 	m_p1power.ID = 1;
 
-	m_p1gas.len = sizeof(P1Gas)-1;
+	m_p1gas.len = sizeof(P1Gas) - 1;
 	m_p1gas.type = pTypeP1Gas;
 	m_p1gas.subtype = sTypeP1Gas;
 	m_p1gas.ID = 1;
@@ -136,17 +135,17 @@ void CToonThermostat::Init()
 	m_lastelectrausage = 0;
 	m_lastelectradeliv = 0;
 
-	m_LastUsage1=0;
-	m_LastUsage2=0;
-	m_OffsetUsage1=0;
-	m_OffsetUsage2=0;
+	m_LastUsage1 = 0;
+	m_LastUsage2 = 0;
+	m_OffsetUsage1 = 0;
+	m_OffsetUsage2 = 0;
 	m_LastDeliv1 = 0;
 	m_LastDeliv2 = 0;
 	m_OffsetDeliv1 = 0;
 	m_OffsetDeliv2 = 0;
 
-	//Get Last meter counter values for Usage/Delivered
-	std::vector<std::vector<std::string> > result;
+	// Get Last meter counter values for Usage/Delivered
+	std::vector<std::vector<std::string>> result;
 	result = m_sql.safe_query("SELECT ID FROM DeviceStatus WHERE (HardwareID==%d) AND (DeviceID==1) AND ([Type]==%d) AND (SubType==%d)", m_HwdID, pTypeP1Power, sTypeP1Power);
 	if (!result.empty())
 	{
@@ -171,10 +170,10 @@ bool CToonThermostat::StartHardware()
 	RequestStart();
 
 	Init();
-	//Start worker thread
-	m_thread = std::make_shared<std::thread>(&CToonThermostat::Do_Work, this);
+	// Start worker thread
+	m_thread = std::make_shared<std::thread>([this] { Do_Work(); });
 	SetThreadNameInt(m_thread->native_handle());
-	m_bIsStarted=true;
+	m_bIsStarted = true;
 	sOnConnected(this);
 	return (m_thread != nullptr);
 }
@@ -187,22 +186,23 @@ bool CToonThermostat::StopHardware()
 		m_thread->join();
 		m_thread.reset();
 	}
-    m_bIsStarted=false;
-    return true;
+	m_bIsStarted = false;
+	return true;
 }
 
 void CToonThermostat::Do_Work()
 {
-	_log.Log(LOG_STATUS,"ToonThermostat: Worker started...");
+	Log(LOG_STATUS, "Worker started...");
 	int sec_counter = 1;
 	while (!IsStopRequested(1000))
 	{
 		m_poll_counter--;
 		sec_counter++;
-		if (sec_counter % 12 == 0) {
+		if (sec_counter % 12 == 0)
+		{
 			mytime(&m_LastHeartbeat);
 		}
-		if (m_poll_counter<=0)
+		if (m_poll_counter <= 0)
 		{
 			m_poll_counter = TOON_POLL_INTERVAL;
 			GetMeterDetails();
@@ -210,40 +210,24 @@ void CToonThermostat::Do_Work()
 			{
 				m_bDoLogin = true;
 				m_retry_counter = 0;
-				_log.Log(LOG_ERROR, "ToonThermostat: retrieveToonState request not successful, restarting..!");
+				Log(LOG_ERROR, "retrieveToonState request not successful, restarting..!");
 			}
 		}
 	}
 	Logout();
 
-	_log.Log(LOG_STATUS,"ToonThermostat: Worker stopped...");
-}
-
-void CToonThermostat::SendSetPointSensor(const unsigned char Idx, const float Temp, const std::string &defaultname)
-{
-	_tThermostat thermos;
-	thermos.subtype=sTypeThermSetpoint;
-	thermos.id1=0;
-	thermos.id2=0;
-	thermos.id3=0;
-	thermos.id4=Idx;
-	thermos.dunit=0;
-
-	thermos.temp=Temp;
-
-	sDecodeRXMessage(this, (const unsigned char *)&thermos, defaultname.c_str(), 255, nullptr);
+	Log(LOG_STATUS, "Worker stopped...");
 }
 
 void CToonThermostat::UpdateSwitch(const unsigned char Idx, const bool bOn, const std::string &defaultname)
 {
 	char szIdx[10];
 	sprintf(szIdx, "%X%02X%02X%02X", 0, 0, 0, Idx);
-	std::vector<std::vector<std::string> > result;
-	result = m_sql.safe_query("SELECT Name,nValue,sValue FROM DeviceStatus WHERE (HardwareID==%d) AND (Type==%d) AND (SubType==%d) AND (DeviceID=='%q')",
-		m_HwdID, pTypeLighting2, sTypeAC, szIdx);
+	std::vector<std::vector<std::string>> result;
+	result = m_sql.safe_query("SELECT Name,nValue,sValue FROM DeviceStatus WHERE (HardwareID==%d) AND (Type==%d) AND (SubType==%d) AND (DeviceID=='%q')", m_HwdID, pTypeLighting2, sTypeAC, szIdx);
 	if (!result.empty())
 	{
-		//check if we have a change, if not do not update it
+		// check if we have a change, if not do not update it
 		int nvalue = atoi(result[0][1].c_str());
 		if ((!bOn) && (nvalue == 0))
 			return;
@@ -251,7 +235,7 @@ void CToonThermostat::UpdateSwitch(const unsigned char Idx, const bool bOn, cons
 			return;
 	}
 
-	//Send as Lighting 2
+	// Send as Lighting 2
 	tRBUF lcmd;
 	memset(&lcmd, 0, sizeof(RBUF));
 	lcmd.LIGHTING2.packetlength = sizeof(lcmd.LIGHTING2) - 1;
@@ -293,14 +277,14 @@ bool CToonThermostat::Login()
 	m_ClientID = "";
 	std::stringstream sstr;
 	sstr << "username=" << m_UserName << "&password=" << CURLEncode::URLEncode(m_Password);
-	std::string szPostdata=sstr.str();
+	std::string szPostdata = sstr.str();
 	std::vector<std::string> ExtraHeaders;
 	std::string sResult;
 
 	std::string sURL = TOON_HOST + TOON_LOGIN_PATH;
 	if (!HTTPClient::POST(sURL, szPostdata, ExtraHeaders, sResult))
 	{
-		_log.Log(LOG_ERROR,"ToonThermostat: Error login!");
+		Log(LOG_ERROR, "Error login!");
 		return false;
 	}
 
@@ -315,18 +299,18 @@ bool CToonThermostat::Login()
 	bool bRet = ParseJSon(sResult, root);
 	if (!bRet)
 	{
-		_log.Log(LOG_ERROR, "ToonThermostat: Invalid data received, or invalid username/password!");
+		Log(LOG_ERROR, "Invalid data received, or invalid username/password!");
 		return false;
 	}
 	if (root["clientId"].empty() == true)
 	{
-		_log.Log(LOG_ERROR, "ToonThermostat: Invalid data received, or invalid username/password!");
+		Log(LOG_ERROR, "Invalid data received, or invalid username/password!");
 		return false;
 	}
 	m_ClientID = root["clientId"].asString();
 	if (root["clientIdChecksum"].empty() == true)
 	{
-		_log.Log(LOG_ERROR, "ToonThermostat: Invalid data received, or invalid username/password!");
+		Log(LOG_ERROR, "Invalid data received, or invalid username/password!");
 		return false;
 	}
 	m_ClientIDChecksum = root["clientIdChecksum"].asString();
@@ -336,12 +320,12 @@ bool CToonThermostat::Login()
 
 	if (root["agreements"].empty() == true)
 	{
-		_log.Log(LOG_ERROR, "ToonThermostat: Invalid data received, or invalid username/password!");
+		Log(LOG_ERROR, "Invalid data received, or invalid username/password!");
 		return false;
 	}
-	if (root["agreements"].size() < (size_t)(m_Agreement+1))
+	if (root["agreements"].size() < size_t(m_Agreement) + 1)
 	{
-		_log.Log(LOG_ERROR, "ToonThermostat: Agreement not found, did you setup your toon correctly?");
+		Log(LOG_ERROR, "Agreement not found, did you setup your toon correctly?");
 		return false;
 	}
 
@@ -349,18 +333,15 @@ bool CToonThermostat::Login()
 	agreementIdChecksum = root["agreements"][m_Agreement]["agreementIdChecksum"].asString();
 
 	std::stringstream sstr2;
-	sstr2 << "clientId=" << m_ClientID
-		 << "&clientIdChecksum=" << m_ClientIDChecksum
-		 << "&agreementId=" << agreementId
-		 << "&agreementIdChecksum=" << agreementIdChecksum
-		 << "&random=" << GetRandom();
+	sstr2 << "clientId=" << m_ClientID << "&clientIdChecksum=" << m_ClientIDChecksum << "&agreementId=" << agreementId << "&agreementIdChecksum=" << agreementIdChecksum
+	      << "&random=" << GetRandom();
 	szPostdata = sstr2.str();
 	sResult = "";
 
 	sURL = TOON_HOST + TOON_AGREEMENT_PATH;
 	if (!HTTPClient::POST(sURL, szPostdata, ExtraHeaders, sResult))
 	{
-		_log.Log(LOG_ERROR, "ToonThermostat: Error login!");
+		Log(LOG_ERROR, "Error login!");
 		return false;
 	}
 #ifdef DEBUG_ToonThermostatW
@@ -374,12 +355,12 @@ bool CToonThermostat::Login()
 	bRet = ParseJSon(sResult, root);
 	if (!bRet)
 	{
-		_log.Log(LOG_ERROR, "ToonThermostat: Invalid data received!");
+		Log(LOG_ERROR, "Invalid data received!");
 		return false;
 	}
 	if (root["success"].empty() == true)
 	{
-		_log.Log(LOG_ERROR, "ToonThermostat: Invalid data received!");
+		Log(LOG_ERROR, "Invalid data received!");
 		return false;
 	}
 	if (root["success"].asBool() == true)
@@ -393,20 +374,18 @@ bool CToonThermostat::Login()
 void CToonThermostat::Logout()
 {
 	if (m_bDoLogin)
-		return; //we are not logged in
+		return; // we are not logged in
 	std::string sResult;
 	std::vector<std::string> ExtraHeaders;
 
 	std::stringstream sstr2;
-	sstr2 << "clientId=" << m_ClientID
-		<< "&clientIdChecksum=" << m_ClientIDChecksum
-		<< "&random=" << GetRandom();
+	sstr2 << "clientId=" << m_ClientID << "&clientIdChecksum=" << m_ClientIDChecksum << "&random=" << GetRandom();
 	std::string szPostdata = sstr2.str();
 
 	std::string sURL = TOON_HOST + TOON_LOGOUT_PATH;
 	if (!HTTPClient::POST(sURL, szPostdata, ExtraHeaders, sResult))
 	{
-		_log.Log(LOG_ERROR, "ToonThermostat: Error Logout!");
+		Log(LOG_ERROR, "Error Logout!");
 	}
 	m_ClientID = "";
 	m_ClientIDChecksum = "";
@@ -415,16 +394,14 @@ void CToonThermostat::Logout()
 
 bool CToonThermostat::AddUUID(const std::string &UUID, int &idx)
 {
-	m_sql.safe_query("INSERT INTO ToonDevices (HardwareID, UUID) VALUES (%d, '%q')",
-		m_HwdID, UUID.c_str());
+	m_sql.safe_query("INSERT INTO ToonDevices (HardwareID, UUID) VALUES (%d, '%q')", m_HwdID, UUID.c_str());
 	return GetUUIDIdx(UUID, idx);
 }
 
 bool CToonThermostat::GetUUIDIdx(const std::string &UUID, int &idx)
 {
-	std::vector<std::vector<std::string> > result;
-	result = m_sql.safe_query("SELECT [ROWID] FROM ToonDevices WHERE (HardwareID=%d) AND (UUID='%q')",
-		m_HwdID, UUID.c_str());
+	std::vector<std::vector<std::string>> result;
+	result = m_sql.safe_query("SELECT [ROWID] FROM ToonDevices WHERE (HardwareID=%d) AND (UUID='%q')", m_HwdID, UUID.c_str());
 	if (result.empty())
 		return false;
 	std::vector<std::string> sd = result[0];
@@ -434,9 +411,8 @@ bool CToonThermostat::GetUUIDIdx(const std::string &UUID, int &idx)
 
 bool CToonThermostat::GetUUIDFromIdx(const int idx, std::string &UUID)
 {
-	std::vector<std::vector<std::string> > result;
-	result = m_sql.safe_query("SELECT [UUID] FROM ToonDevices WHERE (HardwareID=%d) AND (ROWID=%d)",
-		m_HwdID, idx);
+	std::vector<std::vector<std::string>> result;
+	result = m_sql.safe_query("SELECT [UUID] FROM ToonDevices WHERE (HardwareID=%d) AND (ROWID=%d)", m_HwdID, idx);
 	if (result.empty())
 		return false;
 	std::vector<std::string> sd = result[0];
@@ -450,16 +426,12 @@ bool CToonThermostat::SwitchLight(const std::string &UUID, const int SwitchState
 	std::string sResult;
 	std::stringstream sstr;
 
-	sstr << "?clientId=" << m_ClientID
-		<< "&clientIdChecksum=" << m_ClientIDChecksum
-		<< "&devUuid=" << UUID
-		<< "&state=" << SwitchState
-		<< "&random=" << GetRandom();
+	sstr << "?clientId=" << m_ClientID << "&clientIdChecksum=" << m_ClientIDChecksum << "&devUuid=" << UUID << "&state=" << SwitchState << "&random=" << GetRandom();
 	std::string szPostdata = sstr.str();
 	std::string sURL = TOON_HOST + TOON_SWITCH_POWER + szPostdata;
 	if (!HTTPClient::GET(sURL, ExtraHeaders, sResult))
 	{
-		_log.Log(LOG_ERROR, "ToonThermostat: Error setting switch state!");
+		Log(LOG_ERROR, "Error setting switch state!");
 		m_bDoLogin = true;
 		return false;
 	}
@@ -468,21 +440,21 @@ bool CToonThermostat::SwitchLight(const std::string &UUID, const int SwitchState
 	bool bRet = ParseJSon(sResult, root);
 	if (!bRet)
 	{
-		_log.Log(LOG_ERROR, "ToonThermostat: Invalid data received!");
+		Log(LOG_ERROR, "Invalid data received!");
 		return false;
 	}
 	if (root["success"].empty() == true)
 	{
-		_log.Log(LOG_ERROR, "ToonThermostat: Invalid data received!");
+		Log(LOG_ERROR, "Invalid data received!");
 		return false;
 	}
-/*
-	int Idx=0;
-	if (GetUUIDIdx(UUID, Idx))
-	{
-		UpdateSwitch(Idx, SwitchState != 0, "");
-	}
-*/
+	/*
+		int Idx=0;
+		if (GetUUIDIdx(UUID, Idx))
+		{
+			UpdateSwitch(Idx, SwitchState != 0, "");
+		}
+	*/
 	m_retry_counter = 0;
 	m_poll_counter = TOON_POLL_INTERVAL_SHORT;
 
@@ -495,15 +467,12 @@ bool CToonThermostat::SwitchAll(const int SwitchState)
 	std::string sResult;
 	std::stringstream sstr;
 
-	sstr << "?clientId=" << m_ClientID
-		<< "&clientIdChecksum=" << m_ClientIDChecksum
-		<< "&state=" << SwitchState
-		<< "&random=" << GetRandom();
+	sstr << "?clientId=" << m_ClientID << "&clientIdChecksum=" << m_ClientIDChecksum << "&state=" << SwitchState << "&random=" << GetRandom();
 	std::string szPostdata = sstr.str();
 	std::string sURL = TOON_HOST + TOON_SWITCH_ALL + szPostdata;
 	if (!HTTPClient::GET(sURL, ExtraHeaders, sResult))
 	{
-		_log.Log(LOG_ERROR, "ToonThermostat: Error setting switch state!");
+		Log(LOG_ERROR, "Error setting switch state!");
 		m_bDoLogin = true;
 		return false;
 	}
@@ -512,12 +481,12 @@ bool CToonThermostat::SwitchAll(const int SwitchState)
 	bool bRet = ParseJSon(sResult, root);
 	if (!bRet)
 	{
-		_log.Log(LOG_ERROR, "ToonThermostat: Invalid data received!");
+		Log(LOG_ERROR, "Invalid data received!");
 		return false;
 	}
 	if (root["success"].empty() == true)
 	{
-		_log.Log(LOG_ERROR, "ToonThermostat: Invalid data received!");
+		Log(LOG_ERROR, "Invalid data received!");
 		return false;
 	}
 	m_retry_counter = 0;
@@ -534,11 +503,11 @@ bool CToonThermostat::WriteToHardware(const char *pdata, const unsigned char len
 
 	const tRBUF *pCmd = reinterpret_cast<const tRBUF *>(pdata);
 	if (pCmd->LIGHTING2.packettype != pTypeLighting2)
-		return false; //later add RGB support, if someone can provide access
+		return false; // later add RGB support, if someone can provide access
 
 	int node_id = pCmd->LIGHTING2.id4;
 	if ((node_id == 113) || (node_id == 114) || (node_id == 115))
-		return false; //we can not turn on/off the internal status
+		return false; // we can not turn on/off the internal status
 
 	int state = 0;
 	if (pCmd->LIGHTING2.cmnd == light2_sOn)
@@ -555,10 +524,10 @@ bool CToonThermostat::WriteToHardware(const char *pdata, const unsigned char len
 
 double CToonThermostat::GetElectricOffset(const int idx, const double currentKwh)
 {
-	std::map<int, double>::const_iterator itt = m_OffsetElectricUsage.find(idx);
+	auto itt = m_OffsetElectricUsage.find(idx);
 	if (itt == m_OffsetElectricUsage.end())
 	{
-		//First time, lets add it
+		// First time, lets add it
 		bool bExists = false;
 		m_OffsetElectricUsage[idx] = GetKwhMeter(idx, 1, bExists);
 		m_LastElectricCounter[idx] = currentKwh;
@@ -583,11 +552,9 @@ void CToonThermostat::GetMeterDetails()
 
 	bool bIsValid = false;
 	std::stringstream sstr2;
-	sstr2 << "?clientId=" << m_ClientID
-		<< "&clientIdChecksum=" << m_ClientIDChecksum
-		<< "&random=" << GetRandom();
+	sstr2 << "?clientId=" << m_ClientID << "&clientIdChecksum=" << m_ClientIDChecksum << "&random=" << GetRandom();
 	std::string szPostdata = sstr2.str();
-	//Get Data
+	// Get Data
 
 #ifdef DEBUG_ToonThermostat
 	sResult = ReadFile("E:\\toonresult_001.txt");
@@ -595,7 +562,7 @@ void CToonThermostat::GetMeterDetails()
 	std::string sURL = TOON_HOST + TOON_UPDATE_PATH + szPostdata;
 	if (!HTTPClient::GET(sURL, ExtraHeaders, sResult))
 	{
-		_log.Log(LOG_ERROR, "ToonThermostat: Error getting current state!");
+		Log(LOG_ERROR, "Error getting current state!");
 		m_bDoLogin = true;
 		return;
 	}
@@ -610,24 +577,24 @@ void CToonThermostat::GetMeterDetails()
 	bool bRet = ParseJSon(sResult, root);
 	if (!bRet)
 	{
-		_log.Log(LOG_ERROR, "ToonThermostat: Invalid data received!");
+		Log(LOG_ERROR, "Invalid data received!");
 		m_bDoLogin = true;
 		return;
 	}
 	if (root["success"].empty() == true)
 	{
-		_log.Log(LOG_ERROR, "ToonThermostat: ToonState request not successful, restarting..!");
+		Log(LOG_ERROR, "ToonState request not successful, restarting..!");
 		m_bDoLogin = true;
 		return;
 	}
 	if (root["success"].asBool() == false)
 	{
-		_log.Log(LOG_ERROR, "ToonThermostat: ToonState request not successful, restarting..!");
+		Log(LOG_ERROR, "ToonState request not successful, restarting..!");
 		m_bDoLogin = true;
 		return;
 	}
 
-	//check if we have all required data fields, if not retry with a shorter interval
+	// check if we have all required data fields, if not retry with a shorter interval
 	if (root["thermostatInfo"].empty() == false)
 	{
 		if (root["powerUsage"].empty() == false)
@@ -664,7 +631,7 @@ bool CToonThermostat::ParsePowerUsage(const Json::Value &root)
 
 	if ((powerusage1 == 0) && (powerusage2 == 0))
 	{
-		//New firmware does not provide meter readings anymore
+		// New firmware does not provide meter readings anymore
 		if (root["powerUsage"]["dayUsage"].empty() == false)
 		{
 			unsigned long usage1 = (unsigned long)(root["powerUsage"]["dayUsage"].asFloat());
@@ -701,13 +668,13 @@ bool CToonThermostat::ParsePowerUsage(const Json::Value &root)
 		}
 		else
 		{
-			//Have not received an example from a user that has produced with the new firmware
-			//for now ignoring
+			// Have not received an example from a user that has produced with the new firmware
+			// for now ignoring
 		}
 	}
 
-	m_p1power.usagecurrent = (unsigned long)(root["powerUsage"]["value"].asFloat());	//Watt
-	m_p1power.delivcurrent = (unsigned long)(root["powerUsage"]["valueProduced"].asFloat());	//Watt
+	m_p1power.usagecurrent = (unsigned long)(root["powerUsage"]["value"].asFloat());	 // Watt
+	m_p1power.delivcurrent = (unsigned long)(root["powerUsage"]["valueProduced"].asFloat()); // Watt
 
 	if (root["powerUsage"]["valueSolar"].empty() == false)
 	{
@@ -718,12 +685,8 @@ bool CToonThermostat::ParsePowerUsage(const Json::Value &root)
 		}
 	}
 
-	//Send Electra if value changed, or at least every 5 minutes
-	if (
-		(m_p1power.usagecurrent != m_lastelectrausage) ||
-		(m_p1power.delivcurrent != m_lastelectradeliv) ||
-		(difftime(atime,m_lastSharedSendElectra) >= 300)
-		)
+	// Send Electra if value changed, or at least every 5 minutes
+	if ((m_p1power.usagecurrent != m_lastelectrausage) || (m_p1power.delivcurrent != m_lastelectradeliv) || (difftime(atime, m_lastSharedSendElectra) >= 300))
 	{
 		if ((m_p1power.powerusage1 != 0) || (m_p1power.powerusage2 != 0) || (m_p1power.powerdeliv1 != 0) || (m_p1power.powerdeliv2 != 0))
 		{
@@ -744,11 +707,8 @@ bool CToonThermostat::ParseGasUsage(const Json::Value &root)
 
 	m_p1gas.gasusage = (unsigned long)(root["gasUsage"]["meterReading"].asFloat());
 
-	//Send GAS if the value changed, or at least every 5 minutes
-	if (
-		(m_p1gas.gasusage != m_lastgasusage) ||
-		(difftime(atime,m_lastSharedSendGas) >= 300)
-		)
+	// Send GAS if the value changed, or at least every 5 minutes
+	if ((m_p1gas.gasusage != m_lastgasusage) || (difftime(atime, m_lastSharedSendGas) >= 300))
 	{
 		if (m_p1gas.gasusage != 0)
 		{
@@ -762,7 +722,7 @@ bool CToonThermostat::ParseGasUsage(const Json::Value &root)
 
 bool CToonThermostat::ParseDeviceStatusData(const Json::Value &root)
 {
-	//ZWave Devices
+	// ZWave Devices
 	if (root["deviceStatusInfo"].empty())
 		return false;
 
@@ -781,7 +741,7 @@ bool CToonThermostat::ParseDeviceStatusData(const Json::Value &root)
 		{
 			if (!AddUUID(uuid, Idx))
 			{
-				_log.Log(LOG_ERROR, "ToonThermostat: Error adding UUID to database?! Uuid=%s", uuid.c_str());
+				Log(LOG_ERROR, "Error adding UUID to database?! Uuid=%s", uuid.c_str());
 				return false;
 			}
 		}
@@ -792,11 +752,11 @@ bool CToonThermostat::ParseDeviceStatusData(const Json::Value &root)
 			double currentUsage = root["deviceStatusInfo"]["device"][ii]["currentUsage"].asDouble();
 			double DayCounter = root["deviceStatusInfo"]["device"][ii]["dayUsage"].asDouble();
 
-			//double ElecOffset = GetElectricOffset(Idx, DayCounter);
+			// double ElecOffset = GetElectricOffset(Idx, DayCounter);
 			double OldDayCounter = m_LastElectricCounter[Idx];
 			if (DayCounter < OldDayCounter)
 			{
-				//daily counter went to zero
+				// daily counter went to zero
 				m_OffsetElectricUsage[Idx] += OldDayCounter;
 			}
 			m_LastElectricCounter[Idx] = DayCounter;
@@ -808,25 +768,25 @@ bool CToonThermostat::ParseDeviceStatusData(const Json::Value &root)
 
 bool CToonThermostat::ParseThermostatData(const Json::Value &root)
 {
-	//thermostatInfo
+	// thermostatInfo
 	if (root["thermostatInfo"].empty())
 		return false;
 
 	float currentTemp = root["thermostatInfo"]["currentTemp"].asFloat() / 100.0F;
 	float currentSetpoint = root["thermostatInfo"]["currentSetpoint"].asFloat() / 100.0F;
-	SendSetPointSensor(1, currentSetpoint, "Room Setpoint");
+	SendSetPointSensor(0, 0, 0, 1, 0, currentSetpoint, "Room Setpoint");
 	SendTempSensor(1, 255, currentTemp, "Room Temperature");
 
-	//int programState = root["thermostatInfo"]["programState"].asInt();
-	//int activeState = root["thermostatInfo"]["activeState"].asInt();
+	// int programState = root["thermostatInfo"]["programState"].asInt();
+	// int activeState = root["thermostatInfo"]["activeState"].asInt();
 
 	if (root["thermostatInfo"]["burnerInfo"].empty() == false)
 	{
-		//burnerinfo
-		//0=off
-		//1=heating
-		//2=hot water
-		//3=pre-heating
+		// burnerinfo
+		// 0=off
+		// 1=heating
+		// 2=hot water
+		// 3=pre-heating
 		int burnerInfo = 0;
 
 		if (root["thermostatInfo"]["burnerInfo"].isString())
@@ -881,25 +841,22 @@ void CToonThermostat::SetSetpoint(const int idx, const float temp)
 	std::string sResult;
 	std::vector<std::string> ExtraHeaders;
 
-	if (idx==1)
+	if (idx == 1)
 	{
-		//Room Set Point
+		// Room Set Point
 
 		char szTemp[20];
 		sprintf(szTemp, "%d", int(temp * 100.0F));
 		std::string sTemp = szTemp;
 
 		std::stringstream sstr2;
-		sstr2 << "?clientId=" << m_ClientID
-			<< "&clientIdChecksum=" << m_ClientIDChecksum
-			<< "&value=" << sTemp
-			<< "&random=" << GetRandom();
+		sstr2 << "?clientId=" << m_ClientID << "&clientIdChecksum=" << m_ClientIDChecksum << "&value=" << sTemp << "&random=" << GetRandom();
 		std::string szPostdata = sstr2.str();
 
 		std::string sURL = TOON_HOST + TOON_TEMPSET_PATH + szPostdata;
 		if (!HTTPClient::GET(sURL, ExtraHeaders, sResult))
 		{
-			_log.Log(LOG_ERROR, "ToonThermostat: Error setting setpoint!");
+			Log(LOG_ERROR, "Error setting setpoint!");
 			m_bDoLogin = true;
 			return;
 		}
@@ -908,23 +865,23 @@ void CToonThermostat::SetSetpoint(const int idx, const float temp)
 		bool bRet = ParseJSon(sResult, root);
 		if (!bRet)
 		{
-			_log.Log(LOG_ERROR, "ToonThermostat: Invalid data received!");
+			Log(LOG_ERROR, "Invalid data received!");
 			m_bDoLogin = true;
 			return;
 		}
 		if (root["success"].empty() == true)
 		{
-			_log.Log(LOG_ERROR, "ToonThermostat: setPoint request not successful, restarting..!");
+			Log(LOG_ERROR, "setPoint request not successful, restarting..!");
 			m_bDoLogin = true;
 			return;
 		}
 		if (root["success"].asBool() == false)
 		{
-			_log.Log(LOG_ERROR, "ToonThermostat: setPoint request not successful, restarting..!");
+			Log(LOG_ERROR, "setPoint request not successful, restarting..!");
 			m_bDoLogin = true;
 			return;
 		}
-		SendSetPointSensor(idx, temp, "Room Setpoint");
+		SendSetPointSensor(0, 0, 0, idx, 0, temp, "Room Setpoint");
 		m_retry_counter = 0;
 		m_poll_counter = TOON_POLL_INTERVAL_SHORT;
 	}
@@ -947,17 +904,14 @@ void CToonThermostat::SetProgramState(const int newState)
 	}
 
 	std::stringstream sstr2;
-	sstr2 << "?clientId=" << m_ClientID
-		<< "&clientIdChecksum=" << m_ClientIDChecksum
-		<< "&state=2"
-		<< "&temperatureState=" << newState
-		<< "&random=" << GetRandom();
+	sstr2 << "?clientId=" << m_ClientID << "&clientIdChecksum=" << m_ClientIDChecksum << "&state=2"
+	      << "&temperatureState=" << newState << "&random=" << GetRandom();
 	std::string szPostdata = sstr2.str();
 
 	std::string sURL = TOON_HOST + TOON_CHANGE_SCHEME + szPostdata;
 	if (!HTTPClient::GET(sURL, ExtraHeaders, sResult))
 	{
-		_log.Log(LOG_ERROR, "ToonThermostat: Error setting Program State!");
+		Log(LOG_ERROR, "Error setting Program State!");
 		return;
 	}
 
@@ -965,19 +919,19 @@ void CToonThermostat::SetProgramState(const int newState)
 	bool bRet = ParseJSon(sResult, root);
 	if (!bRet)
 	{
-		_log.Log(LOG_ERROR, "ToonThermostat: setProgramState request not successful, restarting..!");
+		Log(LOG_ERROR, "setProgramState request not successful, restarting..!");
 		m_bDoLogin = true;
 		return;
 	}
 	if (root["success"].empty() == true)
 	{
-		_log.Log(LOG_ERROR, "ToonThermostat: setProgramState request not successful, restarting..!");
+		Log(LOG_ERROR, "setProgramState request not successful, restarting..!");
 		m_bDoLogin = true;
 		return;
 	}
 	if (root["success"].asBool() == false)
 	{
-		_log.Log(LOG_ERROR, "ToonThermostat: setProgramState request not successful, restarting..!");
+		Log(LOG_ERROR, "setProgramState request not successful, restarting..!");
 		m_bDoLogin = true;
 		return;
 	}

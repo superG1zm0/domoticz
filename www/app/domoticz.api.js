@@ -5,6 +5,7 @@ define(['app.permissions', 'livesocket'], function(appPermissionsModule, websock
         return {
             sendRequest: sendRequest,
             sendCommand: sendCommand,
+			postCommand: postCommand,
             errorHandler: errorHandler
         };
 
@@ -24,6 +25,15 @@ define(['app.permissions', 'livesocket'], function(appPermissionsModule, websock
         function sendCommand(command, data) {
             var commandParams = { type: 'command', param: command };
             return sendRequest(Object.assign({}, commandParams, data)).then(errorHandler);
+        }
+
+        function postCommand(command, data) {
+			$http.post('json.htm?type=command&param=' + command, data, {
+				transformRequest: angular.identity,
+				headers: { 'Content-Type': undefined }
+			}).then(function(response) {
+                    return response.data;
+            });
         }
 
         function errorHandler(response) {
@@ -96,8 +106,7 @@ define(['app.permissions', 'livesocket'], function(appPermissionsModule, websock
             renameDevice: renameDevice,
             removeDevice: removeDevice,
             removeScene: removeScene,
-            includeDevice: includeDevice,
-            excludeDevice: excludeDevice,
+            setDeviceUsed: setDeviceUsed,
             makeFavorite: makeFavorite,
         };
 
@@ -109,7 +118,7 @@ define(['app.permissions', 'livesocket'], function(appPermissionsModule, websock
         }
 
         function getDeviceInfo(deviceIdx) {
-            return domoticzApi.sendRequest({ type: 'devices', rid: deviceIdx })
+            return domoticzApi.sendCommand('getdevices',{ rid: deviceIdx })
                 .then(function(data) {
                     dzTimeAndSun.updateData(data);
 
@@ -133,33 +142,23 @@ define(['app.permissions', 'livesocket'], function(appPermissionsModule, websock
         }
 
         function removeDevice(deviceIdx) {
-            return domoticzApi.sendRequest({
-                type: 'deletedevice',
-                idx: Array.isArray(deviceIdx) ? deviceIdx.join(';') : deviceIdx
+            return domoticzApi.sendCommand('deletedevice', {
+                idx: Array.isArray(deviceIdx) ? encodeURIComponent(deviceIdx.join(';')) : deviceIdx
             }).then(domoticzApi.errorHandler);
         }
 
         function removeScene(deviceIdx) {
-            return domoticzApi.sendRequest({
-                type: 'deletescene',
-                idx: Array.isArray(deviceIdx) ? deviceIdx.join(';') : deviceIdx
+            return domoticzApi.sendCommand('deletescene', {
+                idx: Array.isArray(deviceIdx) ? encodeURIComponent(deviceIdx.join(';')) : deviceIdx
             }).then(domoticzApi.errorHandler);
         }
 
-        function includeDevice(deviceIdx, name, mainDeviceIdx, customimage) {
-            return domoticzApi.sendRequest({
+        function setDeviceUsed(deviceIdx, bUsed, name, mainDeviceIdx) {
+            return domoticzApi.sendCommand('setdevused', {
                 idx: deviceIdx,
-                type: 'setused',
-                name: name,
-                customimage: customimage,
-                used: true,
+                used: bUsed,
+                name: name || '',
                 maindeviceidx: mainDeviceIdx || ''
-            }).then(domoticzApi.errorHandler);
-        }
-
-        function excludeDevice(deviceIdx) {
-            return domoticzApi.sendCommand('setunused', {
-                idx: deviceIdx,
             });
         }
 

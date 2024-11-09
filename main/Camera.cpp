@@ -2,7 +2,6 @@
 #include <iostream>
 #include "Camera.h"
 #include "HTMLSanitizer.h"
-#include "localtime_r.h"
 #include "Logger.h"
 #include "Helper.h"
 #include "mainworker.h"
@@ -30,7 +29,7 @@ void CCameraHandler::ReloadCameras()
 	m_cameradevices.clear();
 	std::vector<std::vector<std::string> > result;
 
-	result = m_sql.safe_query("SELECT ID, Name, Address, Port, Username, Password, ImageURL, Protocol FROM Cameras WHERE (Enabled == 1) ORDER BY ID");
+	result = m_sql.safe_query("SELECT ID, Name, Address, Port, Username, Password, ImageURL, Protocol, AspectRatio FROM Cameras WHERE (Enabled == 1) ORDER BY ID");
 	if (!result.empty())
 	{
 		_log.Log(LOG_STATUS, "Camera: settings (re)loaded");
@@ -45,6 +44,7 @@ void CCameraHandler::ReloadCameras()
 			citem.Password = base64_decode(sd[5]);
 			citem.ImageURL = sd[6];
 			citem.Protocol = (eCameraProtocol)atoi(sd[7].c_str());
+			citem.AspectRatio = (uint8_t)atoi(sd[8].c_str());
 			m_cameradevices.push_back(citem);
 			_AddedCameras.push_back(sd[0]);
 		}
@@ -64,7 +64,7 @@ void CCameraHandler::ReloadCameraActiveDevices(const std::string &CamID)
 		return;
 	pCamera->mActiveDevices.clear();
 	std::vector<std::vector<std::string> > result;
-	result = m_sql.safe_query("SELECT ID, DevSceneType, DevSceneRowID FROM CamerasActiveDevices WHERE (CameraRowID=='%q') ORDER BY ID", CamID.c_str());
+	result = m_sql.safe_query("SELECT A.ID, A.DevSceneType, A.DevSceneRowID, B.AspectRatio FROM CamerasActiveDevices AS A, Cameras as B WHERE (A.CameraRowID=='%q') AND (B.ID=='%q') ORDER BY A.ID", CamID.c_str(), CamID.c_str());
 	if (!result.empty())
 	{
 		for (const auto &sd : result)
@@ -73,6 +73,7 @@ void CCameraHandler::ReloadCameraActiveDevices(const std::string &CamID)
 			aDevice.ID = std::stoull(sd[0]);
 			aDevice.DevSceneType = (unsigned char)atoi(sd[1].c_str());
 			aDevice.DevSceneRowID = std::stoull(sd[2]);
+			aDevice.AspectRatio = std::stoi(sd[3]);
 			pCamera->mActiveDevices.push_back(aDevice);
 		}
 	}
@@ -87,11 +88,16 @@ uint64_t CCameraHandler::IsDevSceneInCamera(const unsigned char DevSceneType, co
 uint64_t CCameraHandler::IsDevSceneInCamera(const unsigned char DevSceneType, const uint64_t DevSceneID)
 {
 	std::lock_guard<std::mutex> l(m_mutex);
-	for (const auto &sd : m_cameradevices)
-		for (const auto &sd2 : sd.mActiveDevices)
+	for (const auto& sd : m_cameradevices)
+	{
+		for (const auto& sd2 : sd.mActiveDevices)
+		{
 			if ((sd2.DevSceneType == DevSceneType) && (sd2.DevSceneRowID == DevSceneID))
+			{
 				return sd.ID;
-
+			}
+		}
+	}
 	return 0;
 }
 
@@ -141,18 +147,37 @@ CCameraHandler::cameraDevice* CCameraHandler::GetCamera(const uint64_t CamID)
 	return nullptr;
 }
 
-bool CCameraHandler::TakeSnapshot(const std::string &CamID, std::vector<unsigned char> &camimage)
+int CCameraHandler::GetCameraAspectRatio(const std::string& CamIdx)
 {
-	return TakeSnapshot(std::stoull(CamID), camimage);
+	return GetCameraAspectRatio(std::stoull(CamIdx));
 }
 
-bool CCameraHandler::TakeRaspberrySnapshot(std::vector<unsigned char> &camimage)
+int CCameraHandler::GetCameraAspectRatio(const uint64_t &CamID)
+{
+	for (const auto& m : m_cameradevices)
+	{
+		if (m.ID == CamID)
+			return m.AspectRatio;
+	}
+	return 0;
+}
+
+bool CCameraHandler::TakeSnapshot(const std::string &CamID, std::vector<unsigned char> &camimage)
+{
+	if (is_number(CamID))
+		return TakeSnapshot(std::stoull(CamID), camimage);
+	else
+		return TakeSnapshot(CamID, camimage);
+}
+
+bool CCameraHandler::TakeRaspberrySnapshotRaspiStill(std::vector<unsigned char>& camimage)
 {
 	std::string raspparams = "-w 800 -h 600 -t 1";
 	m_sql.GetPreferencesVar("RaspCamParams", raspparams);
 
 	std::string OutputFileName = szUserDataFolder + "tempcam.jpg";
 
+	//GizMoCuz: Bookwork has replaced this with libcamera-still
 	std::string raspistillcmd = "raspistill " + raspparams + " -o " + OutputFileName;
 	std::remove(OutputFileName.c_str());
 
@@ -186,6 +211,58 @@ bool CCameraHandler::TakeRaspberrySnapshot(std::vector<unsigned char> &camimage)
 	}
 
 	return false;
+}
+
+bool CCameraHandler::TakeRaspberrySnapshotRPICamStill(std::vector<unsigned char>& camimage)
+{
+	std::string raspparams = "--width 800 --height 600 -t 1000";
+	m_sql.GetPreferencesVar("RaspCamParams", raspparams);
+
+	std::string OutputFileName = szUserDataFolder + "tempcam.jpg";
+
+	//GizMoCuz: Bookwork has replaced this with libcamera-still
+	std::string raspistillcmd = "rpicam-still " + raspparams + " -o " + OutputFileName;
+	std::remove(OutputFileName.c_str());
+
+	//Get our image
+	int ret = system(raspistillcmd.c_str());
+	if (ret != 0)
+	{
+		_log.Log(LOG_ERROR, "Error executing licamera-still command. returned: %d", ret);
+		return false;
+	}
+	//If all went correct, we should have our file
+	try
+	{
+		std::ifstream is(OutputFileName.c_str(), std::ios::in | std::ios::binary);
+		if (is)
+		{
+			if (is.is_open())
+			{
+				char buf[512];
+				while (is.read(buf, sizeof(buf)).gcount() > 0)
+					camimage.insert(camimage.end(), buf, buf + (unsigned int)is.gcount());
+				is.close();
+				std::remove(OutputFileName.c_str());
+				return true;
+			}
+		}
+	}
+	catch (...)
+	{
+
+	}
+
+	return false;
+}
+
+bool CCameraHandler::TakeRaspberrySnapshot(std::vector<unsigned char> &camimage)
+{
+	bool bUseLibCameraStill = file_exist("/bin/rpicam-still");
+	if (bUseLibCameraStill)
+		return TakeRaspberrySnapshotRPICamStill(camimage);
+	else
+		return TakeRaspberrySnapshotRaspiStill(camimage);
 }
 
 bool CCameraHandler::TakeUVCSnapshot(const std::string &device, std::vector<unsigned char> &camimage)
@@ -321,28 +398,35 @@ bool CCameraHandler::EmailCameraSnapshot(const std::string &CamIdx, const std::s
 	sclient.SetServer(CURLEncode::URLDecode(EmailServer), EmailPort);
 	sclient.SetSubject(CURLEncode::URLDecode(subject));
 
+	bool bHaveCapturedCamera = false;
+
 	for (const auto & camIt : splitresults)
 	{
 		std::vector<unsigned char> camimage;
 
-		if (!TakeSnapshot(camIt, camimage))
-			return false;
+		if (TakeSnapshot(camIt, camimage))
+		{
+			bHaveCapturedCamera = true;
 
-		std::vector<char> filedata;
-		filedata.insert(filedata.begin(), camimage.begin(), camimage.end());
-		std::string imgstring;
-		imgstring.insert(imgstring.end(), filedata.begin(), filedata.end());
-		imgstring = base64_encode(imgstring);
-		imgstring = WrapBase64(imgstring);
+			std::vector<char> filedata;
+			filedata.insert(filedata.begin(), camimage.begin(), camimage.end());
+			std::string imgstring;
+			imgstring.insert(imgstring.end(), filedata.begin(), filedata.end());
+			imgstring = base64_encode(imgstring);
+			imgstring = WrapBase64(imgstring);
 
-		htmlMsg +=
-			"<img src=\"data:image/jpeg;base64,";
-		htmlMsg +=
-			imgstring +
-			"\">\r\n";
-		if (EmailAsAttachment != 0)
-			sclient.AddAttachment(imgstring, "snapshot" + camIt + ".jpg");
+			htmlMsg +=
+				"<img src=\"data:image/jpeg;base64,";
+			htmlMsg +=
+				imgstring +
+				"\">\r\n";
+			if (EmailAsAttachment != 0)
+				sclient.AddAttachment(imgstring, "snapshot" + camIt + ".jpg");
+		}
 	}
+	if (!bHaveCapturedCamera)
+		return false;
+
 	if (EmailAsAttachment == 0)
 		sclient.SetHTMLBody(htmlMsg);
 	bool bRet = sclient.SendEmail();
@@ -352,7 +436,7 @@ bool CCameraHandler::EmailCameraSnapshot(const std::string &CamIdx, const std::s
 //Webserver helpers
 namespace http {
 	namespace server {
-		void CWebServer::RType_Cameras(WebEmSession & session, const request& req, Json::Value &root)
+		void CWebServer::Cmd_GetCameras(WebEmSession & session, const request& req, Json::Value &root)
 		{
 			if (session.rights < 2)
 			{
@@ -363,14 +447,14 @@ namespace http {
 			std::string rused = request::findValue(&req, "used");
 
 			root["status"] = "OK";
-			root["title"] = "Cameras";
+			root["title"] = "getcameras";
 
 			std::vector<std::vector<std::string> > result;
 			if (rused == "true") {
-				result = m_sql.safe_query("SELECT ID, Name, Enabled, Address, Port, Username, Password, ImageURL, Protocol FROM Cameras WHERE (Enabled=='1') ORDER BY ID ASC");
+				result = m_sql.safe_query("SELECT ID, Name, Enabled, Address, Port, Username, Password, ImageURL, Protocol, AspectRatio FROM Cameras WHERE (Enabled=='1') ORDER BY ID ASC");
 			}
 			else {
-				result = m_sql.safe_query("SELECT ID, Name, Enabled, Address, Port, Username, Password, ImageURL, Protocol FROM Cameras ORDER BY ID ASC");
+				result = m_sql.safe_query("SELECT ID, Name, Enabled, Address, Port, Username, Password, ImageURL, Protocol, AspectRatio FROM Cameras ORDER BY ID ASC");
 			}
 			if (!result.empty())
 			{
@@ -386,14 +470,15 @@ namespace http {
 					root["result"][ii]["Password"] = base64_decode(sd[6]);
 					root["result"][ii]["ImageURL"] = sd[7];
 					root["result"][ii]["Protocol"] = atoi(sd[8].c_str());
+					root["result"][ii]["AspectRatio"] = atoi(sd[9].c_str());
 					ii++;
 				}
 			}
 		}
-		void CWebServer::RType_CamerasUser(WebEmSession& session, const request& req, Json::Value& root)
+		void CWebServer::Cmd_GetCamerasUser(WebEmSession& session, const request& req, Json::Value& root)
 		{
 			root["status"] = "OK";
-			root["title"] = "Cameras";
+			root["title"] = "getcameras_user";
 
 			std::vector<std::vector<std::string> > result;
 			result = m_sql.safe_query("SELECT ID, Name FROM Cameras WHERE (Enabled=='1') ORDER BY ID ASC");
@@ -461,6 +546,7 @@ namespace http {
 			std::string password = request::findValue(&req, "password");
 			std::string timageurl = HTMLSanitizer::Sanitize(request::findValue(&req, "imageurl"));
 			int cprotocol = atoi(request::findValue(&req, "protocol").c_str());
+			int aspectratio = atoi(request::findValue(&req, "aspectratio").c_str());
 			if ((name.empty()) || (address.empty()) || (timageurl.empty()))
 				return;
 
@@ -473,7 +559,7 @@ namespace http {
 				root["status"] = "OK";
 				root["title"] = "AddCamera";
 				m_sql.safe_query(
-					"INSERT INTO Cameras (Name, Enabled, Address, Port, Username, Password, ImageURL, Protocol) VALUES ('%q',%d,'%q',%d,'%q','%q','%q',%d)",
+					"INSERT INTO Cameras (Name, Enabled, Address, Port, Username, Password, ImageURL, Protocol, AspectRatio) VALUES ('%q',%d,'%q',%d,'%q','%q','%q',%d,%d)",
 					name.c_str(),
 					(senabled == "true") ? 1 : 0,
 					address.c_str(),
@@ -481,7 +567,8 @@ namespace http {
 					base64_encode(username).c_str(),
 					base64_encode(password).c_str(),
 					imageurl.c_str(),
-					cprotocol
+					cprotocol,
+					aspectratio
 				);
 				m_mainworker.m_cameras.ReloadCameras();
 			}
@@ -506,6 +593,7 @@ namespace http {
 			std::string password = request::findValue(&req, "password");
 			std::string timageurl = HTMLSanitizer::Sanitize(request::findValue(&req, "imageurl"));
 			int cprotocol = atoi(request::findValue(&req, "protocol").c_str());
+			int aspectratio = atoi(request::findValue(&req, "aspectratio").c_str());
 			if ((name.empty()) || (senabled.empty()) || (address.empty()) || (timageurl.empty()))
 				return;
 
@@ -520,7 +608,7 @@ namespace http {
 				root["title"] = "UpdateCamera";
 
 				m_sql.safe_query(
-					"UPDATE Cameras SET Name='%q', Enabled=%d, Address='%q', Port=%d, Username='%q', Password='%q', ImageURL='%q', Protocol=%d WHERE (ID == '%q')",
+					"UPDATE Cameras SET Name='%q', Enabled=%d, Address='%q', Port=%d, Username='%q', Password='%q', ImageURL='%q', Protocol=%d, AspectRatio=%d WHERE (ID == '%q')",
 					name.c_str(),
 					(senabled == "true") ? 1 : 0,
 					address.c_str(),
@@ -529,6 +617,7 @@ namespace http {
 					base64_encode(password).c_str(),
 					imageurl.c_str(),
 					cprotocol,
+					aspectratio,
 					idx.c_str()
 				);
 				m_mainworker.m_cameras.ReloadCameras();

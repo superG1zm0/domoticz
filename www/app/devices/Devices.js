@@ -23,7 +23,7 @@ define(['app', 'livesocket'], function(app) {
                 $ctrl.isSaving = true;
                 var mainDevice = $ctrl.isMainDevice ? undefined : $ctrl.mainDevice;
 
-                deviceApi.includeDevice($ctrl.device.idx, $ctrl.device.Name, mainDevice, $ctrl.device.CustomImage)
+                deviceApi.setDeviceUsed($ctrl.device.idx, true, $ctrl.device.Name, mainDevice)
                     .then($scope.$close);
             }
         }
@@ -34,7 +34,7 @@ define(['app', 'livesocket'], function(app) {
         controllerAs: '$ctrl',
         controller: function($scope, deviceApi, sceneApi) {
             var $ctrl = this;
-            $ctrl.device = Object.assign($scope.device);
+            $ctrl.device = JSON.parse(JSON.stringify($scope.device));
 
             $ctrl.renameDevice = function() {
                 $ctrl.isSaving = true;
@@ -118,7 +118,7 @@ define(['app', 'livesocket'], function(app) {
                 table.on('click', '.js-include-device', function() {
                     var row = table.api().row($(this).closest('tr')).data();
                     var scope = $scope.$new(true);
-                    scope.device = row;
+                    scope.device = Object.assign({}, row);
 
                     $uibModal
                         .open(Object.assign({ scope: scope }, addDeviceModal)).result
@@ -132,7 +132,7 @@ define(['app', 'livesocket'], function(app) {
 
                     bootbox.confirm('Are you sure to remove this Device from your used devices?')
                         .then(function() {
-                            return deviceApi.excludeDevice(row.idx);
+                            return deviceApi.setDeviceUsed(row.idx, false);
                         })
                         .then($ctrl.onUpdate);
 
@@ -534,9 +534,8 @@ define(['app', 'livesocket'], function(app) {
             }
 
             function loadRooms() {
-                return domoticzApi.sendRequest({
-                    type: 'plans',
-                    displayhidden: 0,
+                return domoticzApi.sendCommand('getplans', {
+                    displayhidden: 0
                 })
                     .then(domoticzApi.errorHandler)
                     .then(function(response) {
@@ -614,9 +613,9 @@ define(['app', 'livesocket'], function(app) {
         }
 
         function refreshDevices() {
-            domoticzApi.sendRequest({
-                type: 'devices',
+            domoticzApi.sendCommand('getdevices',{
                 displayhidden: 1,
+                displaydisabled: 1,
                 filter: 'all',
                 used: 'all'
             })
@@ -625,8 +624,17 @@ define(['app', 'livesocket'], function(app) {
                     if (response.result !== undefined) {
                         $ctrl.devices = response.result
                             .map(function(item) {
-                                var isScene = ['Group', 'Scene'].includes(item.Type);
+                                if (item.HardwareTypeVal == 21) {
+                                    var ZWID = item.ID.substr(-4, 2);
+                                    if (ZWID == '00') {
+                                        ZWID = item.ID.substr(-2, 2);
+                                    }
+                                    ZWID = '0x' + ZWID;
+                                    var ZWIDdec =  ("00" + parseInt(ZWID)).slice(-3);
+                                    item.HardwareName = item.HardwareName + " " + ZWIDdec + ' (' + ZWID + ')';   
+                                }
 
+                                var isScene = ['Group', 'Scene'].includes(item.Type);
                                 if (isScene) {
                                     item.HardwareName = 'Domoticz';
                                     item.ID = '-';

@@ -567,7 +567,7 @@ void CKodiNode::UpdateStatus()
 	if (m_CurrentStatus.Status() != m_PreviousStatus.Status())
 	{
 		m_notifications.CheckAndHandleNotification(m_ID, m_Name, m_CurrentStatus.NotificationType(), sLogText);
-		m_mainworker.m_eventsystem.ProcessDevice(m_HwdID, m_ID, 1, int(pTypeLighting2), int(sTypeAC), 12, 100, int(m_CurrentStatus.Status()), m_CurrentStatus.StatusMessage().c_str(), m_Name);
+		m_mainworker.m_eventsystem.ProcessDevice(m_HwdID, m_ID, 1, int(pTypeLighting2), int(sTypeAC), 12, 100, int(m_CurrentStatus.Status()), m_CurrentStatus.StatusMessage().c_str());
 	}
 
 	m_PreviousStatus = m_CurrentStatus;
@@ -583,7 +583,7 @@ void CKodiNode::handleConnect()
 			boost::system::error_code ec;
 			boost::asio::ip::tcp::resolver resolver(*m_Ios);
 			boost::asio::ip::tcp::resolver::query query(m_IP, (m_Port[0] != '-' ? m_Port : m_Port.substr(1)));
-			boost::asio::ip::tcp::resolver::iterator iter = resolver.resolve(query);
+			auto iter = resolver.resolve(query);
 			boost::asio::ip::tcp::endpoint endpoint = *iter;
 			m_Socket = new boost::asio::ip::tcp::socket(*m_Ios);
 			m_Socket->connect(endpoint, ec);
@@ -596,8 +596,7 @@ void CKodiNode::handleConnect()
 					m_CurrentStatus.Status(MSTAT_ON);
 					UpdateStatus();
 				}
-				m_Socket->async_read_some(boost::asio::buffer(m_Buffer, sizeof m_Buffer),
-					boost::bind(&CKodiNode::handleRead, shared_from_this(), boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred));
+				m_Socket->async_read_some(boost::asio::buffer(m_Buffer, sizeof m_Buffer), [p = shared_from_this()](auto err, auto bytes) { p->handleRead(err, bytes); });
 				handleWrite(std::string(R"({"jsonrpc":"2.0","method":"System.GetProperties","params":{"properties":["canhibernate","cansuspend","canshutdown"]},"id":1007})"));
 			}
 			else
@@ -632,9 +631,9 @@ void CKodiNode::handleRead(const boost::system::error_code& e, std::size_t bytes
 	if (!e)
 	{
 		//do something with the data
-		std::string sData(m_Buffer.begin(), bytes_transferred);
+		std::string sData(m_Buffer.data(), bytes_transferred);
 		sData = m_RetainedData + sData;  // if there was some data left over from last time add it back in
-		int iPos = 1;
+		size_t iPos = 1;
 		while (iPos) {
 			iPos = sData.find("}{", 0) + 1;		//  Look for message separater in case there is more than one
 			if (!iPos) // no, just one or part of one
@@ -657,11 +656,9 @@ void CKodiNode::handleRead(const boost::system::error_code& e, std::size_t bytes
 
 		//ready for next read
 		if (!IsStopRequested(0) && m_Socket)
-			m_Socket->async_read_some(	boost::asio::buffer(m_Buffer, sizeof m_Buffer),
-										boost::bind(&CKodiNode::handleRead,
-										shared_from_this(),
-										boost::asio::placeholders::error,
-										boost::asio::placeholders::bytes_transferred));
+		{
+			m_Socket->async_read_some(boost::asio::buffer(m_Buffer, sizeof m_Buffer), [p = shared_from_this()](auto &&err, auto &&bytes) { p->handleRead(err, bytes); });
+		}
 	}
 	else
 	{
@@ -929,7 +926,7 @@ bool CKodi::StartHardware()
 	StartHeartbeatThread();
 
 	//Start worker thread
-	m_thread = std::make_shared<std::thread>(&CKodi::Do_Work, this);
+	m_thread = std::make_shared<std::thread>([this] { Do_Work(); });
 	SetThreadNameInt(m_thread->native_handle());
 	_log.Log(LOG_STATUS, "Kodi: Started");
 
@@ -990,7 +987,7 @@ void CKodi::Do_Work()
 				// Note that this is the only thread that handles async i/o so we don't
 				// need to worry about locking or concurrency issues when processing messages
 				_log.Log(LOG_NORM, "Kodi: Restarting I/O service thread.");
-				boost::thread bt(boost::bind(&boost::asio::io_service::run, &m_ios));
+				boost::thread bt([p = &m_ios] { p->run(); });
 				SetThreadName(bt.native_handle(), "KodiIO");
 			}
 		}
@@ -1089,7 +1086,7 @@ void CKodi::AddNode(const std::string &Name, const std::string &IPAddress, const
 	sprintf(szID, "%X%02X%02X%02X", 0, 0, (ID & 0xFF00) >> 8, ID & 0xFF);
 
 	//Also add a light (push) device
-	m_sql.InsertDevice(m_HwdID, szID, 1, pTypeLighting2, sTypeAC, STYPE_Media, 0, "Unavailable", Name, 12, 255, 1);
+	m_sql.InsertDevice(m_HwdID, 0, szID, 1, pTypeLighting2, sTypeAC, STYPE_Media, 0, "Unavailable", Name, 12, 255, 1);
 
 	ReloadNodes();
 }
@@ -1164,7 +1161,7 @@ void CKodi::ReloadNodes()
 		}
 		sleep_milliseconds(100);
 		_log.Log(LOG_NORM, "Kodi: Starting I/O service thread.");
-		boost::thread bt(boost::bind(&boost::asio::io_service::run, &m_ios));
+		boost::thread bt([p = &m_ios] { p->run(); });
 		SetThreadName(bt.native_handle(), "KodiIO");
 	}
 }
@@ -1290,7 +1287,7 @@ namespace http {
 				return;
 			if (pBaseHardware->HwdType != HTYPE_Kodi)
 				return;
-			CKodi *pHardware = reinterpret_cast<CKodi*>(pBaseHardware);
+			CKodi *pHardware = dynamic_cast<CKodi*>(pBaseHardware);
 
 			root["status"] = "OK";
 			root["title"] = "KodiSetMode";
@@ -1323,7 +1320,7 @@ namespace http {
 				return;
 			if (pBaseHardware->HwdType != HTYPE_Kodi)
 				return;
-			CKodi *pHardware = reinterpret_cast<CKodi*>(pBaseHardware);
+			CKodi *pHardware = dynamic_cast<CKodi*>(pBaseHardware);
 
 			root["status"] = "OK";
 			root["title"] = "KodiAddNode";
@@ -1351,7 +1348,7 @@ namespace http {
 				return;
 			if (pBaseHardware->HwdType != HTYPE_Kodi)
 				return;
-			CKodi *pHardware = reinterpret_cast<CKodi*>(pBaseHardware);
+			CKodi *pHardware = dynamic_cast<CKodi*>(pBaseHardware);
 
 			int NodeID = atoi(nodeid.c_str());
 			root["status"] = "OK";
@@ -1377,7 +1374,7 @@ namespace http {
 				return;
 			if (pBaseHardware->HwdType != HTYPE_Kodi)
 				return;
-			CKodi *pHardware = reinterpret_cast<CKodi*>(pBaseHardware);
+			CKodi *pHardware = dynamic_cast<CKodi*>(pBaseHardware);
 
 			int NodeID = atoi(nodeid.c_str());
 			root["status"] = "OK";
@@ -1402,7 +1399,7 @@ namespace http {
 				return;
 			if (pBaseHardware->HwdType != HTYPE_Kodi)
 				return;
-			CKodi *pHardware = reinterpret_cast<CKodi*>(pBaseHardware);
+			CKodi *pHardware = dynamic_cast<CKodi*>(pBaseHardware);
 
 			root["status"] = "OK";
 			root["title"] = "KodiClearNodes";

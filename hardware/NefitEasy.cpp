@@ -4,7 +4,6 @@
 #include "../main/Logger.h"
 #include "../httpclient/UrlEncode.h"
 #include "hardwaretypes.h"
-#include "../main/localtime_r.h"
 #include "../httpclient/HTTPClient.h"
 #include "../main/json_helper.h"
 #include "../main/RFXtrx.h"
@@ -133,7 +132,7 @@ bool CNefitEasy::StartHardware()
 
 	Init();
 	//Start worker thread
-	m_thread = std::make_shared<std::thread>(&CNefitEasy::Do_Work, this);
+	m_thread = std::make_shared<std::thread>([this] { Do_Work(); });
 	SetThreadNameInt(m_thread->native_handle());
 	m_bIsStarted=true;
 	sOnConnected(this);
@@ -166,7 +165,7 @@ void CNefitEasy::Do_Work()
 	int fast_pollint = NEFIT_FAST_POLL_INTERVAL;
 	int slow_pollint = NEFIT_SLOW_INTERVAL;
 
-	_log.Log(LOG_STATUS, "NefitEasy: Worker started...");
+	Log(LOG_STATUS, "Worker started...");
 
 	while (!IsStopRequested(1000))
 	{
@@ -187,7 +186,7 @@ void CNefitEasy::Do_Work()
 			}
 			catch (...)
 			{
-				_log.Log(LOG_ERROR, "NefitEasy: Error getting/processing status result...");
+				Log(LOG_ERROR, "Error getting/processing status result...");
 			}
 		}
 		if ((sec_counter % slow_pollint == 0) || (bFirstTime))
@@ -201,7 +200,7 @@ void CNefitEasy::Do_Work()
 			}
 			catch (...)
 			{
-				_log.Log(LOG_ERROR, "NefitEasy: Error getting/processing pressure result...");
+				Log(LOG_ERROR, "Error getting/processing pressure result...");
 			}
 		}
 		if (sec_counter % NEFIT_GAS_INTERVAL == 0)
@@ -212,12 +211,12 @@ void CNefitEasy::Do_Work()
 			}
 			catch (...)
 			{
-				_log.Log(LOG_ERROR, "NefitEasy: Error getting/processing gas result...");
+				Log(LOG_ERROR, "Error getting/processing gas result...");
 			}
 		}
 		bFirstTime = false;
 	}
-	_log.Log(LOG_STATUS, "NefitEasy: Worker stopped...");
+	Log(LOG_STATUS, "Worker stopped...");
 }
 
 bool CNefitEasy::WriteToHardware(const char *pdata, const unsigned char /*length*/)
@@ -261,14 +260,14 @@ void CNefitEasy::SetUserMode(bool bSetUserModeClock)
 		szURL << "http://" << m_szIPAddress << ":" << m_usIPPort << NEFITEASY_HTTP_BRIDGE << NEFITEASY_SET_USER_MODE;
 		if (!HTTPClient::POST(szURL.str(), root.toStyledString(), ExtraHeaders, sResult))
 		{
-			_log.Log(LOG_ERROR, "NefitEasy: Error setting User Mode!");
+			Log(LOG_ERROR, "Error setting User Mode!");
 			return;
 		}
 		GetStatusDetails();
 	}
 	catch (...)
 	{
-		_log.Log(LOG_ERROR, "NefitEasy: Error setting User Mode!");
+		Log(LOG_ERROR, "Error setting User Mode!");
 		return;
 	}
 }
@@ -291,20 +290,20 @@ void CNefitEasy::SetHotWaterMode(bool bTurnOn)
 		szURL << "http://" << m_szIPAddress << ":" << m_usIPPort << NEFITEASY_HTTP_BRIDGE << NEFITEASY_SET_HOT_WATER_CLOCK_MODE;
 		if (!HTTPClient::POST(szURL.str(), root.toStyledString(), ExtraHeaders, sResult))
 		{
-			_log.Log(LOG_ERROR, "NefitEasy: Error setting User Mode!");
+			Log(LOG_ERROR, "Error setting User Mode!");
 			return;
 		}
 		szURL << "http://" << m_szIPAddress << ":" << m_usIPPort << NEFITEASY_HTTP_BRIDGE << NEFITEASY_SET_HOT_WATER_MANUAL_MODE;
 		if (!HTTPClient::POST(szURL.str(), root.toStyledString(), ExtraHeaders, sResult))
 		{
-			_log.Log(LOG_ERROR, "NefitEasy: Error setting User Mode!");
+			Log(LOG_ERROR, "Error setting User Mode!");
 			return;
 		}
 		GetStatusDetails();
 	}
 	catch (...)
 	{
-		_log.Log(LOG_ERROR, "NefitEasy: Error setting User Mode!");
+		Log(LOG_ERROR, "Error setting User Mode!");
 		return;
 	}
 }
@@ -323,13 +322,13 @@ bool CNefitEasy::GetStatusDetails()
 	{
 		if (!HTTPClient::GET(szURL.str(), sResult))
 		{
-			_log.Log(LOG_ERROR, "NefitEasy: Error getting http data!");
+			Log(LOG_ERROR, "Error getting http data!");
 			return false;
 		}
 	}
 	catch (...)
 	{
-		_log.Log(LOG_ERROR, "NefitEasy: Error getting http data!");
+		Log(LOG_ERROR, "Error getting http data!");
 		return false;
 	}
 #endif
@@ -344,26 +343,26 @@ bool CNefitEasy::GetStatusDetails()
 	if ((!ret) || (!root.isObject()))
 	{
 		if (sResult.find("Error: REQUEST_TIMEOUT") != std::string::npos)
-			_log.Log(LOG_ERROR, "NefitEasy: Request Timeout !");
+			Log(LOG_ERROR, "Request Timeout !");
 		else
-			_log.Log(LOG_ERROR, "NefitEasy: Invalid data received (main)!");
+			Log(LOG_ERROR, "Invalid data received (main)!");
 		return false;
 	}
 	if(!CheckId(NEFITEASY_STATUS_URL, root))
 	{
-		_log.Log(LOG_ERROR, "NefitEasy: Invalid response received (main)");
+		Log(LOG_ERROR, "Invalid response received (main)");
 		return false;
 	}
 
 	if (root["value"].empty())
 	{
-		_log.Log(LOG_ERROR, "NefitEasy: Invalid data received (main)");
+		Log(LOG_ERROR, "Invalid data received (main)");
 		return false;
 	}
 	root2 = root["value"];
 	if (root2["TOT"].empty())
 	{
-		_log.Log(LOG_ERROR, "NefitEasy: Invalid data received (main)");
+		Log(LOG_ERROR, "Invalid data received (main)");
 		return false;
 	}
 	/*
@@ -404,7 +403,7 @@ bool CNefitEasy::GetStatusDetails()
 		if (tmpstr != "null")
 		{
 			float temp = static_cast<float>(atof(tmpstr.c_str()));
-			SendSetPointSensor(1, 1, 1, temp, "Setpoint");
+			SendSetPointSensor(0, 1, 1, 1, 1, temp, "Setpoint");
 		}
 	}
 	if (!root2["IHT"].empty())
@@ -470,13 +469,13 @@ bool CNefitEasy::GetOutdoorTemp()
 	{
 		if (!HTTPClient::GET(szURL2.str(), sResult))
 		{
-			_log.Log(LOG_ERROR, "NefitEasy: Error getting http data!");
+			Log(LOG_ERROR, "Error getting http data!");
 			return false;
 		}
 	}
 	catch (...)
 	{
-		_log.Log(LOG_ERROR, "NefitEasy: Error getting http data!");
+		Log(LOG_ERROR, "Error getting http data!");
 		return false;
 	}
 #endif
@@ -487,17 +486,17 @@ bool CNefitEasy::GetOutdoorTemp()
 	ret = ParseJSon(sResult, root);
 	if ((!ret) || (!root.isObject()))
 	{
-		_log.Log(LOG_ERROR, "NefitEasy: Invalid data received! (ODT)");
+		Log(LOG_ERROR, "Invalid data received! (ODT)");
 		return false;
 	}
 	if(!CheckId(NEFITEASY_OUTDOORTEMP_URL, root))
 	{
-		_log.Log(LOG_ERROR, "NefitEasy: Invalid response received! (ODT)");
+		Log(LOG_ERROR, "Invalid response received! (ODT)");
 		return false;
 	}
 	if (root["value"].empty() == true)
 	{
-		_log.Log(LOG_ERROR, "NefitEasy: Invalid data received (ODT)");
+		Log(LOG_ERROR, "Invalid data received (ODT)");
 		return false;
 	}
 
@@ -522,13 +521,13 @@ bool CNefitEasy::GetFlowTemp()
 	{
 		if (!HTTPClient::GET(szURL2.str(), sResult))
 		{
-			_log.Log(LOG_ERROR, "NefitEasy: Error getting http data!");
+			Log(LOG_ERROR, "Error getting http data!");
 			return false;
 		}
 	}
 	catch (...)
 	{
-		_log.Log(LOG_ERROR, "NefitEasy: Error getting http data!");
+		Log(LOG_ERROR, "Error getting http data!");
 		return false;
 	}
 #endif
@@ -539,17 +538,17 @@ bool CNefitEasy::GetFlowTemp()
 	ret = ParseJSon(sResult, root);
 	if ((!ret) || (!root.isObject()))
 	{
-		_log.Log(LOG_ERROR, "NefitEasy: Invalid data received! (FT)");
+		Log(LOG_ERROR, "Invalid data received! (FT)");
 		return false;
 	}
 	if(!CheckId(NEFITEASY_FLOWTEMP_URL, root))
 	{
-		_log.Log(LOG_ERROR, "NefitEasy: Invalid response received (FT)");
+		Log(LOG_ERROR, "Invalid response received (FT)");
 		return false;
 	}
 	if (root["value"].empty() == true)
 	{
-		_log.Log(LOG_ERROR, "NefitEasy: Invalid data received (FT)");
+		Log(LOG_ERROR, "Invalid data received (FT)");
 		return false;
 	}
 
@@ -574,13 +573,13 @@ bool CNefitEasy::GetPressure()
 	{
 		if (!HTTPClient::GET(szURL.str(), sResult))
 		{
-			_log.Log(LOG_ERROR, "NefitEasy: Error getting http data!");
+			Log(LOG_ERROR, "Error getting http data!");
 			return false;
 		}
 	}
 	catch (...)
 	{
-		_log.Log(LOG_ERROR, "NefitEasy: Error getting http data!");
+		Log(LOG_ERROR, "Error getting http data!");
 		return false;
 	}
 #endif
@@ -591,17 +590,17 @@ bool CNefitEasy::GetPressure()
 	ret = ParseJSon(sResult, root);
 	if ((!ret) || (!root.isObject()))
 	{
-		_log.Log(LOG_ERROR, "NefitEasy: Invalid data received! (Press)");
+		Log(LOG_ERROR, "Invalid data received! (Press)");
 		return false;
 	}
 	if(!CheckId(NEFITEASY_PRESSURE_URL, root))
 	{
-		_log.Log(LOG_ERROR, "NefitEasy: Invalid response received! (Press)");
+		Log(LOG_ERROR, "Invalid response received! (Press)");
 		return false;
 	}
 	if (root["value"].empty())
 	{
-		_log.Log(LOG_ERROR, "NefitEasy: Invalid data received (Press)");
+		Log(LOG_ERROR, "Invalid data received (Press)");
 		return false;
 	}
 	float pressure = root["value"].asFloat();
@@ -624,13 +623,13 @@ bool CNefitEasy::GetDisplayCode()
 	{
 		if (!HTTPClient::GET(szURL3.str(), sResult))
 		{
-			_log.Log(LOG_ERROR, "NefitEasy: Error getting http data!");
+			Log(LOG_ERROR, "Error getting http data!");
 			return false;
 		}
 	}
 	catch (...)
 	{
-		_log.Log(LOG_ERROR, "NefitEasy: Error getting http data!");
+		Log(LOG_ERROR, "Error getting http data!");
 		return false;
 	}
 #endif
@@ -641,17 +640,17 @@ bool CNefitEasy::GetDisplayCode()
 	ret = ParseJSon(sResult, root);
 	if ((!ret) || (!root.isObject()))
 	{
-		_log.Log(LOG_ERROR, "NefitEasy: Invalid data received! (DP)");
+		Log(LOG_ERROR, "Invalid data received! (DP)");
 		return false;
 	}
 	if(!CheckId(NEFITEASY_DISPLAYCODE_URL, root))
 	{
-		_log.Log(LOG_ERROR, "NefitEasy: Invalid response received! (DP)");
+		Log(LOG_ERROR, "Invalid response received! (DP)");
 		return false;
 	}
 	if (root["value"].empty() == true)
 	{
-		_log.Log(LOG_ERROR, "NefitEasy: Invalid data received (DP)");
+		Log(LOG_ERROR, "Invalid data received (DP)");
 		return false;
 	}
 
@@ -724,13 +723,13 @@ bool CNefitEasy::GetGasUsage()
 	{
 		if (!HTTPClient::GET(szURL.str(), sResult))
 		{
-			_log.Log(LOG_ERROR, "NefitEasy: Error getting http data!");
+			Log(LOG_ERROR, "Error getting http data!");
 			return false;
 		}
 	}
 	catch (...)
 	{
-		_log.Log(LOG_ERROR, "NefitEasy: Error getting http data!");
+		Log(LOG_ERROR, "Error getting http data!");
 		return false;
 	}
 #endif
@@ -741,17 +740,17 @@ bool CNefitEasy::GetGasUsage()
 	ret = ParseJSon(sResult, root);
 	if ((!ret) || (!root.isObject()))
 	{
-		_log.Log(LOG_ERROR, "NefitEasy: Invalid data received! (Gas)");
+		Log(LOG_ERROR, "Invalid data received! (Gas)");
 		return false;
 	}
 	if(!CheckId(NEFITEASY_GAS_URL, root))
 	{
-		_log.Log(LOG_ERROR, "NefitEasy: Invalid response received! (Gas)");
+		Log(LOG_ERROR, "Invalid response received! (Gas)");
 		return false;
 	}
 	if (root["value"].empty())
 	{
-		_log.Log(LOG_ERROR, "NefitEasy: Invalid data received (Gas)");
+		Log(LOG_ERROR, "Invalid data received (Gas)");
 		return false;
 	}
 	float yeargas = root["value"].asFloat();
@@ -783,7 +782,7 @@ void CNefitEasy::SetSetpoint(const int /*idx*/, const float temp)
 		szURL << "http://" << m_szIPAddress << ":" << m_usIPPort << NEFITEASY_HTTP_BRIDGE << NEFITEASY_SET_TEMP_ROOM;
 		if (!HTTPClient::POST(szURL.str(), root.toStyledString(), ExtraHeaders, sResult))
 		{
-			_log.Log(LOG_ERROR, "NefitEasy: Error setting setpoint!");
+			Log(LOG_ERROR, "Error setting setpoint!");
 			return;
 		}
 		szURL.clear();
@@ -795,7 +794,7 @@ void CNefitEasy::SetSetpoint(const int /*idx*/, const float temp)
 			szURL << "http://" << m_szIPAddress << ":" << m_usIPPort << NEFITEASY_HTTP_BRIDGE << NEFITEASY_SET_TEMP_OVERRIDE;
 			if (!HTTPClient::POST(szURL.str(), root2.toStyledString(), ExtraHeaders, sResult))
 			{
-				_log.Log(LOG_ERROR, "NefitEasy: Error setting setpoint!");
+				Log(LOG_ERROR, "Error setting setpoint!");
 				return;
 			}
 			szURL.clear();
@@ -803,7 +802,7 @@ void CNefitEasy::SetSetpoint(const int /*idx*/, const float temp)
 			szURL << "http://" << m_szIPAddress << ":" << m_usIPPort << NEFITEASY_HTTP_BRIDGE << NEFITEASY_SET_TEMP_OVERRIDE_TEMP;
 			if (!HTTPClient::POST(szURL.str(), root.toStyledString(), ExtraHeaders, sResult))
 			{
-				_log.Log(LOG_ERROR, "NefitEasy: Error setting setpoint!");
+				Log(LOG_ERROR, "Error setting setpoint!");
 				return;
 			}
 		}
@@ -814,14 +813,14 @@ void CNefitEasy::SetSetpoint(const int /*idx*/, const float temp)
 			szURL << "http://" << m_szIPAddress << ":" << m_usIPPort << NEFITEASY_HTTP_BRIDGE << NEFITEASY_SET_TEMP_OVERRIDE;
 			if (!HTTPClient::POST(szURL.str(), root2.toStyledString(), ExtraHeaders, sResult))
 			{
-				_log.Log(LOG_ERROR, "NefitEasy: Error setting setpoint!");
+				Log(LOG_ERROR, "Error setting setpoint!");
 				return;
 			}
 		}
 	}
 	catch (...)
 	{
-		_log.Log(LOG_ERROR, "NefitEasy: Error setting Setpoint!");
+		Log(LOG_ERROR, "Error setting Setpoint!");
 		return;
 	}
 	GetStatusDetails();

@@ -4,7 +4,6 @@
 //see www.bticino.it; www.myhome-bticino.it
 #include "stdafx.h"
 #include "bt_openwebnet.h"
-#include "../../main/localtime_r.h"
 
 // private methods ......
 
@@ -23,7 +22,6 @@ std::string bt_openwebnet::FirstToken(const std::string& myText, const std::stri
 // performs syntax checking
 void bt_openwebnet::IsCorrect()
 {
-  int j  = 0;
   std::string sup;
   std::string field;
 
@@ -55,7 +53,7 @@ void bt_openwebnet::IsCorrect()
   }
 
   //Check if there are bad character
-  for (j=0;j< m_lengthFrameOpen;j++)
+  for (size_t j=0;j< m_lengthFrameOpen;j++)
   {
     if(!isdigit(m_frameOpen[j]))
     {
@@ -2232,20 +2230,63 @@ std::string bt_openwebnet::getWhereDescription(const std::string& who, const std
 		return where + vectorToString(whereParameters);
 	}
 	else if (who == "4") {
-		// "Temperature control" : TODO
-		//0 : General probes (all probes)
-		//1 : Zone 1 master probe ...
-		//99 : Zone 99 master probe
-		//001 : All probes(master and slave) belonging to Zone 1 ...
-		//099 : All probes(master and slave) belonging to Zone 99
-		//101 : Probe 1 of Zone 1 ...
-		//801 : Probe 8 of Zone 1
-		//102 : Probe 1 of Zone 2...
-		//899 : Probe 8 of Zone 99
-		//#0 : Central Unit
-		//#1 : Zone 1 via Central Unit...
-		//#99 : Zone 99 via Central Unit
-		//3#<where actuators> with actuators = Z#N belonging to [0 - 99]#[1 - 9] : Split Control actuator Z/N
+		// "Temperature control" : 
+		std::stringstream ssw(where);
+		std::string tokenx, str1, str2, str3;
+
+		if (std::getline(ssw, tokenx, '#')) str1 = tokenx;
+		if (std::getline(ssw, tokenx, '#')) str2 = tokenx;
+		if (std::getline(ssw, tokenx, '#')) str3 = tokenx;
+
+		if (str1.length() && str2.length() && str2.length())
+		{
+			// TODO
+			// 3#<where actuators> with actuators = Z#N belonging to [0 - 99]#[1 - 9] : Split Control actuator Z/N
+		}
+		else if (size_t len1 = str1.length()) 
+		{
+			int iWhere = atoi(str1.c_str());
+			if (len1 <= 2)
+			{
+				// 0 : General probes (all probes)
+				// 1 : Zone 1...99 master probe ...
+				
+				if (iWhere == 0)
+					return "General probes (all probes)";
+				else if ((iWhere >= 1) && (iWhere <= 99))
+					return "Zone" + str1 + " master probe";
+			}
+			else if (len1 == 3)
+			{
+				int probe = iWhere / 100;
+				int zone = iWhere % 100;
+				if (probe == 0)
+				{
+					// 001 : All probes(master and slave) belonging to Zone 1 ...
+					// 099 : All probes(master and slave) belonging to Zone 99
+					return "All probes(master and slave) belonging to Zone " + where.substr(1, 2);
+				}
+				else if ((probe >= 1) && (probe <= 99))
+				{
+					// 101 : Probe 1 of Zone 1 ...
+					// 801 : Probe 8 of Zone 1
+					// 102 : Probe 1 of Zone 2...
+					// 899 : Probe 8 of Zone 99
+					return "Probe " + where.substr(0, 0) + " of Zone " + where.substr(1, 2);
+				}
+			}
+		}
+		else if (str2.length())
+		{
+			//#0 : Central Unit
+			//#1 : Zone 1 via Central Unit...
+			//#99 : Zone 99 via Central Unit
+			int iWhere = atoi(str2.c_str());
+			if (iWhere == 0)
+				return "Central Unit";
+			else if ((iWhere >= 1) && (iWhere <= 99))
+				return "Zone " + str2 + "via Central Unit";
+		}
 	}
 	else if (who == "5") {
         
@@ -2374,7 +2415,7 @@ std::string bt_openwebnet::getWhereDescription(const std::string& who, const std
 
 		std::string room;
 		std::string pointOfLight;
-		int wlen = where.length();
+		size_t wlen = where.length();
 		if (wlen == 1)
 		{
 			if (where == "0")

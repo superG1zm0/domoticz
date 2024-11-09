@@ -5,7 +5,6 @@
 #include "../httpclient/HTTPClient.h"
 #include "../httpclient/UrlEncode.h"
 #include "hardwaretypes.h"
-#include "../main/localtime_r.h"
 #include "../main/mainworker.h"
 #include "../main/json_helper.h"
 
@@ -54,7 +53,7 @@ bool CYouLess::StartHardware()
 
 	Init();
 	//Start worker thread
-	m_thread = std::make_shared<std::thread>(&CYouLess::Do_Work, this);
+	m_thread = std::make_shared<std::thread>([this] { Do_Work(); });
 	SetThreadNameInt(m_thread->native_handle());
 	m_bIsStarted=true;
 	sOnConnected(this);
@@ -77,7 +76,7 @@ void CYouLess::Do_Work()
 {
 	int sec_counter = YOULESS_POLL_INTERVAL - 2;
 
-	_log.Log(LOG_STATUS, "YouLess: Worker started...");
+	Log(LOG_STATUS, "Worker started...");
 	while (!IsStopRequested(1000))
 	{
 		sec_counter++;
@@ -90,7 +89,7 @@ void CYouLess::Do_Work()
 			GetMeterDetails();
 		}
 	}
-	_log.Log(LOG_STATUS,"YouLess: Worker stopped...");
+	Log(LOG_STATUS,"Worker stopped...");
 }
 
 bool CYouLess::WriteToHardware(const char *pdata, const unsigned char length)
@@ -111,7 +110,7 @@ bool CYouLess::GetP1Details()
 
 	if (!HTTPClient::GET(szURL.str(), sResult))
 	{
-		_log.Log(LOG_ERROR, "YouLess: Error getting meter details from %s !", m_szIPAddress.c_str() );
+		Log(LOG_ERROR, "Error getting meter details from %s !", m_szIPAddress.c_str() );
 		return false;
 	}
 	Json::Value root;
@@ -161,6 +160,13 @@ bool CYouLess::GetP1Details()
 		m_bHaveP1OrS0 = true;
 	}
 
+	if (!root["wtr"].empty())
+	{
+		//Water Meter
+		float mcntr = root["wtr"].asFloat();
+		SendMeterSensor(m_HwdID, 1, 255, mcntr, "Water");
+	}
+
 	if (!root["cs0"].empty())
 	{
 		//S0 Meter
@@ -172,6 +178,7 @@ bool CYouLess::GetP1Details()
 			m_bHaveP1OrS0 = true;
 		}
 	}
+
 	return m_bHaveP1OrS0;
 }
 
@@ -192,7 +199,7 @@ void CYouLess::GetMeterDetails()
 
 	if (!HTTPClient::GET(szURL.str(), sResult))
 	{
-		_log.Log(LOG_ERROR,"YouLess: Error connecting to: %s", m_szIPAddress.c_str());
+		Log(LOG_ERROR,"Error connecting to: %s", m_szIPAddress.c_str());
 		return;
 	}
 
@@ -200,10 +207,10 @@ void CYouLess::GetMeterDetails()
 	StringSplit(sResult, "\n", results);
 	if (results.size()<2)
 	{
-		_log.Log(LOG_ERROR,"YouLess: Error connecting to: %s", m_szIPAddress.c_str());
+		Log(LOG_ERROR,"Error connecting to: %s", m_szIPAddress.c_str());
 		return;
 	}
-	int fpos;
+	size_t fpos;
 	std::string pusage=stdstring_trim(results[0]);
 	fpos = pusage.find_first_of(' ');
 	if (fpos!=std::string::npos)

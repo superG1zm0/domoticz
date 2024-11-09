@@ -15,10 +15,23 @@ local function stateToBool(state, _states)
 end
 
 local function setStateAttribute(state, device, _states)
-	local level;
+	local level
+	
+	if (state and string.find(state, 'Open')) then
+		level =  100
+	end
+	if (state and string.find(state, 'Closed')) then
+		level =  0
+	end
 	if (state and string.find(state, 'Set Level')) then
 		level = string.match(state, '%d+') -- extract dimming value
-		state = 'On' -- consider the device to be on
+		
+		-- option, set state to 'Set Level' for both ?
+		if (device['switchType'] and string.find(device['switchType'], "Blind")) then
+			state = 'Open' -- consider the blind to be open
+		else
+			state = 'On' -- consider the device to be on
+		end
 	end
 
 	if (level) then
@@ -63,14 +76,8 @@ return {
 		local _states = adapterManager.states
 
 		if (data.lastUpdate == '' or data.lastUpdate == nil) then
-			local level
-			if (data.name ~= nil and data.name ~= '') then
-				level = utils.LOG_ERROR
-			else
-				level = utils.LOG_DEBUG
-			end
 			if data.baseType ~= 'camera' and data.baseType ~= 'hardware' then
-				utils.log('Discarding device. No last update info found: ' .. domoticz.utils._.str(data), level)
+				utils.log('Discarding device. No last update info found: ' .. utils.toStr(data), utils.LOG_DEBUG)
 			end
 			return nil
 		end
@@ -91,13 +98,6 @@ return {
 		device['lastUpdate'] = Time(data.lastUpdate)
 
 		if (data.baseType == 'device') then
-
-			local bat
-			local sig
-
-			if (data.batteryLevel <= 100) then bat = data.batteryLevel end
-			if (data.signalLevel <= 100) then sig = data.signalLevel end
-
 			device['deviceType'] = data.deviceType
 			device['hardwareName'] = data.data.hardwareName
 			device['hardwareType'] = data.data.hardwareType
@@ -108,8 +108,8 @@ return {
 			device['switchType'] = data.switchType
 			device['switchTypeValue'] = data.switchTypeValue
 			device['timedOut'] = data.timedOut
-			device['batteryLevel'] = bat
-			device['signalLevel'] = sig
+			device['batteryLevel'] = data.batteryLevel <= 100 and data.batteryLevel >= 0 and data.batteryLevel or nil
+			device['signalLevel'] = data.signalLevel <= 12 and data.signalLevel >= 0 and data.signalLevel or nil
 			device['deviceSubType'] = data.subType
 			device['rawData'] = data.rawData
 			device['nValue'] = data.data._nValue
@@ -141,16 +141,16 @@ return {
 
 		function device.setDescription(description)
 			local url = domoticz.settings['Domoticz url'] ..
-				'/json.htm?description=' .. utils.urlEncode(description) ..
+				'/json.htm?type=command&param=setused&description=' .. utils.urlEncode(description) ..
 				'&idx=' .. device.id ..
 				'&name='.. utils.urlEncode(device.name) ..
-				'&type=setused&used=true'
+				'&used=true'
 			return domoticz.openURL(url)
 		end
 
 		function device.setIcon(iconNumber)
 			local url = domoticz.settings['Domoticz url'] ..
-				'/json.htm?type=setused&used=true&name=' ..
+				'/json.htm?type=command&param=setused&used=true&name=' ..
 				 utils.urlEncode(device.name) ..
 				'&description=' .. utils.urlEncode(device.description) ..
 				'&idx=' .. device.id ..
@@ -169,14 +169,14 @@ return {
 
 		function device.protectionOn()
 			local url = domoticz.settings['Domoticz url'] ..
-						'/json.htm?type=setused&used=true&protected=true' ..
+						'/json.htm?type=command&param=setused&used=true&protected=true' ..
 						'&idx=' .. device.idx
 			return domoticz.openURL(url)
 		end
 
 		function device.protectionOff()
 			local url = domoticz.settings['Domoticz url'] ..
-						'/json.htm?type=setused&used=true&protected=false' ..
+						'/json.htm?type=command&param=setused&used=true&protected=false' ..
 						'&idx=' .. device.idx
 			return domoticz.openURL(url)
 		end

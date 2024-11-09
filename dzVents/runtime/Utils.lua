@@ -2,13 +2,13 @@ local jsonParser = require('JSON')
 local _ = require('lodash')
 
 local self = {
-	LOG_ERROR = 1,
-	LOG_FORCE = 0.5,
+	LOG_DEBUG = 1,
 	LOG_MODULE_EXEC_INFO = 2,
 	LOG_INFO = 3,
-	LOG_WARNING = 3,
-	LOG_DEBUG = 4,
-	DZVERSION = '3.1.4',
+	LOG_STATUS = 4,
+	LOG_ERROR = 5,
+	LOG_FORCE = 6,
+	DZVERSION = '3.1.10',
 }
 
 function jsonParser:unsupportedTypeEncoder(value_of_unsupported_type)
@@ -22,6 +22,17 @@ end
 function math.pow(x, y)
 	self.log('Function math.pow(x, y) has been deprecated in Lua 5.3. Please consider changing code to x^y', self.LOG_FORCE)
 	return x^y
+end
+
+function self.cloneTable(original)
+	local copy = {}
+	for k, v in pairs(original) do
+		if type(v) == 'table' then
+			v = self.cloneTable(v)
+		end
+		copy[k] = v
+	end
+	return copy
 end
 
 -- Cast anything but functions to string
@@ -83,6 +94,10 @@ self.fuzzyLookup = function (search, target) -- search must be string/number, ta
 	end
 end
 
+function self.containsWord(input, word)
+	return input:find("%f[%w_%-]" .. (word or ''):gsub('-','%%-') .. "%f[%W_]")
+end
+
 function self.setLogMarker(logMarker)
 	_G.logMarker = logMarker or _G.moduleLabel
 end
@@ -127,6 +142,19 @@ function self.stringSplit(text, sep, convertNumber, convertNil)
 	for str in string.gmatch(text, "([^" ..sep.. "]" .. include .. ")" ) do
 		if convertNil and str == '' then str = convertNil end
 		table.insert(t, ( convertNumber and tonumber(str) ) or str)
+	end
+	return t
+end
+
+function self.splitLine (line, word)
+	local start = 1
+	local first, last = 0
+	local t = {}
+	while true do
+		first, last = line:find('%s+'.. word .. '%s+', start)
+		table.insert(t,line:sub(start, ( ( first and first - 1) or #line)))
+		if not first then break end
+		start = last + 1
 	end
 	return t
 end
@@ -185,7 +213,10 @@ end
 function self.round(value, decimals)
 	local nVal = tonumber(value)
 	local nDec = ( decimals == nil and 0 ) or tonumber(decimals)
-	if nVal >= 0 and nDec > 0 then
+	if nVal == nil then
+		self.log(self.toStr(value) .. ' is not a number!', self.LOG_ERROR)
+		return
+	elseif nVal >= 0 and nDec > 0 then
 		return math.floor( (nVal * 10 ^ nDec) + 0.5) / (10 ^ nDec)
 	elseif nVal >=0 then
 		return math.floor(nVal + 0.5)
@@ -270,9 +301,13 @@ function self.isJSON(str, content)
 	return ret ~= nil
 end
 
-function self.fromJSON(json, fallback)
+function self.fromJSON(json, fallback, deSerialize)
 
-	if not(json) then
+	local deSerializeJSON  = function(j)
+		return j:gsub('\\"','"'):gsub('"{','{'):gsub('"%["','["'):gsub('"%]"','"]'):gsub('}"','}'):gsub('"%[{"','[{"'):gsub('"}%]"','"}]'):gsub('%]"}',']}')
+	end
+
+	if type(json) ~= 'string' or json == '' then
 		return fallback
 	end
 
@@ -286,6 +321,8 @@ function self.fromJSON(json, fallback)
 
 	if self.isJSON(json) then
 
+		if deSerialize then json = deSerializeJSON(json) end
+
 		local parse = function(j)
 			return jsonParser:decode(j)
 		end
@@ -295,9 +332,9 @@ function self.fromJSON(json, fallback)
 		if (ok) then
 			return results
 		end
-		self.log('Error parsing json to LUA table: ' .. _.str(results) , self.LOG_ERROR)
+		self.log('Error parsing json to LUA table: ' .. self.toStr(results) , self.LOG_ERROR)
 	else
-		self.log('Error parsing json to LUA table: (invalid json string) ' .. _.str(json) , self.LOG_ERROR)
+		self.log('Error parsing json to LUA table: (invalid json string) ' .. self.toStr(json) , self.LOG_ERROR)
 	end
 
 	return fallback
@@ -392,9 +429,9 @@ function self.fromXML(xml, fallback)
 		if (ok) then
 			return results
 		end
-		-- self.log('Error parsing xml to Lua table: ' .. _.str(results), self.LOG_ERROR)
+		-- self.log('Error parsing xml to Lua table: ' .. self.toStr(results), self.LOG_ERROR)
 	else
-		self.log('Error parsing xml to LUA table: (invalid xml string) ' .. _.str(xml) , self.LOG_ERROR)
+		self.log('Error parsing xml to LUA table: (invalid xml string) ' .. self.toStr(xml) , self.LOG_ERROR)
 	end
 	return fallback
 
@@ -418,7 +455,7 @@ function self.toXML(luaTable, header)
 		return results
 	end
 
-	self.log('Error converting LUA table to XML: ' .. _.str(results), self.LOG_ERROR)
+	self.log('Error converting LUA table to XML: ' .. self.toStr(results), self.LOG_ERROR)
 	return nil
 
 end
@@ -435,14 +472,16 @@ function self.toJSON(luaTable)
 		return results
 	end
 
-	self.log('Error converting LUA table to json: ' .. _.str(results), self.LOG_ERROR)
+	self.log('Error converting LUA table to json: ' .. self.toStr(results), self.LOG_ERROR)
 	return nil
 
 end
 
 function self.log(msg, level)
-
-	if (level == nil) then level = self.LOG_INFO end
+    -- self.print(msg .. ', level=' .. level)
+	if (level == nil) then
+		level = self.LOG_INFO
+	end
 
 	if (type(level) ~= 'number') then
 		self.print('Error: log level is not a number. Got: ' .. tostring(level) .. ', type: ' .. type(level))
@@ -450,29 +489,36 @@ function self.log(msg, level)
 	end
 
 	local lLevel = _G.logLevel == nil and 1 or _G.logLevel
-	local marker = ''
 
-	if (level == self.LOG_ERROR) then
-		marker = marker .. 'Error: (' .. self.DZVERSION .. ') '
+	msg = self.toStr(msg)
+
+	-- print('level: ' .. level .. ',lLevel: ' .. lLevel .. ', msg: ' .. msg)
+
+	if (level < lLevel) then
+		return
+	end
+
+	local marker = ''
+	
+	if (level == self.LOG_INFO) then
+		marker = 'Info: '
+	elseif (level == self.LOG_STATUS) then
+		marker = 'Status: '
+	elseif (level == self.LOG_ERROR) then
+		marker = 'Error: '
 	elseif (level == self.LOG_DEBUG) then
-		marker = marker .. 'Debug: '
-	elseif (level == self.LOG_INFO or level == self.LOG_MODULE_EXEC_INFO) then
-		marker = marker .. 'Info: '
+		marker = 'Debug: '
+	elseif (level == self.LOG_MODULE_EXEC_INFO) then
+		marker = 'Exec: '
 	elseif (level == self.LOG_FORCE) then
-		marker = marker .. '!Info: '
+		marker = '!Info: '
 	end
 
 	if (_G.logMarker ~= nil) then
 		marker = marker .. _G.logMarker .. ': '
 	end
 
-	if (level <= lLevel) then
-		local maxLength = 6000 -- limit 3 * 2048 hardCoded in main/Logger.cpp
-		msg = self.toStr(msg)
-		for i = 1, #msg, maxLength do
-			self.print( marker .. msg:sub(i, i + maxLength - 1 ) )
-		end
-	end
+	self.print( marker .. msg )
 end
 
 function self.rgbToHSB(r, g, b)

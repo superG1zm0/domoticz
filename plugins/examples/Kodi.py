@@ -42,6 +42,7 @@ import Domoticz
 import sys
 import json
 
+
 class BasePlugin:
     KodiConn = None
     nextConnect = 3

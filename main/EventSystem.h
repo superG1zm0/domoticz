@@ -6,8 +6,6 @@
 #include "../httpclient/HTTPClient.h"
 
 #include "LuaCommon.h"
-#include "concurrent_queue.h"
-#include "StoppableTask.h"
 #include "NotificationObserver.h"
 
 class CEventSystem : public CLuaCommon, StoppableTask, CNotificationObserver
@@ -42,14 +40,14 @@ class CEventSystem : public CLuaCommon, StoppableTask, CNotificationObserver
 public:
 	enum _eReason
 	{
-		REASON_DEVICE,			// 0
-		REASON_SCENEGROUP,		// 1
-		REASON_USERVARIABLE,		// 2
-		REASON_TIME,			// 3
-		REASON_SECURITY,		// 4
-		REASON_URL,			// 5
-		REASON_NOTIFICATION,		// 6
-		REASON_SHELLCOMMAND		// 7
+		REASON_DEVICE,       // 0
+		REASON_SCENEGROUP,   // 1
+		REASON_USERVARIABLE, // 2
+		REASON_TIME,         // 3
+		REASON_SECURITY,     // 4
+		REASON_URL,          // 5
+		REASON_NOTIFICATION, // 6
+		REASON_SHELLCOMMAND  // 7
 	};
 
 	struct _tDeviceStatus
@@ -100,15 +98,9 @@ public:
 		int scenesgroupType;
 		int protection;
 		std::string lastUpdate;
+		std::string description;
 		std::vector<uint64_t> memberID;
 	};
-
-	struct _tHardwareListInt {
-		std::string Name;
-		int HardwareTypeVal;
-		std::string HardwareType;
-		bool Enabled;
-	} tHardwareList;
 
 	CEventSystem();
 	~CEventSystem();
@@ -118,7 +110,7 @@ public:
 
 	void LoadEvents();
 	void ProcessDevice(int HardwareID, uint64_t ulDevID, unsigned char unit, unsigned char devType, unsigned char subType, unsigned char signallevel, unsigned char batterylevel, int nValue,
-			   const char *sValue, const std::string &devname);
+			   const char *sValue);
 	void UpdateBatteryLevel(uint64_t ulDevID, unsigned char batteryLevel);
 
 	void RemoveSingleState(uint64_t ulDevID, _eReason reason);
@@ -130,7 +122,7 @@ public:
 	void GetCurrentScenesGroups();
 	void GetCurrentUserVariables();
 	bool UpdateSceneGroup(uint64_t ulDevID, int nValue, const std::string &lastUpdate);
-	void UpdateUserVariable(uint64_t ulDevID, const std::string &varValue, const std::string &lastUpdate);
+	void UpdateUserVariable(uint64_t ulDevID, const std::string& varname, const int eVartype, const std::string &varValue, const std::string &lastUpdate);
 	bool PythonScheduleEvent(const std::string &ID, const std::string &Action, const std::string &eventName);
 	bool GetEventTrigger(uint64_t ulDevID, _eReason reason, bool bEventTrigger);
 	void SetEventTrigger(uint64_t ulDevID, _eReason reason, float fDelayTime);
@@ -257,7 +249,6 @@ private:
 	std::map<std::string, float> m_winddirValuesByName;
 	std::map<std::string, float> m_windspeedValuesByName;
 	std::map<std::string, float> m_windgustValuesByName;
-	std::map<std::string, int>	 m_zwaveAlarmValuesByName;
 
 	std::map<uint64_t, float> m_tempValuesByID;
 	std::map<uint64_t, float> m_dewValuesByID;
@@ -271,7 +262,6 @@ private:
 	std::map<uint64_t, float> m_winddirValuesByID;
 	std::map<uint64_t, float> m_windspeedValuesByID;
 	std::map<uint64_t, float> m_windgustValuesByID;
-	std::map<uint64_t, int> m_zwaveAlarmValuesByID;
 
 	void reportMissingDevice(int deviceID, const _tEventItem &item);
 	int getSunRiseSunSetMinutes(const std::string &what);

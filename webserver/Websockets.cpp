@@ -35,7 +35,7 @@ namespace http {
 
 		std::string CWebsocketFrame::Create(opcodes opcode, const std::string &payload, bool domasking)
 		{
-			size_t_t payloadlen = payload.length();
+			size_t payloadlen = payload.length();
 			std::string res;
 			// byte 0
 			res += ((uint8_t)opcode | FIN_MASK);
@@ -158,7 +158,7 @@ namespace http {
 			return opcode;
 		};
 
-		CWebsocket::CWebsocket(boost::function<void(const std::string &packet_data)> _MyWrite, cWebem *_webEm, boost::function<void(const std::string &packet_data)> _WSWrite)
+		CWebsocket::CWebsocket(std::function<void(const std::string &packet_data)> _MyWrite, cWebem *_webEm, std::function<void(const std::string &packet_data)> _WSWrite)
 			: OUR_PING_ID("fd")
 			, handler(_webEm, std::move(_WSWrite))
 		{

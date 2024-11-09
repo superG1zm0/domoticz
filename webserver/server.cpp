@@ -3,15 +3,11 @@
 // ~~~~~~~~~~
 //
 #include "stdafx.h"
-#include <boost/bind/bind.hpp>
 #include "server.hpp"
 #include <fstream>
 #include "../main/Logger.h"
 #include "../main/Helper.h"
-#include "../main/localtime_r.h"
 #include "../main/mainworker.h"
-
-using namespace boost::placeholders;
 
 namespace http {
 namespace server {
@@ -35,7 +31,6 @@ namespace server {
 
 	void server_base::init(const init_connectionhandler_func &init_connection_handler, accept_handler_func accept_handler)
 	{
-
 		init_connection_handler();
 
 		if (!new_connection_)
@@ -97,7 +92,7 @@ void server_base::stop() {
 		// Rene, set is_running to false, because the following is an io_service call, which makes is_running
 		// never set to false whilst in the call itself
 		is_running = false;
-		io_service_.post(boost::bind(&server_base::handle_stop, this));
+		io_service_.post([this] { handle_stop(); });
 	} else {
 		// if io_service is not running then the post call will not be performed
 		handle_stop();
@@ -142,14 +137,14 @@ void server_base::heart_beat(const boost::system::error_code& error)
 
 		// Schedule next heartbeat
 		m_heartbeat_timer.expires_from_now(std::chrono::seconds(4));
-		m_heartbeat_timer.async_wait(boost::bind(&server_base::heart_beat, this, boost::asio::placeholders::error));
+		m_heartbeat_timer.async_wait([this](auto &&err) { heart_beat(err); });
 	}
 }
 
-server::server(const server_settings & settings, request_handler & user_request_handler) :
-		server_base(settings, user_request_handler) {
-	init(boost::bind(&server::init_connection, this),
-			boost::bind(&server::handle_accept, this, _1));
+server::server(const server_settings &settings, request_handler &user_request_handler)
+	: server_base(settings, user_request_handler)
+{
+	init([this] { init_connection(); }, [this](auto &&err) { handle_accept(err); });
 }
 
 void server::init_connection() {
@@ -165,45 +160,45 @@ void server::handle_accept(const boost::system::error_code& e) {
 		new_connection_.reset(new connection(io_service_,
 				connection_manager_, request_handler_, timeout_));
 		// listen for a subsequent request
-		acceptor_.async_accept(new_connection_->socket(),
-				boost::bind(&server::handle_accept, this,
-						boost::asio::placeholders::error));
+		acceptor_.async_accept(new_connection_->socket(), [this](auto &&err) { handle_accept(err); });
 	}
 }
 
 #ifdef WWW_ENABLE_SSL
-ssl_server::ssl_server(const ssl_server_settings & ssl_settings, request_handler & user_request_handler) :
-		server_base(ssl_settings, user_request_handler),
-		settings_(ssl_settings),
-		context_(ssl_settings.get_ssl_method())
+ssl_server::ssl_server(const ssl_server_settings &ssl_settings, request_handler &user_request_handler)
+	: server_base(ssl_settings, user_request_handler)
+	, settings_(ssl_settings)
+	, context_(ssl_settings.get_ssl_method())
 {
-	init(boost::bind(&ssl_server::init_connection, this),
-			boost::bind(&ssl_server::handle_accept, this, _1));
+	init([this] { init_connection(); }, [this](auto &&err) { handle_accept(err); });
 }
 
 // this constructor will send std::bad_cast exception if the settings argument is not a ssl_server_settings object
-ssl_server::ssl_server(const server_settings & settings, request_handler & user_request_handler) :
-		server_base(settings, user_request_handler),
-		settings_(dynamic_cast<ssl_server_settings const &>(settings)),
-		context_(dynamic_cast<ssl_server_settings const &>(settings).get_ssl_method()) {
-	init(boost::bind(&ssl_server::init_connection, this),
-			boost::bind(&ssl_server::handle_accept, this, _1));
+ssl_server::ssl_server(const server_settings &settings, request_handler &user_request_handler)
+	: server_base(settings, user_request_handler)
+	, settings_(dynamic_cast<ssl_server_settings const &>(settings))
+	, context_(dynamic_cast<ssl_server_settings const &>(settings).get_ssl_method())
+{
+	init([this] { init_connection(); }, [this](auto &&err) { handle_accept(err); });
 }
 
 void ssl_server::init_connection() {
-
-	new_connection_.reset(new connection(io_service_, connection_manager_, request_handler_, timeout_, context_));
-
 	// the following line gets the passphrase for protected private server keys
-	context_.set_password_callback(boost::bind(&ssl_server::get_passphrase, this));
+	context_.set_password_callback([this](auto &&...) { return get_passphrase(); });
 
 	if (settings_.ssl_options.empty()) {
 		_log.Log(LOG_ERROR, "[web:%s] missing SSL options parameter !", settings_.listening_port.c_str());
 	} else {
 		context_.set_options(settings_.get_ssl_options());
 	}
-	char cipher_list[] = "ECDH+AESGCM:DH+AESGCM:ECDH+AES256:DH+AES256:ECDH+AES128:DH+AES:RSA+AESGCM:RSA+AES:!aNULL:!MD5:!DSS";
+
+	const char* cipher_list = &settings_.cipher_list[0];
 	SSL_CTX_set_cipher_list(context_.native_handle(), cipher_list);
+	_log.Debug(DEBUG_WEBSERVER, "[web:%s] Enabled ciphers (TLSv1.2) %s", settings_.listening_port.c_str(), settings_.cipher_list.c_str());
+
+	SSL_CTX_set_min_proto_version(context_.native_handle(), TLS1_2_VERSION);
+	SSL_CTX_set_options(context_.native_handle(), SSL_OP_CIPHER_SERVER_PREFERENCE);
+	SSL_CTX_set_options(context_.native_handle(), SSL_OP_NO_RENEGOTIATION);
 
 	struct stat st;
 	if (settings_.certificate_chain_file_path.empty()) {
@@ -223,7 +218,6 @@ void ssl_server::init_connection() {
 	} else {
 		_log.Log(LOG_ERROR, "[web:%s] missing SSL certificate file %s!", settings_.listening_port.c_str(), settings_.cert_file_path.c_str());
 	}
-
 
 	if (settings_.private_key_file_path.empty()) {
 		_log.Log(LOG_ERROR, "[web:%s] missing SSL private key file parameter !", settings_.listening_port.c_str());
@@ -254,6 +248,7 @@ void ssl_server::init_connection() {
 			context_.set_verify_mode(verify_mode);
 		}
 	}
+
 	// Load DH parameters
 	if (settings_.tmp_dh_file_path.empty()) {
 		_log.Log(LOG_ERROR, "[web:%s] missing SSL DH file parameter", settings_.listening_port.c_str());
@@ -263,21 +258,20 @@ void ssl_server::init_connection() {
 		std::ifstream ifs(settings_.tmp_dh_file_path.c_str());
 		std::string content((std::istreambuf_iterator<char>(ifs)),
 				(std::istreambuf_iterator<char>()));
-		if (content.find("BEGIN DH PARAMETERS") != std::string::npos) {
+		if (content.find("DH PARAMETERS") != std::string::npos) {
 			context_.use_tmp_dh_file(settings_.tmp_dh_file_path);
-			//_log.DEBUG(DEBUG_WEBSERVER, "[web:%s] 'BEGIN DH PARAMETERS' found in file %s", settings_.listening_port.c_str(), settings_.tmp_dh_file_path.c_str());
+			_log.Debug(DEBUG_WEBSERVER, "[web:%s] 'DH PARAMETERS' found in file %s", settings_.listening_port.c_str(), settings_.tmp_dh_file_path.c_str());
 		} else {
 			_log.Log(LOG_ERROR, "[web:%s] missing SSL DH parameters from file %s", settings_.listening_port.c_str(), settings_.tmp_dh_file_path.c_str());
 		}
 	} else {
-		_log.Log(LOG_ERROR, "[web:%s] missing SSL DH parameters file %s!", settings_.listening_port.c_str(), settings_.certificate_chain_file_path.c_str());
+		_log.Log(LOG_ERROR, "[web:%s] missing SSL DH parameters file %s!", settings_.listening_port.c_str(), settings_.tmp_dh_file_path.c_str());
 	}
+	new_connection_.reset(new connection(io_service_, connection_manager_, request_handler_, timeout_, context_));
 }
 
 void ssl_server::reinit_connection()
 {
-	new_connection_.reset(new connection(io_service_, connection_manager_, request_handler_, timeout_, context_));
-
 	struct stat st;
 
 	if ((!settings_.certificate_chain_file_path.empty() &&
@@ -304,13 +298,14 @@ void ssl_server::reinit_connection()
 		std::ifstream ifs(settings_.tmp_dh_file_path.c_str());
 		std::string content((std::istreambuf_iterator<char>(ifs)),
 				(std::istreambuf_iterator<char>()));
-		if (content.find("BEGIN DH PARAMETERS") != std::string::npos) {
+		if (content.find("DH PARAMETERS") != std::string::npos) {
 			_log.Log(LOG_STATUS, "[web:%s] Reloading SSL DH parameters", settings_.listening_port.c_str());
 			context_.use_tmp_dh_file(settings_.tmp_dh_file_path);
 		} else {
 			_log.Log(LOG_ERROR, "[web:%s] missing SSL DH parameters from file %s", settings_.listening_port.c_str(), settings_.tmp_dh_file_path.c_str());
 		}
 	}
+	new_connection_.reset(new connection(io_service_, connection_manager_, request_handler_, timeout_, context_));
 }
 
 /**
@@ -321,9 +316,7 @@ void ssl_server::handle_accept(const boost::system::error_code& e) {
 		connection_manager_.start(new_connection_);
 		reinit_connection();
 		// listen for a subsequent request
-		acceptor_.async_accept(new_connection_->socket(),
-				boost::bind(&ssl_server::handle_accept, this,
-						boost::asio::placeholders::error));
+		acceptor_.async_accept(new_connection_->socket(), [this](auto &&err) { handle_accept(err); });
 	}
 }
 

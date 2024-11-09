@@ -3,7 +3,6 @@
 #include "../main/Logger.h"
 #include "../main/RFXtrx.h"
 #include "../main/Helper.h"
-#include "../main/localtime_r.h"
 #include "../main/mainworker.h"
 #include "../main/SQLHelper.h"
 #include "../main/json_helper.h"
@@ -25,17 +24,17 @@ CRtl433::CRtl433(const int ID, const std::string& cmdline) :
 	m_cmdline(cmdline)
 {
 	// Basic protection from malicious command line
-	removeCharsFromString(m_cmdline, ":;/$()`<>|&");
+	removeCharsFromString(m_cmdline, ";/$()`<>|&");
 	m_HwdID = ID;
 	/*
-		#ifdef _DEBUG
-			std::string line = "{\"time\" : \"2020-05-21 12:24:06.740469\", \"protocol\" : 12, \"model\" : \"Oregon-UVR128\", \"id\" : 155, \"uv\" : 5, \"battery_ok\" : 1, \"mod\" : \"ASK\", \"freq\" : 433.864, \"rssi\" : -0.100, \"snr\" : 15.669, \"noise\" : -15.769}";
-			if (!ParseJsonLine(line))
-			{
-				// this is also logged when parsed data is invalid
-				_log.Log(LOG_STATUS, "Rtl433: Unhandled sensor reading, please report: (%s)", line.c_str());
-			}
-		#endif
+			#ifdef _DEBUG
+				std::string line = "{\"time\" : \"2023-05-17 15:26:52\", \"model\" : \"Flowis\", \"id\" : 240259236, \"type\" : 1, \"volume_m3\" : 759.420, \"device_time\" : \"2055-05-17T15:19:32\", \"alarm\" : 0, \"backflow\" : 64, \"mic\" : \"CRC\", \"mod\" : \"FSK\", \"freq1\" : 867.960, \"freq2\" : 868.050, \"rssi\" : -0.129, \"snr\" : 26.218, \"noise\" : -26.346}";
+				if (!ParseJsonLine(line))
+				{
+					// this is also logged when parsed data is invalid
+					Log(LOG_STATUS, "Unhandled sensor reading, please report: (%s)", line.c_str());
+				}
+			#endif
 	*/
 }
 
@@ -43,7 +42,7 @@ bool CRtl433::StartHardware()
 {
 	RequestStart();
 
-	m_thread = std::make_shared<std::thread>(&CRtl433::Do_Work, this);
+	m_thread = std::make_shared<std::thread>([this] { Do_Work(); });
 	SetThreadNameInt(m_thread->native_handle());
 	m_bIsStarted = true;
 	sOnConnected(this);
@@ -67,7 +66,7 @@ bool CRtl433::StopHardware()
 
 bool CRtl433::ParseJsonLine(const std::string& sLine)
 {
-	std::map<std::string, std::string> _Field;
+	std::map<std::string, std::string> _Fields;
 	Json::Value root;
 
 	std::string errstr;
@@ -83,10 +82,10 @@ bool CRtl433::ParseJsonLine(const std::string& sLine)
 			{
 				std::string vname = root.getMemberNames()[ii];
 				std::string vvalue = root[root.getMemberNames()[ii]].asString();
-				_Field[vname] = vvalue;
+				_Fields[vname] = vvalue;
 			}
 		}
-		return ParseData(_Field);
+		return ParseData(_Fields);
 	}
 	return false;
 }
@@ -151,9 +150,21 @@ bool CRtl433::ParseData(std::map<std::string, std::string>& data)
 	bool haveUV = false;
 	float uvi = 0;
 
+	bool haveLux = false;
+	float lux = 0;
+
+	bool haveMeter = false;
+	float meter = 0;
+
 	int snr = 12;  // Set to show "-" if no snr is received. rtl_433 uses automatic gain, better to use SNR instead of RSSI to report received RF Signal quality
 
 	int code = 0;
+
+	if (FindField(data, "center_frequency"))
+	{
+		// Frequency hoping
+		return true;
+	}
 
 	if (FindField(data, "id"))
 	{
@@ -278,6 +289,21 @@ bool CRtl433::ParseData(std::map<std::string, std::string>& data)
 		uvi = (float)atof(data["uv"].c_str());
 		haveUV = true;
 	}
+	if (FindField(data, "light_klx"))
+	{
+		lux = ((float)atof(data["light_klx"].c_str())) * 1000;
+		haveLux = true;
+	}
+	if (FindField(data, "light_lux"))
+	{
+		lux = (float)atof(data["light_lux"].c_str());
+		haveLux = true;
+	}
+	if (FindField(data, "volume_m3"))
+	{
+		meter = (float)atof(data["volume_m3"].c_str());
+		haveMeter = true;
+	}
 	if (FindField(data, "snr"))
 	{
 		/* Map the received Signal to Noise Ratio to the domoticz RSSI 4-bit field that has range of 0-11 (12-15 display '-' in device tab).
@@ -343,6 +369,9 @@ bool CRtl433::ParseData(std::map<std::string, std::string>& data)
 
 
 	unsigned int sensoridx = (id & 0xff) | ((channel & 0xff) << 8);
+	if (model == "TFA-Drop") {
+		sensoridx = id;
+	}
 
 	if (haveTemp && haveHumidity)
 	{
@@ -395,7 +424,14 @@ bool CRtl433::ParseData(std::map<std::string, std::string>& data)
 	if (haveMoisture)
 	{
 		//moisture is in percentage
-		SendCustomSensor((uint8_t)sensoridx, (uint8_t)unit, batterylevel, static_cast<float>(moisture), model, "%", snr);
+		if (haveChannel)	// Channel is used to identify each sensor
+		{
+			SendCustomSensor((uint8_t)sensoridx, (uint8_t)channel, batterylevel, static_cast<float>(moisture), model, "%", snr);
+		}
+		else
+		{
+			SendCustomSensor((uint8_t)sensoridx, (uint8_t)unit, batterylevel, static_cast<float>(moisture), model, "%", snr);
+		}
 		//SendMoistureSensor(sensoridx, batterylevel, moisture, model, snr);
 		bHandled = true;
 	}
@@ -411,15 +447,25 @@ bool CRtl433::ParseData(std::map<std::string, std::string>& data)
 	}
 	if (haveEnergy && havePower)
 	{
-		//can remove this comment : _log.Log(LOG_STATUS, "Rtl433: : CM180 haveSequence(%d) sensoridx(%d) havePower(%d) haveEnergy(%d))", haveSequence, sensoridx, havePower, haveEnergy);
+		//can remove this comment : Log(LOG_STATUS, ": CM180 haveSequence(%d) sensoridx(%d) havePower(%d) haveEnergy(%d))", haveSequence, sensoridx, havePower, haveEnergy);
 		sensoridx = sensoridx + 1;
-		//can rmeove this comment : _log.Log(LOG_STATUS, "Rtl433: : CM180 sensoridx(%d) unit(%d) batterylevel(%d) power(%f) energy(%f) model(%s)", sensoridx, unit, batterylevel, power, energy, model.c_str());
+		//can rmeove this comment : Log(LOG_STATUS, ": CM180 sensoridx(%d) unit(%d) batterylevel(%d) power(%f) energy(%f) model(%s)", sensoridx, unit, batterylevel, power, energy, model.c_str());
 		SendKwhMeter(sensoridx, unit, batterylevel, power, energy, model, snr);
 		bHandled = true;
 	}
 	if (haveUV)
 	{
 		SendUVSensor((uint8_t)sensoridx, (uint8_t)unit, batterylevel, uvi, model, snr);
+		bHandled = true;
+	}
+	if (haveLux)
+	{
+		SendLuxSensor((uint8_t)sensoridx, (uint8_t)unit, batterylevel, lux, model);
+		bHandled = true;
+	}
+	if (haveMeter)
+	{
+		SendMeterSensor((uint8_t)sensoridx, (uint8_t)unit, batterylevel, meter, model);
 		bHandled = true;
 	}
 
@@ -550,9 +596,9 @@ void CRtl433::Do_Work()
 {
 	sleep_milliseconds(1000);
 	if (!m_cmdline.empty())
-		_log.Log(LOG_STATUS, "Rtl433: Worker started... (Extra Arguments: %s)", m_cmdline.c_str());
+		Log(LOG_STATUS, "Worker started... (Extra Arguments: %s)", m_cmdline.c_str());
 	else
-		_log.Log(LOG_STATUS, "Rtl433: Worker started...");
+		Log(LOG_STATUS, "Worker started...");
 
 	std::string szLastLine;
 	FILE* _hPipe = nullptr;
@@ -573,9 +619,9 @@ void CRtl433::Do_Work()
 			{
 				// sleep 30 seconds before retrying
 #ifdef WIN32
-				_log.Log(LOG_STATUS, "Rtl433: rtl_433 startup failed. Make sure it's properly installed. (%s)  https://cognito.me.uk/computers/rtl_433-windows-binary-32-bit)", szCommand.c_str());
+				Log(LOG_STATUS, "rtl_433 startup failed. Make sure it's properly installed. (%s)  https://cognito.me.uk/computers/rtl_433-windows-binary-32-bit)", szCommand.c_str());
 #else
-				_log.Log(LOG_STATUS, "Rtl433: rtl_433 startup failed. Make sure it's properly installed (%s). https://github.com/merbanan/rtl_433", szCommand.c_str());
+				Log(LOG_STATUS, "rtl_433 startup failed. Make sure it's properly installed (%s). https://github.com/merbanan/rtl_433", szCommand.c_str());
 #endif
 				for (int i = 0; i < 30; i++)
 				{
@@ -613,13 +659,13 @@ void CRtl433::Do_Work()
 					if (!ParseJsonLine(sLine))
 					{
 						// this is also logged when parsed data is invalid
-						_log.Log(LOG_STATUS, "Rtl433: Unhandled sensor reading, please report: (%s)", sLine.c_str());
+						Log(LOG_STATUS, "Unhandled sensor reading, please report: (%s)", sLine.c_str());
 					}
 				}
 			}
 #else
 			line[line_offset] = 0;
-			if (fgets(line + line_offset, sizeof(line) - 1 - line_offset, _hPipe) != nullptr)
+			if (fgets(line + line_offset, static_cast<int>(sizeof(line) - 1 - line_offset), _hPipe) != nullptr)
 			{
 				if ((line[strlen(line) - 1] != '\n') && (line[strlen(line) - 1] != '\r'))
 				{
@@ -645,7 +691,7 @@ void CRtl433::Do_Work()
 					if (!ParseJsonLine(sLine))
 					{
 						// this is also logged when parsed data is invalid
-						_log.Log(LOG_STATUS, "Rtl433: Unhandled sensor reading, please report: (%s)", sLine.c_str());
+						Log(LOG_STATUS, "Unhandled sensor reading, please report: (%s)", sLine.c_str());
 					}
 				}
 				line_offset = 0;
@@ -672,7 +718,7 @@ void CRtl433::Do_Work()
 				break;
 		}
 	} // while !IsStopRequested()
-	_log.Log(LOG_STATUS, "Rtl433: Worker stopped...");
+	Log(LOG_STATUS, "Worker stopped...");
 }
 
 bool CRtl433::WriteToHardware(const char* /*pdata*/, const unsigned char /*length*/)

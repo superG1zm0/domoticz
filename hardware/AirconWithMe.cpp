@@ -54,7 +54,7 @@ bool CAirconWithMe::StartHardware()
 	RequestStart();
 
 	//Start worker thread
-	m_thread = std::make_shared<std::thread>(&CAirconWithMe::Do_Work, this);
+	m_thread = std::make_shared<std::thread>([this] { Do_Work(); });
 	SetThreadNameInt(m_thread->native_handle());
 	m_bIsStarted = true;
 	sOnConnected(this);
@@ -78,7 +78,7 @@ bool CAirconWithMe::StopHardware()
 void CAirconWithMe::Do_Work()
 {
 	int countdown = mPollInterval;
-	_log.Log(LOG_STATUS, "AirconWithMe: Worker started...");
+	Log(LOG_STATUS, "Worker started...");
 	GetValues();
 	while (!IsStopRequested(1000))
 	{
@@ -93,7 +93,7 @@ void CAirconWithMe::Do_Work()
 			countdown = mPollInterval;
 		}
 	}
-	_log.Log(LOG_STATUS, "AirconWithMe: Worker stopped...");
+	Log(LOG_STATUS, "Worker stopped...");
 }
 
 
@@ -347,7 +347,7 @@ void CAirconWithMe::UpdateDomoticzWithValue(int32_t uid, int32_t value)
 		break;
 
 	case NDT_THERMOSTAT:
-		SendSetPointSensor(0, uid / 256, uid % 256, static_cast<float>(value) / 10.0F, valueInfo.mDefaultName);
+		SendSetPointSensor(0, 0, uid / 256, uid % 256, 1, static_cast<float>(value) / 10.0F, valueInfo.mDefaultName);
 		break;
 
 	case NDT_SELECTORSWITCH:
@@ -395,7 +395,7 @@ void CAirconWithMe::UpdateSelectorSwitch(const int32_t uid, const int32_t value,
 	m_mainworker.PushAndWaitRxMessage(this, (const unsigned char*)&xcmd, valueInfo.mDefaultName.c_str(), xcmd.battery_level, m_Name.c_str());
 	if (result.empty())
 	{
-		m_sql.safe_query("UPDATE DeviceStatus SET Name='%q', SwitchType=%d, CustomImage=%i WHERE(HardwareID == %d) AND (DeviceID == '%08X') AND (Unit == '%d')", valueInfo.mDefaultName.c_str(), (STYPE_Selector), 0, m_HwdID, xcmd.id, xcmd.unitcode);
+		m_sql.safe_query("UPDATE DeviceStatus SET Name='%q', SwitchType=%d, CustomImage=%i WHERE (HardwareID == %d) AND (DeviceID == '%08X') AND (Unit == '%d')", valueInfo.mDefaultName.c_str(), (STYPE_Selector), 0, m_HwdID, xcmd.id, xcmd.unitcode);
 		result = m_sql.safe_query("SELECT ID FROM DeviceStatus WHERE (HardwareID==%d) AND (DeviceID=='%08X') AND (Unit == '%d')", m_HwdID, xcmd.id, xcmd.unitcode);
 		if (!result.empty())
 		{
@@ -434,16 +434,16 @@ bool CAirconWithMe::WriteToHardware(const char* pdata, const unsigned char lengt
 
 		SendValueToAirco(uid, value);
 	}
-	else if (packettype == pTypeThermostat)
+	else if (packettype == pTypeSetpoint)
 	{
-		const _tThermostat* pThemostat = reinterpret_cast<const _tThermostat*>(pSen);
+		const _tSetpoint* pThemostat = reinterpret_cast<const _tSetpoint*>(pSen);
 		int32_t uid = pThemostat->id3 * 256 + pThemostat->id4;
 		if (_UIDMap.find(uid) == _UIDMap.end())
 			return false;
 		if (mDeviceInfo.find(uid) == mDeviceInfo.end())
 			return false;
 
-		int32_t value = static_cast<int32_t>(pThemostat->temp * 10);
+		int32_t value = static_cast<int32_t>(pThemostat->value * 10);
 		SendValueToAirco(uid, value);
 	}
 

@@ -23,7 +23,6 @@
 #include "../main/Logger.h"
 #include "hardwaretypes.h"
 #include "../main/SQLHelper.h"
-#include "../main/localtime_r.h"
 #include "../main/WebServer.h"
 #include <json/json.h>
 
@@ -197,61 +196,30 @@ void CEvohomeBase::SetGatewayID(unsigned int nID)
 }
 
 
-void CEvohomeBase::LogDate()
+unsigned int CEvohomeBase::GetOpenThermBridgeID()
 {
-        char szTmp[256];
-	time_t atime = mytime(nullptr);
-	struct tm ltime;
-	localtime_r(&atime, &ltime);
-
-	strftime(szTmp, 256, "%Y-%m-%d %H:%M:%S ", &ltime);
-	*m_pEvoLog << szTmp;
+	std::lock_guard<std::mutex> l(m_mtxOpenThermBridgeID);
+	return m_nOtbID;
 }
 
 
-void CEvohomeBase::Log(const char *szMsg, CEvohomeMsg &msg)
+void CEvohomeBase::SetOpenThermBridgeID(unsigned int nID)
 {
-	if(m_bDebug && m_pEvoLog)
-	{
-		LogDate();
-		*m_pEvoLog << szMsg;
-		*m_pEvoLog << " (";
-		for(int i=0;i<msg.payloadsize;i++)
-		{
-			unsigned char c = msg.payload[i];
-			if (c < 0x20 || c > 0x7E) c = '.';
-			*m_pEvoLog << c;
-		}
-		*m_pEvoLog << ")";
-		*m_pEvoLog << std::endl;
-	}
-}
-
-
-void CEvohomeBase::Log(bool bDebug, int nLogLevel, const char* format, ... )
-{
-        va_list argList;
-        char cbuffer[1024];
-        va_start(argList, format);
-        vsnprintf(cbuffer, 1024, format, argList);
-        va_end(argList);
-
-	if(!bDebug || m_bDebug)
-		_log.Log(static_cast<_eLogLevel>(nLogLevel), "%s", cbuffer);
-	if(m_bDebug && m_pEvoLog)
-	{
-		LogDate();
-		*m_pEvoLog << cbuffer;
-		*m_pEvoLog << std::endl;
-	}
+	std::lock_guard<std::mutex> l(m_mtxOpenThermBridgeID);
+	m_nOtbID=nID;
 }
 
 
 //Webserver helpers
 namespace http {
 	namespace server {
-		void CWebServer::RType_CreateEvohomeSensor(WebEmSession & session, const request& req, Json::Value &root)
+		void CWebServer::Cmd_CreateEvohomeSensor(WebEmSession & session, const request& req, Json::Value &root)
 		{
+			std::string Username = "Admin";
+			if (!session.username.empty())
+				Username = session.username;
+			std::string szUser = Username + " (IP: " + session.remote_host + ")";
+
 			if (session.rights != 2)
 			{
 				session.reply_status = reply::forbidden;
@@ -301,7 +269,7 @@ namespace http {
 					root["message"] = "Maximum number of controllers reached";
 					return;
 				}
-				m_sql.UpdateValue(HwdID, ID, 0, pTypeEvohome, sTypeEvohome, 10, 255, 0, "Normal", devname);
+				m_sql.UpdateValue(HwdID, 0, ID, 0, pTypeEvohome, sTypeEvohome, 10, 255, 0, "Normal", devname, true, "");
 				bCreated = true;
 				break;
 			case pTypeEvohomeZone://max of 12 zones
@@ -311,7 +279,7 @@ namespace http {
 					root["message"] = "Maximum number of supported zones reached";
 					return;
 				}
-				m_sql.UpdateValue(HwdID, ID, (uint8_t)nDevCount + 1, pTypeEvohomeZone, sTypeEvohomeZone, 10, 255, 0, "0.0;0.0;Auto", devname);
+				m_sql.UpdateValue(HwdID, 0, ID, (uint8_t)nDevCount + 1, pTypeEvohomeZone, sTypeEvohomeZone, 10, 255, 0, "0.0;0.0;Auto", devname, true, "");
 				bCreated = true;
 				break;
 			case pTypeEvohomeWater://DHW...should be 1 per hardware
@@ -321,7 +289,7 @@ namespace http {
 					root["message"] = "Maximum number of DHW zones reached";
 					return;
 				}
-				m_sql.UpdateValue(HwdID, ID, 1, pTypeEvohomeWater, sTypeEvohomeWater, 10, 255, 50, "0.0;Off;Auto", devname);
+				m_sql.UpdateValue(HwdID, 0, ID, 1, pTypeEvohomeWater, sTypeEvohomeWater, 10, 255, 50, "0.0;Off;Auto", devname, true, "");
 				bCreated = true;
 				break;
 			}

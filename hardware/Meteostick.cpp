@@ -9,19 +9,13 @@
 #include <string>
 #include <algorithm>
 #include <iostream>
-#include <boost/bind/bind.hpp>
-#include "../main/localtime_r.h"
 #include "../main/mainworker.h"
 
 #include <ctime>
 
-using namespace boost::placeholders;
-
 #define RETRY_DELAY 30
 
-#define round(a) ( int ) ( a + .5 )
-
-#define USE_868_Mhz
+#define USE_868_MHz
 #define RAIN_IN_MM
 
 
@@ -50,7 +44,7 @@ bool Meteostick::StartHardware()
 
 	m_retrycntr = RETRY_DELAY; //will force reconnect first thing
 
-	m_thread = std::make_shared<std::thread>(&Meteostick::Do_Work, this);
+	m_thread = std::make_shared<std::thread>([this] { Do_Work(); });
 	SetThreadNameInt(m_thread->native_handle());
 
 	return true;
@@ -73,7 +67,7 @@ bool Meteostick::OpenSerialDevice()
 	//Try to open the Serial Port
 	try
 	{
-		_log.Log(LOG_STATUS, "Meteostick: Using serial port: %s", m_szSerialPort.c_str());
+		Log(LOG_STATUS, "Using serial port: %s", m_szSerialPort.c_str());
 		open(
 			m_szSerialPort,
 			m_iBaudRate,
@@ -83,9 +77,9 @@ bool Meteostick::OpenSerialDevice()
 	}
 	catch (boost::exception & e)
 	{
-		_log.Log(LOG_ERROR, "Meteostick:Error opening serial port!");
+		Log(LOG_ERROR, "Meteostick:Error opening serial port!");
 #ifdef _DEBUG
-		_log.Log(LOG_ERROR, "-----------------\n%s\n-----------------", boost::diagnostic_information(e).c_str());
+		Log(LOG_ERROR, "-----------------\n%s\n-----------------", boost::diagnostic_information(e).c_str());
 #else
 		(void)e;
 #endif
@@ -93,7 +87,7 @@ bool Meteostick::OpenSerialDevice()
 	}
 	catch (...)
 	{
-		_log.Log(LOG_ERROR, "Meteostick:Error opening serial port!!!");
+		Log(LOG_ERROR, "Meteostick:Error opening serial port!!!");
 		return false;
 	}
 	m_state = MSTATE_INIT;
@@ -107,7 +101,7 @@ bool Meteostick::OpenSerialDevice()
 		m_ActRainCounter[ii]	= -1;
 		m_LastRainValue[ii]		= -1;
 	}
-	setReadCallback(boost::bind(&Meteostick::readCallback, this, _1, _2));
+	setReadCallback([this](auto d, auto l) { readCallback(d, l); });
 	sOnConnected(this);
 	return true;
 }
@@ -128,7 +122,7 @@ void Meteostick::Do_Work()
 		{
 			if (m_retrycntr == 0)
 			{
-				_log.Log(LOG_STATUS, "Meteostick: serial setup retry in %d seconds...", RETRY_DELAY);
+				Log(LOG_STATUS, "serial setup retry in %d seconds...", RETRY_DELAY);
 			}
 			m_retrycntr++;
 			if (m_retrycntr >= RETRY_DELAY)
@@ -140,7 +134,7 @@ void Meteostick::Do_Work()
 	}
 	terminate();
 
-	_log.Log(LOG_STATUS, "Meteostick: Worker stopped...");
+	Log(LOG_STATUS, "Worker stopped...");
 }
 
 
@@ -215,14 +209,14 @@ void Meteostick::SendWindSensor(const unsigned char Idx, const float Temp, const
 	tsen.WIND.id1 = 0;
 	tsen.WIND.id2 = Idx;
 
-	int aw = round(Direction);
+	int aw = ground(Direction);
 	tsen.WIND.directionh = (BYTE)(aw / 256);
 	aw -= (tsen.WIND.directionh * 256);
 	tsen.WIND.directionl = (BYTE)(aw);
 
 	tsen.WIND.av_speedh = 0;
 	tsen.WIND.av_speedl = 0;
-	int sw = round(Speed * 10.0F);
+	int sw = ground(Speed * 10.0F);
 	tsen.WIND.av_speedh = (BYTE)(sw / 256);
 	sw -= (tsen.WIND.av_speedh * 256);
 	tsen.WIND.av_speedl = (BYTE)(sw);
@@ -291,7 +285,7 @@ void Meteostick::ParseLine()
 	{
 	case MSTATE_INIT:
 		if (sLine.find("# MeteoStick Version") == 0) {
-			_log.Log(LOG_STATUS, sLine);
+			Log(LOG_STATUS, sLine);
 			return;
 		}
 		if (results[0] == "?")
@@ -307,11 +301,11 @@ void Meteostick::ParseLine()
 		m_state = MSTATE_VALUES;
 		return;
 	case MSTATE_VALUES:
-#ifdef USE_868_Mhz
-		//Set listen frequency to 868Mhz
+#ifdef USE_868_MHz
+		//Set listen frequency to 868MHz
 		write("m1\n");
 #else
-		//Set listen frequency to 915Mhz
+		//Set listen frequency to 915MHz
 		write("m0\n");
 #endif
 		m_state = MSTATE_DATA;
@@ -329,7 +323,7 @@ void Meteostick::ParseLine()
 		return;
 
 //#ifdef _DEBUG
-	_log.Log(LOG_NORM, sLine);
+	Log(LOG_NORM, sLine);
 //#endif
 
 	switch (rCode)
@@ -469,7 +463,7 @@ void Meteostick::ParseLine()
 		}
 		break;
 	default:
-		_log.Log(LOG_STATUS, "Unknown Type: %c", rCode);
+		Log(LOG_STATUS, "Unknown Type: %c", rCode);
 		break;
 	}
 

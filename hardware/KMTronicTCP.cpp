@@ -3,7 +3,6 @@
 #include "../main/Logger.h"
 #include "../main/Helper.h"
 #include <iostream>
-#include "../main/localtime_r.h"
 #include "../main/mainworker.h"
 #include "../httpclient/HTTPClient.h"
 #include "../httpclient/UrlEncode.h"
@@ -53,7 +52,7 @@ bool KMTronicTCP::StartHardware()
 
 	Init();
 	//Start worker thread
-	m_thread = std::make_shared<std::thread>(&KMTronicTCP::Do_Work, this);
+	m_thread = std::make_shared<std::thread>([this] { Do_Work(); });
 	SetThreadNameInt(m_thread->native_handle());
 	m_bIsStarted = true;
 	sOnConnected(this);
@@ -75,7 +74,7 @@ bool KMTronicTCP::StopHardware()
 void KMTronicTCP::Do_Work()
 {
 	int sec_counter = KMTRONIC_POLL_INTERVAL - 2;
-	_log.Log(LOG_STATUS, "KMTronic: TCP/IP Worker started...");
+	Log(LOG_STATUS, "TCP/IP Worker started...");
 	while (!IsStopRequested(1000))
 	{
 		sec_counter++;
@@ -93,7 +92,7 @@ void KMTronicTCP::Do_Work()
 			GetMeterDetails();
 		}
 	}
-	_log.Log(LOG_STATUS, "KMTronic: TCP/IP Worker stopped...");
+	Log(LOG_STATUS, "Worker stopped...");
 }
 
 bool KMTronicTCP::WriteToHardware(const char *pdata, const unsigned char /*length*/)
@@ -137,7 +136,7 @@ bool KMTronicTCP::WriteToHardware(const char *pdata, const unsigned char /*lengt
 		std::string sResult;
 		if (!HTTPClient::GET(szURL.str(), sResult,true))
 		{
-			_log.Log(LOG_ERROR, "KMTronic: Error sending relay command to: %s", m_szIPAddress.c_str());
+			Log(LOG_ERROR, "Error sending relay command to: %s", m_szIPAddress.c_str());
 			return false;
 		}
 		return true;
@@ -191,7 +190,7 @@ void KMTronicTCP::GetMeterDetails()
 		}
 		if (sResult.empty())
 		{
-			_log.Log(LOG_ERROR, "KMTronic: Error connecting to: %s", m_szIPAddress.c_str());
+			Log(LOG_ERROR, "Error connecting to: %s", m_szIPAddress.c_str());
 			return;
 		}
 	}
@@ -211,7 +210,7 @@ void KMTronicTCP::ParseRelays(const std::string &sResult)
 	StringSplit(sResult, "\r\n", results);
 	if (results.size() < 8)
 	{
-		_log.Log(LOG_ERROR, "KMTronic: Invalid data received");
+		Log(LOG_ERROR, "Invalid data received");
 		return;
 	}
 	size_t ii, jj;
@@ -227,7 +226,7 @@ void KMTronicTCP::ParseRelays(const std::string &sResult)
 			{
 				bool bIsOn = (tmpstr[jj] != '0');
 				std::stringstream sstr;
-				int iRelay = (jj + 1);
+				int iRelay = static_cast<int>(jj + 1);
 				sstr << "Relay " << iRelay;
 				SendSwitch(iRelay, 1, 255, bIsOn, 0, sstr.str(), m_Name);
 				if (iRelay > m_TotRelais)
@@ -236,7 +235,7 @@ void KMTronicTCP::ParseRelays(const std::string &sResult)
 			return;
 		}
 	}
-	_log.Log(LOG_ERROR, "KMTronic: Invalid data received");
+	Log(LOG_ERROR, "Invalid data received");
 }
 
 void KMTronicTCP::ParseTemps(const std::string &sResult)
@@ -245,7 +244,7 @@ void KMTronicTCP::ParseTemps(const std::string &sResult)
 	StringSplit(sResult, "\r\n", results);
 	if (results.size() < 8)
 	{
-		_log.Log(LOG_ERROR, "KMTronic: Invalid data received");
+		Log(LOG_ERROR, "Invalid data received");
 		return;
 	}
 	size_t ii;

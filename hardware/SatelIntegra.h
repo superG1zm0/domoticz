@@ -71,7 +71,7 @@ class SatelIntegra : public CDomoticzHardwareBase
 	int m_modelIndex;
 	bool m_data32;
 	sockaddr_in m_addr;
-	int m_socket;
+	SOCKET m_socket;
 	const unsigned short m_IPPort;
 	const std::string m_IPAddress;
 	int m_pollInterval;
@@ -84,12 +84,12 @@ class SatelIntegra : public CDomoticzHardwareBase
 	unsigned char m_userCode[8];
 
 	// TODO maybe create dynamic array ?
-	bool m_zonesLastState[256];
-	bool m_outputsLastState[256];
-	bool m_isOutputSwitch[256];
-	bool m_isTemperature[256];
-	bool m_isPartitions[32];
-	bool m_armLastState[32];
+	std::array<bool, 256> m_zonesLastState;
+	std::array<bool, 256> m_outputsLastState;
+	std::array<bool, 256> m_isOutputSwitch;
+	std::array<bool, 256> m_isTemperature;
+	std::array<bool, 32> m_isPartitions;
+	std::array<bool, 32> m_armLastState;
 
 	// thread-safe for read and write
 	std::mutex m_mutex;

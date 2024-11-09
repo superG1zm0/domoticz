@@ -48,7 +48,7 @@ struct REGULAR_INCOMING_BINARY_USB_FRAME
  *
 Binary Data[]	Size	Type	Remark
 FrameType	1	unsigned char	Value = 0
-DataFlag	1	unsigned char	0: 433Mhz, 1: 868Mhz
+DataFlag	1	unsigned char	0: 433MHz, 1: 868MHz
 RFLevel	1	signed char	Unit : dB  (high signal :-40dB to low : -110dB)
 FloorNoise	1	signed char	Unit : dB  (high signal :-40dB to low : -110dB)
 Protocol	1	unsigned char	See below
@@ -61,7 +61,7 @@ InfosType	1	unsigned char	See below
 /*
 Binary Data[]	Size	Type	Remark
 FrameType	1	unsigned char	Value = 0
-DataFlag	1	unsigned char	0: 433Mhz, 1: 868Mhz
+DataFlag	1	unsigned char	0: 433MHz, 1: 868MHz
 RFLevel	1	signed char	Unit : dB  (high signal :-40dB to low : -110dB)
 FloorNoise	1	signed char	Unit : dB  (high signal :-40dB to low : -110dB)
 RFQuality	1	unsigned char
@@ -106,6 +106,7 @@ upon context	LSB first. Define provided data by the device
 #define SEND_OREGON_PROTOCOLV3_433 20 /* not reachable by API */
 #define SEND_TIC_433 21 /* not reachable by API */
 #define SEND_FS20_868 22
+#define SEND_EDISIO 23
 
 /* ***************************************** */
 #define RECEIVED_PROTOCOL_UNDEFINED 0
@@ -123,6 +124,8 @@ upon context	LSB first. Define provided data by the device
 #define RECEIVED_PROTOCOL_DIGIMAX 12 /* deprecated */
 #define RECEIVED_PROTOCOL_TIC 13
 #define RECEIVED_PROTOCOL_FS20 14
+#define RECEIVED_PROTOCOL_JAMMING 15
+#define RECEIVED_PROTOCOL_EDISIO 16
 
 #define REGULAR_INCOMING_RF_BINARY_USB_FRAME_INFOS_WORDS_NUMBER 10
 
@@ -141,6 +144,7 @@ upon context	LSB first. Define provided data by the device
 #define INFOS_TYPE12 12 /* deprecated */
 #define INFOS_TYPE13 13
 #define INFOS_TYPE14 14
+#define INFOS_TYPE15 15
 
 struct INCOMING_RF_INFOS_TYPE0
 { // used by X10 / Domia Lite protocols
@@ -148,7 +152,7 @@ struct INCOMING_RF_INFOS_TYPE0
 	unsigned short id;
 };
 struct INCOMING_RF_INFOS_TYPE1
-{ // Used by X10 (32 bits ID) and CHACON
+{ // Used by X10 (32 bits ID), CHACON, JAMMING
 	unsigned short subtype;
 	unsigned short idLsb;
 	unsigned short idMsb;
@@ -302,13 +306,23 @@ struct INCOMING_RF_INFOS_TYPE14
 	unsigned short idMsb;
 	unsigned short qualifier;
 };
+
+struct INCOMING_RF_INFOS_TYPE15
+{ // Used by EDISIO
+	unsigned short subtype; // Command field
+	unsigned short idLsb;
+	unsigned short idMsb;
+	unsigned short qualifier; // channel identifier
+	unsigned short infos;	  // MID (D0-D7): Model field, BL (D8-D15): Battery level (1/10V)
+	uint32_t additionalData;
+};
 /* *************************************************************************** */
 
 struct REGULAR_INCOMING_RF_TO_BINARY_USB_FRAME_HEADER
 {				 // public binary API   RF to USB
 	unsigned char frameType; // Value = 0
 	unsigned char cluster;	 // cluster origin. Reserved field
-	unsigned char dataFlag;	 // 0: 433Mhz, 1: 868Mhz
+	unsigned char dataFlag;	 // 0: 433Mhz, 1: 868MHz
 	signed char rfLevel;	 // Unit : dBm  (high signal :-40dBm to low : -110dB)
 	signed char floorNoise;	 // Unit : dBm  (high signal :-40dBm to low : -110dB)
 	unsigned char rfQuality; // factor or receiving quality : 1...10 : 1 : worst quality, 10 : best quality
@@ -334,5 +348,8 @@ struct REGULAR_INCOMING_RF_TO_BINARY_USB_FRAME
 		struct INCOMING_RF_INFOS_TYPE10 type10;
 		struct INCOMING_RF_INFOS_TYPE11 type11;
 		struct INCOMING_RF_INFOS_TYPE12 type12;
+		struct INCOMING_RF_INFOS_TYPE13 type13;
+		struct INCOMING_RF_INFOS_TYPE14 type14;
+		struct INCOMING_RF_INFOS_TYPE15 type15;
 	} infos;
 } sREGULAR_INCOMING_RF_TO_BINARY_USB_FRAME;

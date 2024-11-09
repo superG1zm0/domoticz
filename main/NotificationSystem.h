@@ -1,11 +1,9 @@
 #pragma once
 
 #include <string>
-#include <boost/thread/shared_mutex.hpp>
+#include <mutex>
 
-#include "concurrent_queue.h"
 #include "NotificationObserver.h"
-#include "StoppableTask.h"
 
 class CNotificationSystem: public StoppableTask
 {
@@ -43,8 +41,8 @@ private:
 	void QueueThread();
 	void UnlockNotificationQueueThread();
 
-	volatile bool m_stoprequested;
-	boost::shared_mutex m_mutex;
+	volatile bool m_stoprequested = false;
+	std::mutex m_mutex;
 	std::vector<CNotificationObserver*> m_notifiers;
 	concurrent_queue<_tNotificationQueue> m_notificationqueue;
 	std::shared_ptr<std::thread> m_pQueueThread;

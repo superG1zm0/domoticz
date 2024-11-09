@@ -3,7 +3,6 @@
 #include "../main/Logger.h"
 #include "../main/Helper.h"
 #include <iostream>
-#include "../main/localtime_r.h"
 
 #define S0METER_RETRY_DELAY 30
 
@@ -28,7 +27,7 @@ bool S0MeterTCP::StartHardware()
 	ReloadLastTotals();
 
 	//Start worker thread
-	m_thread = std::make_shared<std::thread>(&S0MeterTCP::Do_Work, this);
+	m_thread = std::make_shared<std::thread>([this] { Do_Work(); });
 	SetThreadNameInt(m_thread->native_handle());
 	return (m_thread != nullptr);
 }
@@ -47,7 +46,7 @@ bool S0MeterTCP::StopHardware()
 
 void S0MeterTCP::OnConnect()
 {
-	_log.Log(LOG_STATUS,"S0 Meter: connected to: %s:%d", m_szIPAddress.c_str(), m_usIPPort);
+	Log(LOG_STATUS,"Connected to: %s:%d", m_szIPAddress.c_str(), m_usIPPort);
 	m_bIsStarted=true;
 	m_bufferpos = 0;
 	sOnConnected(this);
@@ -55,13 +54,13 @@ void S0MeterTCP::OnConnect()
 
 void S0MeterTCP::OnDisconnect()
 {
-	_log.Log(LOG_STATUS,"S0 Meter: disconnected");
+	Log(LOG_STATUS,"Disconnected");
 }
 
 void S0MeterTCP::Do_Work()
 {
 	int sec_counter = 0;
-	_log.Log(LOG_ERROR, "S0 Meter: trying to connect to %s:%d", m_szIPAddress.c_str(), m_usIPPort);
+	Log(LOG_ERROR, "Trying to connect to %s:%d", m_szIPAddress.c_str(), m_usIPPort);
 	connect(m_szIPAddress,m_usIPPort);
 	while (!IsStopRequested(1000))
 	{
@@ -73,7 +72,7 @@ void S0MeterTCP::Do_Work()
 	}
 	terminate();
 
-	_log.Log(LOG_STATUS,"S0 Meter: TCP/IP Worker stopped...");
+	Log(LOG_STATUS,"Worker stopped...");
 }
 
 bool S0MeterTCP::WriteToHardware(const char *pdata, const unsigned char length)
@@ -83,7 +82,7 @@ bool S0MeterTCP::WriteToHardware(const char *pdata, const unsigned char length)
 
 void S0MeterTCP::OnData(const unsigned char *pData, size_t length)
 {
-	ParseData((const unsigned char*)pData,length);
+	ParseData((const unsigned char*)pData,static_cast<int>(length));
 }
 
 void S0MeterTCP::OnError(const boost::system::error_code& error)
@@ -96,17 +95,17 @@ void S0MeterTCP::OnError(const boost::system::error_code& error)
 		(error == boost::asio::error::timed_out)
 		)
 	{
-		_log.Log(LOG_ERROR, "S0 Meter: Can not connect to: %s:%d", m_szIPAddress.c_str(), m_usIPPort);
+		Log(LOG_ERROR, "Can not connect to: %s:%d", m_szIPAddress.c_str(), m_usIPPort);
 	}
 	else if (
 		(error == boost::asio::error::eof) ||
 		(error == boost::asio::error::connection_reset)
 		)
 	{
-		_log.Log(LOG_STATUS, "S0 Meter: Connection reset!");
+		Log(LOG_STATUS, "Connection reset!");
 	}
 	else
-		_log.Log(LOG_ERROR, "S0 Meter: %s", error.message().c_str());
+		Log(LOG_ERROR, "%s", error.message().c_str());
 }
 
 bool S0MeterTCP::WriteInt(const std::string &sendString)

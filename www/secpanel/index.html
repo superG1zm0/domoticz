@@ -10,7 +10,7 @@
 	<title>Domoticz Security Panel</title>
 	<link rel="stylesheet" href="css/style.css">
 	<script src="js/ion.sound.min.js"></script>
-	<script src="../js/jquery-3.5.1.min.js"></script>
+	<script src="../js/jquery-3.6.0.min.js"></script>
 	<script src="../js/i18next-1.8.0.min.js"></script>
 	<script src="../js/domoticz.js"></script>
 	<script src="../js/md5.js"></script>
@@ -134,7 +134,7 @@
 		function ArmDelay() {
 			var secondelay=0;
 			$.ajax({
-				url: "../json.htm?type=settings",
+				url: "../json.htm?type=command&param=getsettings",
 				async: false,
 				dataType: 'json',
 				success: function(data) {
@@ -270,7 +270,7 @@
 		}
 		$(document).ready(function() {
 			$.ajax({
-				 url: "../json.htm?type=command&param=getlanguage",
+				 url: "../json.htm?type=command&param=getlanguages",
 				 async: false,
 				 dataType: 'json',
 				 success: function(data) {

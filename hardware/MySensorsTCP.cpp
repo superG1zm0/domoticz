@@ -3,12 +3,11 @@
 #include "../main/Logger.h"
 #include "../main/Helper.h"
 #include <iostream>
-#include "../main/localtime_r.h"
 #include "../main/mainworker.h"
 
 #define RETRY_DELAY 30
 
-MySensorsTCP::MySensorsTCP(const int ID, const std::string &IPAddress, const unsigned short usIPPort)
+MySensorsTCP::MySensorsTCP(const int ID, const std::string& IPAddress, const unsigned short usIPPort)
 	: m_retrycntr(RETRY_DELAY)
 	, m_szIPAddress(IPAddress)
 	, m_usIPPort(usIPPort)
@@ -29,7 +28,7 @@ bool MySensorsTCP::StartHardware()
 	m_bIsStarted = true;
 
 	//Start worker thread
-	m_thread = std::make_shared<std::thread>(&MySensorsTCP::Do_Work, this);
+	m_thread = std::make_shared<std::thread>([this] { Do_Work(); });
 	SetThreadNameInt(m_thread->native_handle());
 	StartSendQueue();
 	return (m_thread != nullptr);
@@ -50,7 +49,7 @@ bool MySensorsTCP::StopHardware()
 
 void MySensorsTCP::OnConnect()
 {
-	_log.Log(LOG_STATUS, "MySensors: connected to: %s:%d", m_szIPAddress.c_str(), m_usIPPort);
+	Log(LOG_STATUS, "Connected to: %s:%d", m_szIPAddress.c_str(), m_usIPPort);
 	m_bIsStarted = true;
 	m_LineReceived.clear();
 
@@ -63,13 +62,13 @@ void MySensorsTCP::OnConnect()
 
 void MySensorsTCP::OnDisconnect()
 {
-	_log.Log(LOG_STATUS, "MySensors: disconnected");
+	Log(LOG_STATUS, "Disconnected");
 }
 
 void MySensorsTCP::Do_Work()
 {
 	int sec_counter = 0;
-	_log.Log(LOG_STATUS, "MySensors: trying to connect to: %s:%d", m_szIPAddress.c_str(), m_usIPPort);
+	Log(LOG_STATUS, "Trying to connect to: %s:%d", m_szIPAddress.c_str(), m_usIPPort);
 	connect(m_szIPAddress, m_usIPPort);
 	while (!IsStopRequested(1000))
 	{
@@ -91,12 +90,12 @@ void MySensorsTCP::Do_Work()
 	}
 	terminate();
 
-	_log.Log(LOG_STATUS, "MySensors: TCP/IP Worker stopped...");
+	Log(LOG_STATUS, "Worker stopped...");
 }
 
-void MySensorsTCP::OnData(const unsigned char *pData, size_t length)
+void MySensorsTCP::OnData(const unsigned char* pData, size_t length)
 {
-	ParseData(pData, length);
+	ParseData(pData, (int)length);
 }
 
 void MySensorsTCP::OnError(const boost::system::error_code& error)
@@ -109,20 +108,20 @@ void MySensorsTCP::OnError(const boost::system::error_code& error)
 		(error == boost::asio::error::timed_out)
 		)
 	{
-		_log.Log(LOG_ERROR, "MySensors: Can not connect to: %s:%d", m_szIPAddress.c_str(), m_usIPPort);
+		Log(LOG_ERROR, "Can not connect to: %s:%d", m_szIPAddress.c_str(), m_usIPPort);
 	}
 	else if (
 		(error == boost::asio::error::eof) ||
 		(error == boost::asio::error::connection_reset)
 		)
 	{
-		_log.Log(LOG_STATUS, "MySensors: Connection reset!");
+		Log(LOG_STATUS, "Connection reset!");
 	}
 	else
-		_log.Log(LOG_ERROR, "MySensors: %s", error.message().c_str());
+		Log(LOG_ERROR, "%s", error.message().c_str());
 }
 
-void MySensorsTCP::WriteInt(const std::string &sendStr)
+void MySensorsTCP::WriteInt(const std::string& sendStr)
 {
 	if (!isConnected())
 	{

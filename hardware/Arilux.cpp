@@ -3,7 +3,6 @@
 #include "../hardware/hardwaretypes.h"
 #include "../main/Helper.h"
 #include "../main/HTMLSanitizer.h"
-#include "../main/localtime_r.h"
 #include "../main/Logger.h"
 #include "../main/mainworker.h"
 #include "../main/SQLHelper.h"
@@ -41,7 +40,7 @@ bool Arilux::StartHardware()
 	m_bIsStarted = true;
 
 	//Start worker thread
-	m_thread = std::make_shared<std::thread>(&Arilux::Do_Work, this);
+	m_thread = std::make_shared<std::thread>([this] { Do_Work(); });
 	SetThreadNameInt(m_thread->native_handle());
 
 	return (m_thread != nullptr);
@@ -100,7 +99,7 @@ void Arilux::InsertUpdateSwitch(const std::string &lightName, const int subType,
 		ycmd.value = 0;
 		ycmd.command = Color_LedOff;
 		m_mainworker.PushAndWaitRxMessage(this, (const unsigned char *)&ycmd, nullptr, -1, m_Name.c_str());
-		m_sql.safe_query("UPDATE DeviceStatus SET Name='%q', switchType=%d WHERE(HardwareID == %d) AND (DeviceID == '%q')", lightName.c_str(), STYPE_Dimmer, m_HwdID, szDeviceID);
+		m_sql.safe_query("UPDATE DeviceStatus SET Name='%q', switchType=%d WHERE (HardwareID == %d) AND (DeviceID == '%q')", lightName.c_str(), STYPE_Dimmer, m_HwdID, szDeviceID);
 	}
 }
 
@@ -221,8 +220,12 @@ namespace http {
 
 			int HwdID = atoi(idx.c_str());
 
+			// stype values aligned to ColorSwitch.h enum values in Hardware.html
+			int subtype = std::stoi(stype);
+			if ( (subtype <= 0) || (subtype > 8) ) subtype = 1;
+
 			Arilux Arilux(HwdID);
-			Arilux.InsertUpdateSwitch(sname, (stype == "0") ? sTypeColor_RGB : sTypeColor_RGB_W_Z, sipaddress);
+			Arilux.InsertUpdateSwitch(sname, subtype, sipaddress);
 		}
 	} // namespace server
 } // namespace http

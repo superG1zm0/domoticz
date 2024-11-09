@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <title>MyWeatherView</title> 
 <link href='http://fonts.googleapis.com/css?family=Orbitron:700' rel='stylesheet' type='text/css'>
-<script src="http://code.jquery.com/jquery-3.5.1.min.js"></script>
+<script src="http://code.jquery.com/jquery-3.6.0.min.js"></script>
 <style>
 div#cnt {
 	width: 990px;
@@ -135,7 +135,7 @@ a:hover { text-decoration: none; color: #003366; }
 
 <div>
 <div id="frame">
-	<div id="mode" style="font-size:40px;;color:#3333cc;">--</div>
+	<div id="mode" style="font-size:40px;color:#3333cc;">--</div>
 	<div id="label_lg">Water Today (ltr)</div>
 </div>
 <div id="frame">
@@ -203,7 +203,7 @@ a:hover { text-decoration: none; color: #003366; }
 function RefreshData()
 {
 	clearInterval($.refreshTimer);
-	var jurl=$.domoticzurl+"/json.htm?type=devices&plan="+$.roomplan+"&jsoncallback=?";
+	var jurl=$.domoticzurl+"/json.htm?type=command&param=getdevices&plan="+$.roomplan;
 	$.getJSON(jurl,
 	{
 		format: "json"

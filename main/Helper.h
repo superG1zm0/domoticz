@@ -3,6 +3,8 @@
 #include <string>
 #include <map>
 
+#define ground(a) (int)(a + .5)
+
 enum _eTimeFormat
 {
 	TF_Time = 0,	// 0
@@ -11,7 +13,12 @@ enum _eTimeFormat
 	TF_DateTimeMs	// 3
 };
 
-unsigned int Crc32(unsigned int crc, const unsigned char* buf, size_t size);
+const std::string WHITESPACE = " \n\r\t\f\v";
+
+uint8_t Crc8(uint8_t crc, const uint8_t* buf, size_t size);
+uint16_t crc16ccitt(const uint8_t* buf, size_t size);
+unsigned int Crc32(unsigned int crc, const uint8_t* buf, size_t size);
+uint8_t Crc8_strMQ(uint8_t crc, const uint8_t* buf, size_t size);
 void StringSplit(std::string str, const std::string &delim, std::vector<std::string> &results);
 uint64_t hexstrtoui64(const std::string &str);
 std::string ToHexString(const uint8_t *pSource, size_t length);
@@ -20,10 +27,32 @@ void stdreplace(
 	std::string &inoutstring,
 	const std::string& replaceWhat,
 	const std::string& replaceWithWhat);
+bool std_ends_with(const std::string& str, const std::string& suffix);
 void stdupper(std::string& inoutstring);
 void stdlower(std::string& inoutstring);
 void stdupper(std::wstring& inoutstring);
 void stdlower(std::wstring& inoutstring);
+
+std::string utf8_to_string(const std::string &utf8str);
+std::wstring utf8_to_wstring(const std::string &utf8str);
+
+template<class T>
+std::string std_map_to_string(const T m)
+{
+	if (m.empty())
+		return "{ <empty!> }";
+	std::string ret;
+	for (const auto itt : m)
+	{
+		if (ret.empty())
+			ret = "{ ";
+		else
+			ret += ", ";
+		ret += itt.first;
+	}
+	ret += " }";
+	return ret;
+}
 
 template< typename T > inline
 std::string int_to_hex(T i)
@@ -46,7 +75,10 @@ double distanceEarth(double lat1d, double lon1d, double lat2d, double lon2d);
 std::string &stdstring_ltrim(std::string &s);
 std::string &stdstring_rtrim(std::string &s);
 std::string &stdstring_trim(std::string &s);
-double CalculateDewPoint(double temp, int humidity);
+std::string &stdstring_ltrimws(std::string &s);
+std::string &stdstring_rtrimws(std::string &s);
+std::string &stdstring_trimws(std::string &s);
+double CalculateDewPoint(double temp, double humidity);
 uint32_t IPToUInt(const std::string &ip);
 bool isInt(const std::string &s);
 
@@ -64,6 +96,8 @@ double ConvertTemperature(double tValue, unsigned char tSign);
 
 std::vector<std::string> ExecuteCommandAndReturn(const std::string &szCommand, int &returncode);
 
+time_t GetClockTicks();
+void CurrentDateTimeMillisecond(tm &timeinfo, timeval &tv);
 std::string TimeToString(const time_t *ltime, _eTimeFormat format);
 std::string GenerateMD5Hash(const std::string &InputString, const std::string &Salt="");
 
@@ -73,7 +107,10 @@ void rgb2hsb(int r, int g, int b, float hsbvals[3]);
 bool is_number(const std::string& s);
 void padLeft(std::string &str, size_t num, char paddingChar = '0');
 
-bool IsLightOrSwitch(int devType, int subType);
+bool IsLightOrSwitch(int dType, int dSubType);
+bool IsTemp(int dType, int dSubType);
+bool IsWeather(int dType, int dSubType);
+bool IsUtility(int dType, int dSubType);
 
 int MStoBeaufort(float ms);
 
@@ -106,4 +143,21 @@ bool IsDebuggerPresent();
 #endif
 
 std::string GenerateUUID();
+bool isHexRepresentation(const std::string &input);
+
 double round_digits(double dIn, int totDigits);
+
+const std::string std_format(const char *szFormat, ...);
+
+std::string sha256hex(const std::string &input);
+std::string sha256raw(const std::string &input);
+
+char* make_web_time(const time_t rawtime);
+
+bool base32_decode(const std::string &input, std::string &output);
+bool base32_encode(const std::string &input, std::string &output);
+
+std::string vector_2_string(std::vector<std::string> const& strings, const std::string& delim);
+
+bool AESEncryptData(const std::string& szInputBuffer, std::string& szOutputBuffer, const uint8_t* pKey16);
+bool AESDecryptData(const std::string& szInputBuffer, std::string& szOutputBuffer, const uint8_t* pKey16);

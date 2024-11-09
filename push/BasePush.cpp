@@ -15,12 +15,12 @@
 typedef struct _STR_TABLE_ID1_ID2 {
 	unsigned long    id1;
 	unsigned long    id2;
-	const char   *str1;
+	const char* str1;
 } STR_TABLE_ID1_ID2;
 
-extern const char *findTableID1ID2(const _STR_TABLE_ID1_ID2 *t, unsigned long id1, unsigned long id2);
+extern const char* findTableID1ID2(const _STR_TABLE_ID1_ID2* t, unsigned long id1, unsigned long id2);
 
-const char *RFX_Type_SubType_Values(const unsigned char dType, const unsigned char sType)
+const char* RFX_Type_SubType_Values(const unsigned char dType, const unsigned char sType)
 {
 	static const STR_TABLE_ID1_ID2 Table[] = {
 		{ pTypeTEMP, sTypeTEMP1, "Temperature" },
@@ -68,6 +68,7 @@ const char *RFX_Type_SubType_Values(const unsigned char dType, const unsigned ch
 		{ pTypeRAIN, sTypeRAIN7, "Rain rate,Total rain" },
 		{ pTypeRAIN, sTypeRAIN8, "Rain rate,Total rain" },
 		{ pTypeRAIN, sTypeRAIN9, "Rain rate,Total rain" },
+		{ pTypeRAIN, sTypeRAIN10, "Rain rate,Total rain" },
 		{ pTypeRAIN, sTypeRAINWU, "Rain rate,Total rain" },
 		{ pTypeRAIN, sTypeRAINByRate, "Rain rate,Total rain" },
 
@@ -180,8 +181,8 @@ const char *RFX_Type_SubType_Values(const unsigned char dType, const unsigned ch
 		{ pTypeRemote, sTypePCremote, "Status" },
 		{ pTypeRemote, sTypeATIrw2, "Status" },
 
-		{ pTypeThermostat1, sTypeDigimax, "Temperature,Set point,Mode,Status" },
-		{ pTypeThermostat1, sTypeDigimaxShort, "Temperature,Set point,Mode,Status" },
+		{ pTypeThermostat1, sTypeDigimax, "Temperature,Setpoint,Mode,Status" },
+		{ pTypeThermostat1, sTypeDigimaxShort, "Temperature,Setpoint,Mode,Status" },
 
 		{ pTypeThermostat2, sTypeHE105, "Status" },
 		{ pTypeThermostat2, sTypeRTS10, "Status" },
@@ -224,7 +225,7 @@ const char *RFX_Type_SubType_Values(const unsigned char dType, const unsigned ch
 		{ pTypeRego6XXValue, sTypeRego6XXStatus, "Value" },
 		{ pTypeRego6XXValue, sTypeRego6XXCounter, "Counter" },
 
-		{ pTypeAirQuality, sTypeVoltcraft, "Concentration" },
+		{ pTypeAirQuality, sTypeVoc, "Concentration" },
 
 		{ pTypeUsage, sTypeElectric, "Usage" },
 
@@ -243,13 +244,9 @@ const char *RFX_Type_SubType_Values(const unsigned char dType, const unsigned ch
 		{ pTypeGeneral, sTypeCurrent, "Current" },
 		{ pTypeGeneral, sTypePressure, "Pressure" },
 		{ pTypeGeneral, sTypeBaro, "Barometer" },
-		{ pTypeGeneral, sTypeSetPoint, "Temperature" },
+		{ pTypeGeneral, sTypeSetPoint, "Setpoint" },
 		{ pTypeGeneral, sTypeTemperature, "Temperature" },
-		{ pTypeGeneral, sTypeZWaveClock, "Thermostat Clock" },
 		{ pTypeGeneral, sTypeTextStatus, "Text" },
-		{ pTypeGeneral, sTypeZWaveThermostatMode, "Thermostat Mode" },
-		{ pTypeGeneral, sTypeZWaveThermostatFanMode, "Thermostat Fan Mode" },
-		{ pTypeGeneral, sTypeZWaveThermostatOperatingState, "Thermostat Operating State" },
 		{ pTypeGeneral, sTypeAlert, "Alert" },
 		{ pTypeGeneral, sTypeSoundLevel, "Sound Level" },
 		{ pTypeGeneral, sTypeUV, "UV,Temperature" },
@@ -258,11 +255,10 @@ const char *RFX_Type_SubType_Values(const unsigned char dType, const unsigned ch
 		{ pTypeGeneral, sTypeKwh, "Instant,Usage" },
 		{ pTypeGeneral, sTypeWaterflow, "Percentage" },
 		{ pTypeGeneral, sTypeCustom, "Percentage" },
-		{ pTypeGeneral, sTypeZWaveAlarm, "Status" },
 		{ pTypeGeneral, sTypeManagedCounter, "Counter" },
 
-		{ pTypeThermostat, sTypeThermSetpoint, "Temperature" },
-		{ pTypeThermostat, sTypeThermTemperature, "Temperature" },
+		{ pTypeSetpoint, sTypeSetpoint, "Setpoint" },
+		{ pTypeSetpoint, sTypeThermTemperature, "Temperature" },
 
 		{ pTypeChime, sTypeByronSX, "Status" },
 		{ pTypeChime, sTypeByronMP001, "Status" },
@@ -290,7 +286,7 @@ const char *RFX_Type_SubType_Values(const unsigned char dType, const unsigned ch
 		{ pTypeRFY, sTypeRFYext, "Status" },
 		{ pTypeRFY, sTypeASA, "Status" },
 		{ pTypeEvohome, sTypeEvohome, "Status" },
-		{ pTypeEvohomeZone, sTypeEvohomeZone, "Temperature,Set point,Status" },
+		{ pTypeEvohomeZone, sTypeEvohomeZone, "Temperature,Setpoint,Status" },
 		{ pTypeEvohomeWater, sTypeEvohomeWater, "Temperature,State,Status" },
 		{ pTypeEvohomeRelay, sTypeEvohomeRelay, "Status,Value" },
 
@@ -368,6 +364,10 @@ const char *RFX_Type_SubType_Values(const unsigned char dType, const unsigned ch
 		{ pTypeGeneralSwitch, sSwitchTypeNice, "Status,Level" },
 		{ pTypeGeneralSwitch, sSwitchTypeForest, "Status,Level" },
 
+		{ pTypeDDxxxx, sTypeDDxxxx, "Status,Level" },
+		{ pTypeHoneywell_AL, sTypeSeries5, "Status" },
+		{ pTypeHoneywell_AL, sTypePIR, "Status" },
+
 		{ 0, 0, nullptr },
 	};
 	return findTableID1ID2(Table, dType, sType);
@@ -396,15 +396,12 @@ unsigned long CBasePush::get_tzoffset()
 {
 	// Compute tz
 	boost::posix_time::time_duration uoffset = get_utc_offset();
+	//Giz: double->int->unsigned long? And maybe we should use chrono ?
 	unsigned long tzoffset = (int)((double)(uoffset.ticks() / 3600000000LL) * 3600);
 	return tzoffset;
 }
 
-#ifdef WIN32
-std::string CBasePush::get_lastUpdate(unsigned __int64 localTimeUtc)
-#else
-std::string CBasePush::get_lastUpdate(unsigned long long int localTimeUtc)
-#endif
+std::string CBasePush::get_lastUpdate(uint64_t localTimeUtc)
 {
 	// RFC3339 time format
 	time_t tmpT = localTimeUtc;
@@ -453,21 +450,29 @@ std::string CBasePush::DropdownOptionsValue(const int devType, const int devSubT
 	return "???";
 }
 
-std::string CBasePush::ProcessSendValue(const uint64_t DeviceRowIdx, const std::string &rawsendValue, const int delpos, const int nValue, const int includeUnit, const int devType, const int devSubType,
-					const int metertypein)
+std::string CBasePush::ProcessSendValue(
+	const uint64_t DeviceRowIdx,
+	const std::string& rawsendValue,
+	const int delpos,
+	const int nValue,
+	const int includeUnit,
+	const int devType,
+	const int devSubType,
+	const int metertypein
+)
 {
 	char szData[100];
 	szData[0] = 0;
 	try
 	{
 		std::string vType = DropdownOptionsValue(devType, devSubType, delpos);
-		if (vType  == "???")
+		if (vType == "???")
 			return ""; // unhandled type
 
 		unsigned char tempsign = m_sql.m_tempsign[0];
 		_eMeterType metertype = (_eMeterType)metertypein;
-		
-		if ((vType == "Temperature") || (vType == "Temperature 1") || (vType == "Temperature 2") || (vType == "Set point"))
+
+		if ((vType == "Temperature") || (vType == "Temperature 1") || (vType == "Temperature 2") || (vType == "Setpoint"))
 		{
 			sprintf(szData, "%g", ConvertTemperature(std::stod(rawsendValue), tempsign));
 		}
@@ -480,7 +485,7 @@ std::string CBasePush::ProcessSendValue(const uint64_t DeviceRowIdx, const std::
 			if (devType == pTypeHUM)
 				sprintf(szData, "%d", nValue);
 			else
-				sprintf(szData, "%g", std::stof(rawsendValue));
+				strcpy(szData, rawsendValue.c_str());
 		}
 		else if (vType == "Humidity Status")
 		{
@@ -488,30 +493,31 @@ std::string CBasePush::ProcessSendValue(const uint64_t DeviceRowIdx, const std::
 		}
 		else if (vType == "Barometer")
 		{
-			sprintf(szData, "%g", std::stof(rawsendValue));
+			strcpy(szData, rawsendValue.c_str());
 		}
 		else if (vType == "Forecast")
 		{
 			int forecast = std::stoi(rawsendValue);
-			if (forecast != baroForecastNoInfo)
+
+			if (devSubType == sTypeTHBFloat)
 			{
-				sprintf(szData, "%s", RFX_Forecast_Desc(forecast));
+				sprintf(szData, "%s", RFX_WSForecast_Desc(forecast));
 			}
 			else {
-				sprintf(szData, "%d", forecast);
+				sprintf(szData, "%s", RFX_Forecast_Desc(forecast));
 			}
 		}
 		else if (vType == "Altitude")
 		{
-			sprintf(szData, "%g", std::stof(rawsendValue));
+			strcpy(szData, rawsendValue.c_str());
 		}
 		else if (vType == "UV")
 		{
-			sprintf(szData, "%g", std::stof(rawsendValue));
+			strcpy(szData, rawsendValue.c_str());
 		}
 		else if (vType == "Direction")
 		{
-			sprintf(szData, "%g", std::stof(rawsendValue));
+			strcpy(szData, rawsendValue.c_str());
 		}
 		else if (vType == "Direction string")
 		{
@@ -549,13 +555,13 @@ std::string CBasePush::ProcessSendValue(const uint64_t DeviceRowIdx, const std::
 		}
 		else if (vType == "Rain rate")
 		{
-			sprintf(szData, "%g", std::stof(rawsendValue));
+			strcpy(szData, rawsendValue.c_str());
 		}
 		else if (vType == "Total rain")
 		{
-			sprintf(szData, "%g", std::stof(rawsendValue));
+			strcpy(szData, rawsendValue.c_str());
 		}
-		else if (vType == "Counter" || vType == "Counter Incremental" )
+		else if (vType == "Counter" || vType == "Counter Incremental")
 		{
 			strcpy(szData, rawsendValue.c_str());
 		}
@@ -581,7 +587,7 @@ std::string CBasePush::ProcessSendValue(const uint64_t DeviceRowIdx, const std::
 				sprintf(szData, "%g", vis * 0.3937007874015748F);
 			}
 		}
-		else if (vType == "Status")
+		else if ((vType == "Status") || (vType == "Alert"))
 		{
 			sprintf(szData, "%d", nValue);
 		}
@@ -597,20 +603,20 @@ std::string CBasePush::ProcessSendValue(const uint64_t DeviceRowIdx, const std::
 			int level = atoi(rawsendValue.c_str());
 
 			if (maxDimLevel != 0)
-				level = (int) float((100.0f / float(maxDimLevel)) * level);
+				level = (int) float((100.0F / float(maxDimLevel)) * level);
 
 			if (lstatus.find("Off") != std::string::npos)
 				level = 0;
 
 			sprintf(szData, "%d", level);
 		}
-		else if ((vType == "Current 1") || (vType == "Current 2") || (vType == "Current 3"))
+		else if ((vType == "Current") || (vType == "Current 1") || (vType == "Current 2") || (vType == "Current 3"))
 		{
-			sprintf(szData, "%g", std::stof(rawsendValue));
+			strcpy(szData, rawsendValue.c_str());
 		}
 		else if (vType == "Instant")
 		{
-			sprintf(szData, "%g", std::stof(rawsendValue));
+			strcpy(szData, rawsendValue.c_str());
 		}
 		else if ((vType == "Usage") || (vType == "Usage 1") || (vType == "Usage 2"))
 		{
@@ -622,27 +628,27 @@ std::string CBasePush::ProcessSendValue(const uint64_t DeviceRowIdx, const std::
 		}
 		else if (vType == "Usage current")
 		{
-			sprintf(szData, "%g", std::stof(rawsendValue));
+			strcpy(szData, rawsendValue.c_str());
 		}
 		else if (vType == "Delivery current")
 		{
-			sprintf(szData, "%g", std::stof(rawsendValue));
+			strcpy(szData, rawsendValue.c_str());
 		}
 		else if (vType == "Gas usage")
 		{
-			sprintf(szData, "%g", std::stof(rawsendValue) / 1000.0F);
+			sprintf(szData, "%.3f", std::stod(rawsendValue) / 1000.0);
 		}
 		else if (vType == "Weight")
 		{
-			sprintf(szData, "%g", std::stof(rawsendValue));
+			strcpy(szData, rawsendValue.c_str());
 		}
 		else if (vType == "Voltage")
 		{
-			sprintf(szData, "%g", std::stof(rawsendValue));
+			strcpy(szData, rawsendValue.c_str());
 		}
 		else if (vType == "Value")
 		{
-			sprintf(szData, "%d", std::stoi(rawsendValue));
+			strcpy(szData, rawsendValue.c_str());
 		}
 		else if (vType == "Visibility")
 		{
@@ -660,7 +666,7 @@ std::string CBasePush::ProcessSendValue(const uint64_t DeviceRowIdx, const std::
 		}
 		else if (vType == "Solar Radiation")
 		{
-			sprintf(szData, "%g", std::stof(rawsendValue));
+			strcpy(szData, rawsendValue.c_str());
 		}
 		else if (vType == "Soil Moisture")
 		{
@@ -672,7 +678,7 @@ std::string CBasePush::ProcessSendValue(const uint64_t DeviceRowIdx, const std::
 		}
 		else if (vType == "Percentage")
 		{
-			sprintf(szData, "%g", std::stof(rawsendValue));
+			strcpy(szData, rawsendValue.c_str());
 		}
 		else if (vType == "Fanspeed")
 		{
@@ -680,14 +686,21 @@ std::string CBasePush::ProcessSendValue(const uint64_t DeviceRowIdx, const std::
 		}
 		else if (vType == "Pressure")
 		{
-			sprintf(szData, "%g", std::stof(rawsendValue));
+			strcpy(szData, rawsendValue.c_str());
 		}
 		else if (vType == "Lux")
 		{
-			sprintf(szData, "%g", std::stof(rawsendValue));
+			strcpy(szData, rawsendValue.c_str());
+		}
+		else if (vType == "Text")
+		{
+			strcpy(szData, rawsendValue.c_str());
 		}
 		else
+		{
+			_log.Log(LOG_ERROR, "BasePush: Unhandled type (devIdx: %" PRIu64 ", vType: %s)", DeviceRowIdx, vType.c_str());
 			return ""; //unhandled type
+		}
 	}
 	catch (...)
 	{
@@ -707,7 +720,7 @@ std::string CBasePush::ProcessSendValue(const uint64_t DeviceRowIdx, const std::
 		}
 		return sendValue;
 	}
-	_log.Log(LOG_ERROR, "BasePush: Could not determine data push value");
+	_log.Log(LOG_ERROR, "BasePush: Could not determine data push value (devIdx: %" PRIu64 "", DeviceRowIdx);
 	return "";
 }
 
@@ -722,7 +735,7 @@ std::string CBasePush::getUnit(const int devType, const int devSubType, const in
 	char szData[100];
 	szData[0] = 0;
 
-	if ((vType == "Temperature") || (vType == "Temperature 1") || (vType == "Temperature 2") || (vType == "Set point"))
+	if ((vType == "Temperature") || (vType == "Temperature 1") || (vType == "Temperature 2"))
 	{
 		sprintf(szData, "%c", tempsign);
 	}
@@ -790,11 +803,11 @@ std::string CBasePush::getUnit(const int devType, const int devSubType, const in
 	{
 		strcpy(szData, "dB");
 	}
-	else if (vType == "Status")
+	else if ((vType == "Status") || (vType == "Alert"))
 	{
 		strcpy(szData, "");
 	}
-	else if ((vType == "Current 1") || (vType == "Current 2") || (vType == "Current 3"))
+	else if ((vType == "Current") || (vType == "Current 1") || (vType == "Current 2") || (vType == "Current 3"))
 	{
 		strcpy(szData, "");
 	}
@@ -879,6 +892,10 @@ std::string CBasePush::getUnit(const int devType, const int devSubType, const in
 	{
 		strcpy(szData, "ppm");
 	}
+	else if (vType == "Setpoint")
+	{
+		strcpy(szData, "");
+	}
 	if (szData[0] != 0) {
 		std::string sendValue(szData);
 		return sendValue;
@@ -893,10 +910,10 @@ void CBasePush::ReloadPushLinks(const PushType PType)
 	m_pushlinks.clear();
 	std::vector<std::vector<std::string>> result;
 	result = m_sql.safe_query("SELECT A.DeviceRowID, A.DelimitedValue, B.ID, B.Name, B.Type, B.SubType, B.SwitchType "
-				  "FROM PushLink as A, DeviceStatus as B "
-				  "WHERE (A.PushType==%d AND A.Enabled==1 AND A.DeviceRowID == B.ID)",
-				  PType);
-	for (const auto &sd : result)
+		"FROM PushLink as A, DeviceStatus as B "
+		"WHERE (A.PushType==%d AND A.Enabled==1 AND A.DeviceRowID == B.ID)",
+		PType);
+	for (const auto& sd : result)
 	{
 		_tPushLinks tlink;
 		tlink.DeviceRowIdx = std::stoull(sd[0]);
@@ -912,13 +929,13 @@ void CBasePush::ReloadPushLinks(const PushType PType)
 bool CBasePush::IsLinkInDatabase(const uint64_t DeviceRowIdx)
 {
 	std::lock_guard<std::mutex> l(m_link_mutex);
-	return std::any_of(m_pushlinks.begin(), m_pushlinks.end(), [&](const _tPushLinks &val) { return DeviceRowIdx == val.DeviceRowIdx; });
+	return std::any_of(m_pushlinks.begin(), m_pushlinks.end(), [&](const _tPushLinks& val) { return DeviceRowIdx == val.DeviceRowIdx; });
 }
 
-bool CBasePush::GetPushLink(const uint64_t DeviceRowIdx, _tPushLinks &plink)
+bool CBasePush::GetPushLink(const uint64_t DeviceRowIdx, _tPushLinks& plink)
 {
 	std::lock_guard<std::mutex> l(m_link_mutex);
-	for (const auto &itt : m_pushlinks)
+	for (const auto& itt : m_pushlinks)
 	{
 		if (itt.DeviceRowIdx == DeviceRowIdx)
 		{
@@ -934,21 +951,23 @@ bool CBasePush::GetPushLink(const uint64_t DeviceRowIdx, _tPushLinks &plink)
 //Webserver helpers
 namespace http {
 	namespace server {
-		void CWebServer::Cmd_GetDevicesListOnOff(WebEmSession & session, const request& req, Json::Value &root)
+		void CWebServer::Cmd_GetDevicesListOnOff(WebEmSession& session, const request& req, Json::Value& root)
 		{
 			root["status"] = "OK";
 			root["title"] = "GetDevicesListOnOff";
 			std::vector<std::vector<std::string> > result;
-			result = m_sql.safe_query("SELECT ID, Name, Type, SubType FROM DeviceStatus WHERE (Used == 1) ORDER BY Name");
+			result = m_sql.safe_query("SELECT ID, Name, Type, SubType FROM DeviceStatus WHERE (Used == 1) ORDER BY Name COLLATE NOCASE ASC");
 			if (!result.empty())
 			{
 				int ii = 0;
-				for (const auto &sd : result)
+				for (const auto& sd : result)
 				{
 					int dType = atoi(sd[2].c_str());
 					int dSubType = atoi(sd[3].c_str());
 					std::string sOptions = RFX_Type_SubType_Values(dType, dSubType);
-					if (sOptions == "Status")
+					std::vector<std::string> tmpV;
+					StringSplit(sOptions, ",", tmpV);
+					if (!tmpV.empty() && tmpV[0] == "Status")
 					{
 						root["result"][ii]["name"] = sd[1];
 						root["result"][ii]["value"] = sd[0];

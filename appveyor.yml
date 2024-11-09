@@ -1,5 +1,5 @@
 version: 1.0.{build}
-image: Visual Studio 2019
+image: Visual Studio 2022
 configuration: Release
 platform: x86
 
@@ -26,7 +26,7 @@ platform: x86
 #- .\bootstrap-vcpkg.bat
 #- .\vcpkg update
 #- .\vcpkg upgrade --no-dry-run
-#- .\vcpkg install --triplet %PLATFORM%-windows boost cereal curl jsoncpp lua minizip mosquitto openssl pthreads sqlite3 zlib
+#- .\vcpkg install --triplet %PLATFORM%-windows boost curl jsoncpp lua minizip mosquitto openssl pthreads sqlite3 zlib
 #- .\vcpkg integrate install
 #- cd %APPVEYOR_BUILD_FOLDER%
 
@@ -37,7 +37,7 @@ before_build:
 - cmd: >-    
     cd msbuild
     
-    appveyor DownloadFile https://cdn.rawgit.com/domoticz/win32-libraries/master/WindowsLibraries.7z
+    appveyor DownloadFile https://raw.githubusercontent.com/domoticz/win32-libraries/master/WindowsLibraries.7z
     
     7z x WindowsLibraries.7z > NUL:
     

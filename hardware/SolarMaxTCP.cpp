@@ -3,7 +3,6 @@
 #include "../main/Logger.h"
 #include "../main/Helper.h"
 #include <iostream>
-#include "../main/localtime_r.h"
 #include "../main/mainworker.h"
 
 #include "../main/SQLHelper.h"
@@ -88,7 +87,7 @@ bool SolarMaxTCP::StartHardware()
 	m_retrycntr = RETRY_DELAY; //will force reconnect first thing
 
 	//Start worker thread
-	m_thread = std::make_shared<std::thread>(&SolarMaxTCP::Do_Work, this);
+	m_thread = std::make_shared<std::thread>([this] { Do_Work(); });
 	SetThreadNameInt(m_thread->native_handle());
 
 	return (m_thread != nullptr);
@@ -111,7 +110,7 @@ bool SolarMaxTCP::ConnectInternal()
 	m_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (m_socket == INVALID_SOCKET)
 	{
-		_log.Log(LOG_ERROR, "SolarMax: TCP could not create a TCP/IP socket!");
+		Log(LOG_ERROR, "TCP could not create a TCP/IP socket!");
 		return false;
 	}
 	/*
@@ -132,11 +131,11 @@ bool SolarMaxTCP::ConnectInternal()
 	{
 		closesocket(m_socket);
 		m_socket = INVALID_SOCKET;
-		_log.Log(LOG_ERROR, "SolarMax: TCP could not connect to: %s:%d", m_szIPAddress.c_str(), m_usIPPort);
+		Log(LOG_ERROR, "TCP could not connect to: %s:%d", m_szIPAddress.c_str(), m_usIPPort);
 		return false;
 	}
 
-	_log.Log(LOG_STATUS, "SolarMax: TCP connected to: %s:%d", m_szIPAddress.c_str(), m_usIPPort);
+	Log(LOG_STATUS, "TCP connected to: %s:%d", m_szIPAddress.c_str(), m_usIPPort);
 
 	sOnConnected(this);
 	return true;
@@ -172,7 +171,7 @@ void SolarMaxTCP::Do_Work()
 				m_retrycntr = 0;
 				if (!ConnectInternal())
 				{
-					_log.Log(LOG_STATUS, "SolarMax: retrying in %d seconds...", RETRY_DELAY);
+					Log(LOG_STATUS, "retrying in %d seconds...", RETRY_DELAY);
 				}
 			}
 		}
@@ -193,7 +192,7 @@ void SolarMaxTCP::Do_Work()
 				if (IsStopRequested(0))
 					break;
 				if (bread <= 0) {
-					_log.Log(LOG_ERROR, "SolarMax: TCP/IP connection closed! retrying in %d seconds...", RETRY_DELAY);
+					Log(LOG_ERROR, "TCP/IP connection closed! retrying in %d seconds...", RETRY_DELAY);
 					disconnect();
 					m_retrycntr = 0;
 					continue;
@@ -205,14 +204,14 @@ void SolarMaxTCP::Do_Work()
 	}
 	disconnect();
 
-	_log.Log(LOG_STATUS, "SolarMax: TCP/IP Worker stopped...");
+	Log(LOG_STATUS, "Worker stopped...");
 }
 
 void SolarMaxTCP::write(const char *data, size_t size)
 {
 	if (m_socket == INVALID_SOCKET)
 		return; //not connected!
-	send(m_socket, data, size, 0);
+	send(m_socket, data, (int)size, 0);
 }
 
 bool SolarMaxTCP::WriteToHardware(const char *pdata, const unsigned char length)
@@ -269,14 +268,14 @@ void SolarMaxTCP::ParseLine()
 	size_t npos = InputStr.find('|');
 	if (npos == std::string::npos)
 	{
-		_log.Log(LOG_ERROR, "SolarMax: Invalid data received!");
+		Log(LOG_ERROR, "Invalid data received!");
 		return;
 	}
 	InputStr = InputStr.substr(npos + 4);
 	npos = InputStr.find('|');
 	if (npos == std::string::npos)
 	{
-		_log.Log(LOG_ERROR, "SolarMax: Invalid data received!");
+		Log(LOG_ERROR, "Invalid data received!");
 		return;
 	}
 	InputStr = InputStr.substr(0,npos);

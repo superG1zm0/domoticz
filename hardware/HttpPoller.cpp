@@ -3,7 +3,6 @@
 #include "../main/Helper.h"
 #include "../main/Logger.h"
 #include "../main/SQLHelper.h"
-#include "../main/localtime_r.h"
 #include "../main/RFXtrx.h"
 #include "hardwaretypes.h"
 #include "../httpclient/HTTPClient.h"
@@ -11,8 +10,6 @@
 #include "../webserver/Base64.h"
 #include "../main/WebServer.h"
 #include "../main/LuaHandler.h"
-
-#define round(a) ( int ) ( a + .5 )
 
 CHttpPoller::CHttpPoller(const int ID, const std::string& username, const std::string& password, const std::string& url, const std::string& extradata, const unsigned short refresh) :
 m_username(CURLEncode::URLEncode(username)),
@@ -48,7 +45,7 @@ void CHttpPoller::Init()
 
 bool CHttpPoller::WriteToHardware(const char* /*pdata*/, const unsigned char /*length*/)
 {
-	return false;
+	return true;
 }
 
 bool CHttpPoller::StartHardware()
@@ -57,7 +54,7 @@ bool CHttpPoller::StartHardware()
 
 	Init();
 	//Start worker thread
-	m_thread = std::make_shared<std::thread>(&CHttpPoller::Do_Work, this);
+	m_thread = std::make_shared<std::thread>([this] { Do_Work(); });
 	SetThreadNameInt(m_thread->native_handle());
 	m_bIsStarted=true;
 	sOnConnected(this);
@@ -79,7 +76,7 @@ bool CHttpPoller::StopHardware()
 void CHttpPoller::Do_Work()
 {
 	int sec_counter = 300 - 5;
-	_log.Log(LOG_STATUS, "Http: Worker started...");
+	Log(LOG_STATUS, "Worker started...");
 	while (!IsStopRequested(1000))
 	{
 		sec_counter++;
@@ -90,7 +87,7 @@ void CHttpPoller::Do_Work()
 			GetScript();
 		}
 	}
-	_log.Log(LOG_STATUS,"Http: Worker stopped...");
+	Log(LOG_STATUS,"Worker stopped...");
 }
 
 void CHttpPoller::GetScript()
@@ -129,15 +126,15 @@ void CHttpPoller::GetScript()
 	if (m_method == 0) {
 		if (!HTTPClient::GET(sURL, ExtraHeaders, sResult))
 		{
-			std::string err = "Http: Error getting data from url \"" + sURL + "\"";
-			_log.Log(LOG_ERROR, err);
+			std::string err = "Error getting data from url \"" + sURL + "\"";
+			Log(LOG_ERROR, err);
 			return;
 		}
 	}
 	if (m_method == 1) {
 		if (!HTTPClient::POST(sURL, m_postdata, ExtraHeaders, sResult)) {
-			std::string err = "Http: Error getting data from url \"" + sURL + "\"";
-			_log.Log(LOG_ERROR, err);
+			std::string err = "Error getting data from url \"" + sURL + "\"";
+			Log(LOG_ERROR, err);
 			return;
 		}
 	}

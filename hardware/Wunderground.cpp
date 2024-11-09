@@ -4,14 +4,11 @@
 #include "../main/Logger.h"
 #include "../httpclient/UrlEncode.h"
 #include "hardwaretypes.h"
-#include "../main/localtime_r.h"
 #include "../httpclient/HTTPClient.h"
 #include "../main/json_helper.h"
 #include "../main/RFXtrx.h"
 #include "../main/mainworker.h"
 #include "../main/SQLHelper.h"
-
-#define round(a) ( int ) ( a + .5 )
 
 #ifdef _DEBUG
 	//#define DEBUG_WUNDERGROUNDR
@@ -69,7 +66,7 @@ bool CWunderground::StartHardware()
 
 	Init();
 	//Start worker thread
-	m_thread = std::make_shared<std::thread>(&CWunderground::Do_Work, this);
+	m_thread = std::make_shared<std::thread>([this] { Do_Work(); });
 	SetThreadNameInt(m_thread->native_handle());
 	if (!m_thread)
 		return false;
@@ -96,7 +93,7 @@ void CWunderground::Do_Work()
 	GetMeterDetails();
 #endif
 	int sec_counter = 590;
-	_log.Log(LOG_STATUS, "Wunderground: Worker started...");
+	Log(LOG_STATUS, "Worker started...");
 
 	while (!IsStopRequested(1000))
 	{
@@ -113,7 +110,7 @@ void CWunderground::Do_Work()
 			GetMeterDetails();
 		}
 	}
-	_log.Log(LOG_STATUS,"Wunderground: Worker stopped...");
+	Log(LOG_STATUS,"Worker stopped...");
 }
 
 bool CWunderground::WriteToHardware(const char *pdata, const unsigned char length)
@@ -152,7 +149,7 @@ std::string CWunderground::GetWeatherStationFromGeo()
 			sURL << "https://api.weather.com/v3/location/near?geocode=" << Latitude << "," << Longitude << "&product=pws&format=json&apiKey=" << m_APIKey;
 			if (!HTTPClient::GET(sURL.str(), sResult))
 			{
-				_log.Log(LOG_ERROR, "Wunderground: Error getting location/near result! (Check API key!)");
+				Log(LOG_ERROR, "Error getting location/near result! (Check API key!)");
 				return "";
 			}
 #ifdef DEBUG_WUNDERGROUNDW
@@ -164,7 +161,7 @@ std::string CWunderground::GetWeatherStationFromGeo()
 			bool ret = ParseJSon(sResult, root);
 			if ((!ret) || (!root.isObject()))
 			{
-				_log.Log(LOG_ERROR, "WUnderground: Problem getting location/near result. Invalid data received! (Check Station ID!)");
+				Log(LOG_ERROR, "Problem getting location/near result. Invalid data received! (Check Station ID!)");
 				return "";
 			}
 
@@ -179,7 +176,7 @@ std::string CWunderground::GetWeatherStationFromGeo()
 			}
 			if (!bValid)
 			{
-				_log.Log(LOG_ERROR, "WUnderground: Problem getting location/near result.Invalid data received, or no data returned!");
+				Log(LOG_ERROR, "Problem getting location/near result.Invalid data received, or no data returned!");
 				return "";
 			}
 			if (!root["location"]["stationId"].empty())
@@ -187,7 +184,7 @@ std::string CWunderground::GetWeatherStationFromGeo()
 				std::string szFirstStation = root["location"]["stationId"][0].asString();
 				return szFirstStation;
 			}
-			_log.Log(LOG_ERROR, "WUnderground: Problem getting location/near result. No stations returned!");
+			Log(LOG_ERROR, "Problem getting location/near result. No stations returned!");
 		}
 	}
 	return "";
@@ -214,7 +211,7 @@ void CWunderground::GetMeterDetails()
 	sURL << "https://api.weather.com/v2/pws/observations/current?stationId=" << szLoc << "&format=json&units=s&numericPrecision=decimal&apiKey=" << m_APIKey;
 	if (!HTTPClient::GET(sURL.str(), sResult))
 	{
-		_log.Log(LOG_ERROR,"Wunderground: Error getting http data! (Check API key!)");
+		Log(LOG_ERROR,"Error getting http data! (Check API key!)");
 		return;
 	}
 #ifdef DEBUG_WUNDERGROUNDW
@@ -226,7 +223,7 @@ void CWunderground::GetMeterDetails()
 	bool ret = ParseJSon(sResult, root);
 	if ((!ret) || (!root.isObject()))
 	{
-		_log.Log(LOG_ERROR,"WUnderground: Invalid data received! (Check Station ID!)");
+		Log(LOG_ERROR,"Invalid data received! (Check Station ID!)");
 		return;
 	}
 
@@ -245,7 +242,7 @@ void CWunderground::GetMeterDetails()
 	}
 	if (!bValid)
 	{
-		_log.Log(LOG_ERROR, "WUnderground: Invalid data received, or no data returned!");
+		Log(LOG_ERROR, "Invalid data received, or no data returned!");
 		return;
 	}
 
@@ -258,7 +255,7 @@ void CWunderground::GetMeterDetails()
 		if (difftime(tlocal, tobserver) >= 1800)
 		{
 			//When we don't get any valid data in 30 minutes, we also stop using the values
-			_log.Log(LOG_ERROR, "WUnderground: Receiving old data from WU! (No new data return for more than 30 minutes)");
+			Log(LOG_ERROR, "Receiving old data from WU! (No new data return for more than 30 minutes)");
 			return;
 		}
 	}
@@ -352,21 +349,21 @@ void CWunderground::GetMeterDetails()
 		tsen.WIND.id2=1;
 
 		float winddir=float(wind_degrees);
-		int aw=round(winddir);
+		int aw=ground(winddir);
 		tsen.WIND.directionh=(BYTE)(aw/256);
 		aw-=(tsen.WIND.directionh*256);
 		tsen.WIND.directionl=(BYTE)(aw);
 
 		tsen.WIND.av_speedh=0;
 		tsen.WIND.av_speedl=0;
-		int sw = round(windspeed_ms * 10.0F);
+		int sw = ground(windspeed_ms * 10.0F);
 		tsen.WIND.av_speedh=(BYTE)(sw/256);
 		sw-=(tsen.WIND.av_speedh*256);
 		tsen.WIND.av_speedl=(BYTE)(sw);
 
 		tsen.WIND.gusth=0;
 		tsen.WIND.gustl=0;
-		int gw = round(windgust_ms * 10.0F);
+		int gw = ground(windgust_ms * 10.0F);
 		tsen.WIND.gusth=(BYTE)(gw/256);
 		gw-=(tsen.WIND.gusth*256);
 		tsen.WIND.gustl=(BYTE)(gw);
@@ -378,13 +375,13 @@ void CWunderground::GetMeterDetails()
 		tsen.WIND.temperaturel=0;
 
 		tsen.WIND.tempsign=(wind_temp>=0)?0:1;
-		int at10 = round(std::abs(wind_temp * 10.0F));
+		int at10 = ground(std::abs(wind_temp * 10.0F));
 		tsen.WIND.temperatureh=(BYTE)(at10/256);
 		at10-=(tsen.WIND.temperatureh*256);
 		tsen.WIND.temperaturel=(BYTE)(at10);
 
 		tsen.WIND.chillsign=(wind_chill>=0)?0:1;
-		at10 = round(std::abs(wind_chill * 10.0F));
+		at10 = ground(std::abs(wind_chill * 10.0F));
 		tsen.WIND.chillh=(BYTE)(at10/256);
 		at10-=(tsen.WIND.chillh*256);
 		tsen.WIND.chilll=(BYTE)(at10);
@@ -433,7 +430,7 @@ void CWunderground::GetMeterDetails()
 						float rainrateph = static_cast<float>(atof(root["metric_si"]["precipRate"].asString().c_str()));
 						if (rainrateph != -9999.00F)
 						{
-							int at10 = round(std::abs(rainrateph * 100.0F));
+							int at10 = ground(std::abs(rainrateph * 100.0F));
 							tsen.RAIN.rainrateh = (BYTE)(at10 / 256);
 							at10 -= (tsen.RAIN.rainrateh * 256);
 							tsen.RAIN.rainratel = (BYTE)(at10);

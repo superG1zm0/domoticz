@@ -3,16 +3,13 @@
 #include <string>
 #include "WebsocketHandler.h"
 
-#ifdef WIN32
-#define size_t_t __int64
-#else
-#define size_t_t long long
-#endif
+namespace http
+{
+	namespace server
+	{
 
-namespace http {
-	namespace server {
-
-		enum opcodes {
+		enum opcodes
+		{
 			opcode_continuation = 0x00,
 			opcode_text = 0x01,
 			opcode_binary = 0x02,
@@ -24,8 +21,9 @@ namespace http {
 		class connection;
 		class cWebem;
 
-		class CWebsocketFrame {
-		public:
+		class CWebsocketFrame
+		{
+		      public:
 			CWebsocketFrame();
 			~CWebsocketFrame() = default;
 			bool Parse(const uint8_t *bytes, size_t size);
@@ -34,7 +32,8 @@ namespace http {
 			size_t Consumed();
 			opcodes Opcode();
 			static std::string Create(opcodes opcode, const std::string &payload, bool domasking);
-		private:
+
+		      private:
 			static std::string unmask(const uint8_t *mask, const uint8_t *bytes, size_t payloadlen);
 			bool fin;
 			bool rsvi1;
@@ -46,9 +45,10 @@ namespace http {
 			std::string payload;
 		};
 
-		class CWebsocket {
-		public:
-			CWebsocket(boost::function<void(const std::string &packet_data)> _MyWrite, cWebem *_webEm, boost::function<void(const std::string &packet_data)> _WSWrite);
+		class CWebsocket
+		{
+		      public:
+			CWebsocket(std::function<void(const std::string &packet_data)> _MyWrite, cWebem *_webEm, std::function<void(const std::string &packet_data)> _WSWrite);
 			~CWebsocket() = default;
 			virtual boost::tribool parse(const uint8_t *begin, size_t size, size_t &bytes_consumed, bool &keep_alive);
 			virtual void SendClose(const std::string &packet_data);
@@ -56,7 +56,8 @@ namespace http {
 			virtual void Start();
 			virtual void Stop();
 			virtual CWebsocketHandler *GetHandler();
-		private:
+
+		      private:
 			virtual void OnReceiveText(const std::string &packet_data);
 			virtual void OnReceiveBinary(const std::string &packet_data);
 			virtual void OnPong(const std::string &packet_data);
@@ -66,7 +67,7 @@ namespace http {
 			opcodes last_opcode;
 			std::string OUR_PING_ID;
 			CWebsocketHandler handler;
-			boost::function<void(const std::string &packet_data)> MyWrite;
+			std::function<void(const std::string &packet_data)> MyWrite;
 		};
 
 	} // namespace server

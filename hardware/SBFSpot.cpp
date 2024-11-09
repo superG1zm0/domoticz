@@ -2,7 +2,6 @@
 #include "SBFSpot.h"
 #include "../main/Helper.h"
 #include "../main/Logger.h"
-#include "../main/localtime_r.h"
 #include "../main/RFXtrx.h"
 #include "../main/SQLHelper.h"
 #include "../main/mainworker.h"
@@ -12,8 +11,6 @@
 #include "hardwaretypes.h"
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
-
-#define round(a) ( int ) ( a + .5 )
 
 CSBFSpot::CSBFSpot(const int ID, const std::string &SMAConfigFile)
 {
@@ -47,7 +44,7 @@ void CSBFSpot::Init()
 	infile.open(m_SBFConfigFile.c_str());
 	if (!infile.is_open())
 	{
-		_log.Log(LOG_ERROR,"SBFSpot: Could not open configuration file!");
+		Log(LOG_ERROR,"Could not open configuration file!");
 		return;
 	}
 	while (!infile.eof())
@@ -90,7 +87,7 @@ void CSBFSpot::Init()
 	infile.close();
 	if ((m_SBFDataPath.empty()) || (m_SBFDateFormat.empty()) || (m_SBFTimeFormat.empty()))
 	{
-		_log.Log(LOG_ERROR,"SBFSpot: Could not find OutputPath in configuration file!");
+		Log(LOG_ERROR,"Could not find OutputPath in configuration file!");
 	}
 }
 
@@ -100,7 +97,7 @@ bool CSBFSpot::StartHardware()
 
 	Init();
 	//Start worker thread
-	m_thread = std::make_shared<std::thread>(&CSBFSpot::Do_Work, this);
+	m_thread = std::make_shared<std::thread>([this] { Do_Work(); });
 	SetThreadNameInt(m_thread->native_handle());
 	m_bIsStarted=true;
 	sOnConnected(this);
@@ -125,7 +122,7 @@ void CSBFSpot::Do_Work()
 {
 	int LastMinute=-1;
 
-	_log.Log(LOG_STATUS,"SBFSpot: Worker started...");
+	Log(LOG_STATUS,"Worker started...");
 	while (!IsStopRequested(1000))
 	{
 		time_t atime = mytime(nullptr);
@@ -140,7 +137,7 @@ void CSBFSpot::Do_Work()
 			mytime(&m_LastHeartbeat);
 		}
 	}
-	_log.Log(LOG_STATUS,"SBFSpot: Worker stopped...");
+	Log(LOG_STATUS,"Worker stopped...");
 }
 
 bool CSBFSpot::WriteToHardware(const char *pdata, const unsigned char length)
@@ -172,7 +169,7 @@ void CSBFSpot::SendMeter(const unsigned char ID1,const unsigned char ID2, const 
 
 	tsen.ENERGY.battery_level=9;
 
-	unsigned long long instant=(unsigned long long)(musage*1000.0);
+	uint64_t instant=(uint64_t)(musage*1000.0);
 	tsen.ENERGY.instant1=(unsigned char)(instant/0x1000000);
 	instant-=tsen.ENERGY.instant1*0x1000000;
 	tsen.ENERGY.instant2=(unsigned char)(instant/0x10000);
@@ -218,7 +215,7 @@ bool CSBFSpot::GetMeter(const unsigned char ID1,const unsigned char ID2, double 
 
 void CSBFSpot::ImportOldMonthData()
 {
-	_log.Log(LOG_STATUS, "SBFSpot Import Old Month Data: Start");
+	Log(LOG_STATUS, "SBFSpot Import Old Month Data: Start");
 	//check if this device exists in the database, if not exit
 	bool bDeviceExits = true;
 	std::vector<std::vector<std::string> > result;
@@ -232,7 +229,7 @@ void CSBFSpot::ImportOldMonthData()
 			m_HwdID, "00000001", int(pTypeGeneral), int(sTypeKwh));
 		if (result.empty())
 		{
-			_log.Log(LOG_ERROR, "SBFSpot Import Old Month Data: FAILED - Cannot find sensor in database");
+			Log(LOG_ERROR, "SBFSpot Import Old Month Data: FAILED - Cannot find sensor in database");
 			return;
 		}
 	}
@@ -253,7 +250,7 @@ void CSBFSpot::ImportOldMonthData()
 			ImportOldMonthData(ulID,iYear, iMonth);
 		}
 	}
-	_log.Log(LOG_STATUS, "SBFSpot Import Old Month Data: Complete");
+	Log(LOG_STATUS, "SBFSpot Import Old Month Data: Complete");
 }
 
 void CSBFSpot::ImportOldMonthData(const uint64_t DevID, const int Year, const int Month)
@@ -263,7 +260,7 @@ void CSBFSpot::ImportOldMonthData(const uint64_t DevID, const int Year, const in
 	if (m_SBFPlantName.empty())
 		return;
 
-	int iInvOff = 1;
+	size_t iInvOff = 1;
 	char szLogFile[256];
 	std::string tmpPath = m_SBFDataPath;
 	stdreplace(tmpPath, "%Y", std::to_string(Year));
@@ -310,7 +307,7 @@ void CSBFSpot::ImportOldMonthData(const uint64_t DevID, const int Year, const in
 					szKwhCounter = "0," + szKwhCounter;
 				stdreplace(szKwhCounter, ",", ".");
 				double kWhCounter = atof(szKwhCounter.c_str()) * 1000;
-				unsigned long long ulCounter = (unsigned long long)kWhCounter;
+				uint64_t ulCounter = (uint64_t)kWhCounter;
 
 				//check if this day record does not exists in the database, and insert it
 				std::vector<std::vector<std::string> > result;
@@ -322,8 +319,8 @@ void CSBFSpot::ImportOldMonthData(const uint64_t DevID, const int Year, const in
 				if (result.empty())
 				{
 					//Insert value into our database
-					m_sql.safe_query("INSERT INTO Meter_Calendar (DeviceRowID, Value, Date) VALUES ('%" PRIu64 "', '%llu', '%q')", DevID, ulCounter, szDate);
-					_log.Log(LOG_STATUS, "SBFSpot Import Old Month Data: Inserting %s",szDate);
+					m_sql.safe_query("INSERT INTO Meter_Calendar (DeviceRowID, Value, Date) VALUES ('%" PRIu64 "', '%" PRIu64 "', '%q')", DevID, ulCounter, szDate);
+					Log(LOG_STATUS, "SBFSpot Import Old Month Data: Inserting %s",szDate);
 				}
 
 			}
@@ -376,7 +373,7 @@ void CSBFSpot::ImportOldMonthData(const uint64_t DevID, const int Year, const in
 						std::string szKwhCounter = results[iInvOff + 1];
 						stdreplace(szKwhCounter, ",", ".");
 						double kWhCounter = atof(szKwhCounter.c_str()) * 1000;
-						unsigned long long ulCounter = (unsigned long long)kWhCounter;
+						uint64_t ulCounter = (uint64_t)kWhCounter;
 
 						//check if this day record does not exists in the database, and insert it
 						std::vector<std::vector<std::string> > result;
@@ -389,9 +386,9 @@ void CSBFSpot::ImportOldMonthData(const uint64_t DevID, const int Year, const in
 						if (result.empty())
 						{
 							//Insert value into our database
-							m_sql.safe_query("INSERT INTO Meter_Calendar (DeviceRowID, Value, Date) VALUES ('%" PRIu64 "', '%llu', '%q')",
+							m_sql.safe_query("INSERT INTO Meter_Calendar (DeviceRowID, Value, Date) VALUES ('%" PRIu64 "', '%" PRIu64 "', '%q')",
 								DevID, ulCounter, szDate);
-							_log.Log(LOG_STATUS, "SBFSpot Import Old Month Data: Inserting %s", szDate);
+							Log(LOG_STATUS, "SBFSpot Import Old Month Data: Inserting %s", szDate);
 						}
 					}
 				}
@@ -437,12 +434,12 @@ void CSBFSpot::GetMeterDetails()
 {
 	if (m_SBFDataPath.empty())
 	{
-		_log.Log(LOG_ERROR, "SBFSpot: Data path empty!");
+		Log(LOG_ERROR, "Data path empty!");
 		return;
 	}
 	if (m_SBFPlantName.empty())
 	{
-		_log.Log(LOG_ERROR, "SBFSpot: Plant name empty!");
+		Log(LOG_ERROR, "Plant name empty!");
 		return;
 	}
 
@@ -479,7 +476,7 @@ void CSBFSpot::GetMeterDetails()
 	{
 		if ((ActHourMin > sunRise) && (ActHourMin < sunSet))
 		{
-			_log.Log(LOG_ERROR, "SBFSpot: Could not open spot file: %s", szLogFile);
+			Log(LOG_ERROR, "Could not open spot file: %s", szLogFile);
 		}
 		return;
 	}
@@ -532,7 +529,7 @@ void CSBFSpot::GetMeterDetails()
 
 	if (szLastLines.empty())
 	{
-		_log.Log(LOG_ERROR, "SBFSpot: No data record found in spot file!");
+		Log(LOG_ERROR, "No data record found in spot file!");
 		return;
 	}
 
@@ -552,12 +549,13 @@ void CSBFSpot::GetMeterDetails()
 
 		if (results[1].empty())
 		{
-			_log.Log(LOG_ERROR, "SBFSpot: No data record found in spot file!");
+			Log(LOG_ERROR, "No data record found in spot file!");
 			return;
 		}
 		if ((results[28] != "OK") && (results[28] != "Ok"))
 		{
-			_log.Log(LOG_ERROR, "SBFSpot: Invalid field [28] should be OK!");
+			//could be because it's winter and not active yet
+			//Log(LOG_ERROR, "Invalid field [28] should be OK!");
 			return;
 		}
 
@@ -592,9 +590,10 @@ void CSBFSpot::GetMeterDetails()
 		percentage = static_cast<float>(atof(tmpString.c_str()));
 		SendPercentageSensor((InvIdx * 10) + 1, 0, 255, percentage, "Efficiency");
 		tmpString = results[24];
-		stdreplace(tmpString, ",", ".");
-		percentage = static_cast<float>(atof(tmpString.c_str()));
-		SendPercentageSensor((InvIdx * 10) + 2, 0, 255, percentage, "Hz");
+		stdreplace(tmpString, ",", ".");	
+		float frequency = static_cast<float>(atof(tmpString.c_str()));
+//		SendPercentageSensor((InvIdx * 10) + 2, 0, 255, percentage, "Hz");
+		SendCustomSensor((InvIdx * 10) + 2, 0, 255, frequency, "Hz", "Hz");
 		tmpString = results[27];
 		stdreplace(tmpString, ",", ".");
 		percentage = static_cast<float>(atof(tmpString.c_str()));
@@ -618,7 +617,7 @@ void CSBFSpot::GetMeterDetails()
 		{
 			if (kWhCounter < (int)(LastTotal * 100) / 100)
 			{
-				_log.Log(LOG_ERROR, "SBFSpot: Actual KwH counter (%f) less then last Counter (%f)!", kWhCounter, LastTotal);
+				Log(LOG_ERROR, "Actual KwH counter (%f) less then last Counter (%f)!", kWhCounter, LastTotal);
 				return;
 			}
 		}
@@ -649,7 +648,7 @@ namespace http {
 			{
 				if (pHardware->HwdType == HTYPE_SBFSpot)
 				{
-					CSBFSpot *pSBFSpot = reinterpret_cast<CSBFSpot *>(pHardware);
+					CSBFSpot *pSBFSpot = dynamic_cast<CSBFSpot *>(pHardware);
 					pSBFSpot->ImportOldMonthData();
 				}
 			}

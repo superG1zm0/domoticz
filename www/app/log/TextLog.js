@@ -27,13 +27,14 @@ define(['app', 'log/components/DeviceTextLogTable'], function(app) {
         }
 
         function refreshLog() {
-            domoticzApi.sendRequest({
-                type: 'textlog',
+            domoticzApi.sendCommand('gettextlog', {
                 idx: vm.deviceIdx
             }).then(function(data) {
-                for (var i = 0; i < data.result.length; i++) {
-                    var dataTemp = data.result[i]['Data'].replace(/([^>\r\n]?)(\r\n|\n\r|\r|\n)/g, '$1<br />$2');
-                    data.result[i]['Data'] = dataTemp;
+                if (typeof data.result !== 'undefined') {
+                  for (var i = 0; i < data.result.length; i++) {
+                      var dataTemp = data.result[i]['Data'].replace(/([^>\r\n]?)(\r\n|\n\r|\r|\n)/g, '$1<br />$2');
+                      data.result[i]['Data'] = dataTemp;
+                  }
                 }
                 vm.log = data.result;
             });

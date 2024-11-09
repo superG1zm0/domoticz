@@ -5,8 +5,8 @@ Author : Blaise Thauvin
 Version : 1.5
 Description : This class is used by various Teleinfo hardware decoders to process and display data
 		  It is currently used by EcoDevices, TeleinfoSerial
-		  Detailed information on the Teleinfo protocol can be found at (version 5, 16/03/2015)
-		  http://www.enedis.fr/sites/default/files/Enedis-NOI-CPT_02E.pdf
+		  Detailed information on the Teleinfo protocol (Enedis-NOI-CPT_54E) can be found at (version 3, 01/06/2018)
+		  https://www.enedis.fr/media/2035/download
 
 History :
 0.1 2017-03-03 : Creation
@@ -66,10 +66,25 @@ class CTeleinfoBase : public CDomoticzHardwareBase
 		std::string rate;
 		std::string tariff;
 		std::string color;
+
+		// Info relative to standard mode only (Linky)
+		uint32_t PREF;
+		uint32_t SINSTS1;
+		uint32_t SINSTS2;
+		uint32_t SINSTS3;
+		uint32_t URMS1;
+		uint32_t URMS2;
+		uint32_t URMS3;
+		uint32_t EAIT;
+		uint32_t SINSTI;
+		uint32_t STGE;
+		uint32_t prevSTGE;
+
 		time_t last;
 		bool triphase;
 		bool withPAPP; // For meters with no PAPP
 		int CRCmode1;  // really a bool, but with a special "un-initialized state"
+		bool waitingFirstBlock;
 		_tTeleinfo()
 		{
 			ISOUSC = 0;
@@ -101,10 +116,22 @@ class CTeleinfoBase : public CDomoticzHardwareBase
 			pAlertColor = 10;
 			pAlertEJP = 10;
 			pAlertDemain = 10;
+			PREF = 0;
+			SINSTS1 = 0;
+			SINSTS2 = 0;
+			SINSTS3 = 0;
+			URMS1 = 0;
+			URMS2 = 0;
+			URMS3 = 0;
+			EAIT = 0;
+			SINSTI = 0;
+			STGE = UINT32_MAX;
+			prevSTGE = UINT32_MAX;
 			last = 0;
 			triphase = false;
 			withPAPP = false;
 			CRCmode1 = 255; // means "bool not initialized yet", will be when running CRC Check for the first time
+			waitingFirstBlock = true;
 		}
 	} Teleinfo;
 	void ProcessTeleinfo(Teleinfo &teleinfo);
@@ -122,12 +149,11 @@ class CTeleinfoBase : public CDomoticzHardwareBase
 	bool m_bDisableCRC;
 
       private:
-	int AlertLevel(int Iinst, int Isousc, char *text);
+	int AlertLevel(int Iinst, int Isousc, int Sinsts, int Pcoup, char* text);
 	P1Power m_p1power, m_p2power, m_p3power;
 	Teleinfo m_teleinfo;
 	char m_buffer[1024];
 	int m_bufferpos;
-	unsigned int m_counter;
 };
 
 /*  Details on Teleinfo variables

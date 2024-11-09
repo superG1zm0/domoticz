@@ -6,7 +6,7 @@
 #define MyAppPublisher "Domoticz.com"
 #define MyAppURL "http://www.domoticz.com/"
 #define MyAppExeName "domoticz.exe"
-#define NSSM "nssm.exe"
+#define NSSM "WinSI.exe"
 #define SetupBaseName   "DomoticzSetup_"
 #define SetupName   "DomoticzSetup"
 #dim Version[4]
@@ -38,8 +38,6 @@ PrivilegesRequired=admin
 SolidCompression=yes
 UsePreviousAppDir=yes
 DirExistsWarning=no
-WizardImageFile=compiler:WizModernImage-IS.bmp
-WizardSmallImageFile=compiler:WizModernSmallImage-IS.bmp
 
 [Tasks]
 Name: RunAsApp; Description: "Run as application "; Flags: exclusive;
@@ -52,12 +50,12 @@ Name: RunAsService; Description: "Run as service"; Flags: exclusive unchecked
 Source: "..\Release\domoticz.exe"; DestDir: "{app}"; Flags: ignoreversion
 ;Source: "..\Release\*.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\www\*"; DestDir: "{app}\www"; Flags: recursesubdirs createallsubdirs ignoreversion
-Source: "..\..\Config\*"; DestDir: "{app}\Config"; Flags: recursesubdirs createallsubdirs ignoreversion
 Source: "..\..\scripts\*"; DestDir: "{app}\scripts"; Flags: recursesubdirs createallsubdirs ignoreversion
+Source: "..\..\Config\*"; DestDir: "{app}\Config"; Flags: recursesubdirs createallsubdirs ignoreversion
 Source: "..\..\dzVents\*"; DestDir: "{app}\dzVents"; Flags: recursesubdirs createallsubdirs ignoreversion
 Source: "..\Windows Libraries\openzwave\OpenZWave.dll"; DestDir: {app}; Flags: ignoreversion;
 Source: "..\..\History.txt"; DestDir: "{app}"; Flags: ignoreversion
-Source: ".\nssm.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: ".\WinSI.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\server_cert.pem"; DestDir: "{app}"; Flags: onlyifdoesntexist uninsneveruninstall
 
 Source: "..\Windows Libraries\Redist\*"; DestDir: {app}; Flags: ignoreversion
@@ -73,9 +71,12 @@ Name: "{commonstartup}\Domoticz"; Filename: "{app}\{#MyAppExeName}"; Parameters:
 Name: "{commondesktop}\Domoticz"; Filename: "{app}\{#MyAppExeName}"; Parameters: "{code:GetParams}" ; Tasks: RunAsApp\desktopicon
 Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\Domoticz"; Filename: "{app}\{#MyAppExeName}"; Tasks: RunAsApp\quicklaunchicon
 
+[Setup]
+UninstallDisplayIcon={app}\{#MyAppExeName}
+
 [Run]
 ;Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, "&", "&&")}}"; Flags: nowait postinstall skipifsilent runascurrentuser; Tasks: RunAsApp
-Filename: "{app}\{#NSSM}"; Parameters: "install {#MyAppName} ""{app}\{#MyAppExeName}"" ""{code:GetParamsService}"""; Flags: runhidden; Tasks: RunAsService
+Filename: "{app}\{#NSSM}"; Parameters: "install {#MyAppName} ""{app}\{#MyAppExeName}"" ""{code:GetParams}"""; Flags: runhidden; Tasks: RunAsService
 Filename: "{app}\{#NSSM}"; Parameters: "set {#MyAppName} DependOnService RpcSS LanmanWorkstation"; Flags: runhidden; Tasks: RunAsService
 Filename: "{sys}\net.exe"; Parameters: "start {#MyAppName}"; Flags: runhidden; Tasks: RunAsService
 
@@ -97,15 +98,32 @@ Type: filesandordirs; Name: "{app}\scripts\dzVents\runtime"
 var
   ConfigPage: TInputQueryWizardPage;
   LogConfigPage: TInputDirWizardPage;
+  LogNoLogButton: TRadioButton;
+  LogUseLogButton: TRadioButton;
+  LogOldNextButtonOnClick: TNotifyEvent;
  
 function GetParams(Value: string): string;
 begin
-  Result := '-www '+ConfigPage.Values[0]+' -sslwww '+ConfigPage.Values[1];
+  Result := '-www ' + ConfigPage.Values[0] + ' -sslwww ' + ConfigPage.Values[1];
+  if (LogUseLogButton.Checked) then
+    begin
+      Result := Result + ' -log """' + LogConfigPage.Values[0] + '"""';
+    end;
 end;
 
-function GetParamsService(Value: string): string;
+{ WORKAROUND }
+{ Checkboxes and Radio buttons created on runtime do }
+{ not scale their height automatically. }
+{ See https://stackoverflow.com/q/30469660/850848 }
+procedure ScaleFixedHeightControl(Control: TButtonControl);
 begin
-  Result := '-www '+ConfigPage.Values[0]+' -sslwww '+ConfigPage.Values[1];
+  Control.Height := ScaleY(Control.Height);
+end;
+
+procedure UseLogButtonClick(Sender: TObject);
+begin
+  LogConfigPage.Edits[0].Enabled := LogUseLogButton.Checked;
+  LogConfigPage.Buttons[0].Enabled := LogUseLogButton.Checked;
 end;
 
 procedure InitializeWizard;
@@ -131,8 +149,36 @@ begin
     False, 'New Folder');
   LogConfigPage.Add('');
 
+  LogNoLogButton := TRadioButton.Create(WizardForm);
+  LogNoLogButton.Caption := 'No external Log';
+  LogNoLogButton.Checked := True;
+  LogNoLogButton.Parent :=LogConfigPage.Surface;
+  LogNoLogButton.Top := LogConfigPage.Edits[0].Top;
+  LogNoLogButton.OnClick := @UseLogButtonClick;
+  ScaleFixedHeightControl(LogNoLogButton);
+  
+  LogUseLogButton := TRadioButton.Create(WizardForm);
+  LogUseLogButton.Caption := 'Use external Log';
+  LogUseLogButton.Parent := LogConfigPage.Surface;
+  LogUseLogButton.Top :=
+    LogNoLogButton.Top + LogNoLogButton.Height + ScaleY(8);
+  LogUseLogButton.OnClick := @UseLogButtonClick;
+  ScaleFixedHeightControl(LogNoLogButton);
+
+  LogConfigPage.Buttons[0].Top :=
+    LogConfigPage.Buttons[0].Top +
+    ((LogUseLogButton.Top + LogUseLogButton.Height + ScaleY(8)) -
+      LogConfigPage.Edits[0].Top);
+  LogConfigPage.Edits[0].Top :=
+    LogUseLogButton.Top + LogUseLogButton.Height + ScaleY(8);
+  LogConfigPage.Edits[0].Left := LogConfigPage.Edits[0].Left + ScaleX(16);
+  LogConfigPage.Edits[0].Width := LogConfigPage.Edits[0].Width - ScaleX(16);
+  LogConfigPage.Edits[0].TabOrder := LogUseLogButton.TabOrder + 1;
+  LogConfigPage.Buttons[0].TabOrder := LogConfigPage.Edits[0].TabOrder + 1;
+
+  UseLogButtonClick(nil);
+
   LogConfigPage.Values[0] := WizardDirValue+'\log';
- 
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);

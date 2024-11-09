@@ -1,4 +1,4 @@
-define(['app', 'RefreshingChart', 'log/factories'], function (app, RefreshingChart) {
+define(['app', 'RefreshingChart', 'DataLoader', 'ChartLoader', 'log/Chart', 'log/factories'], function (app, RefreshingChart, DataLoader, ChartLoader) {
 
     app.component('deviceTemperatureLog', {
         bindings: {
@@ -111,11 +111,98 @@ define(['app', 'RefreshingChart', 'log/factories'], function (app, RefreshingCha
             }
         }
     });
+	
+	changeCompType = function() {
+			alert("Change!!");
+	}
+
+    app.directive('temperatureCompareChart', function () {
+        return {
+            require: {
+                logCtrl: '^deviceTemperatureLog'
+            },
+            scope: {
+                device: '<',
+                degreeType: '<',
+                range: '@'
+            },
+            templateUrl: function($element, $attrs) { return 'app/log/chart-' + $attrs.range + '-temp.html'; },
+            replace: true,
+            bindToController: true,
+            controllerAs: 'vm',
+            controller: function ($location, $route, $scope, $timeout, $element, domoticzGlobals, domoticzApi, domoticzDataPointApi, chart) {
+                const self = this;
+				self.groupingBy = 'month';
+                self.sensorType = 'temp';
+				self.var_name = 'Temp_Avg';
+
+                self.$onInit = function() {
+                    self.chart = new RefreshingChart(
+                        chart.baseParams($),
+                        chart.angularParams($location, $route, $scope, $timeout, $element),
+                        chart.domoticzParams(domoticzGlobals, domoticzApi, domoticzDataPointApi),
+						chart.chartParamsCompare(
+							domoticzGlobals,
+							self,
+							chart.chartParamsCompareTemplate(self, 'Temperature', degreeSuffix),
+                            {
+                                isShortLogChart: false,
+                                yAxes: [{
+											title: {
+												text: $.t('Degrees') + ' ' + degreeSuffix
+											}
+										}],
+                                extendDataRequest: function (dataRequest) {
+                                    dataRequest['groupby'] = self.groupingBy;
+									dataRequest['var_name'] = self.var_name;
+                                    return dataRequest;
+                                },
+                                preprocessData: function (data) {
+                                    this.firstYear = data.firstYear;
+                                    this.categories = categoriesFromGroupingBy.call(this, self.groupingBy);
+                                    if (self.chart.chart.xAxis[0].categories === true) {
+                                        self.chart.chart.xAxis[0].categories = [];
+                                    } else {
+                                        self.chart.chart.xAxis[0].categories.length = 0;
+                                    }
+                                    this.categories.forEach(function (c) {
+                                        self.chart.chart.xAxis[0].categories.push(c); });
+
+                                    function categoriesFromGroupingBy(groupingBy) {
+                                        if (groupingBy === 'year') {
+                                            if (this.firstYear === undefined) {
+                                                return [];
+                                            }
+                                            return _.range(this.firstYear, new Date().getFullYear() + 1).map(year => year.toString());
+                                        } else if (groupingBy === 'quarter') {
+                                            return ['Q1', 'Q2', 'Q3', 'Q4'];
+                                        } else if (groupingBy === 'month') {
+                                            return _.range(1, 13).map(month => pad2(month));
+                                        }
+
+                                        function pad2(i) {
+                                            return (i < 10 ? '0' : '') + i.toString();
+                                        }
+                                    }
+                                },
+                            },
+                            chart.compareSeriesSuppliers(self)
+                        ),
+                        new DataLoader(),
+                        new ChartLoader($location),
+                        null
+                    );
+                };
+            }
+        }
+    });
 
     function humiditySeriesSupplier() {
         return {
             id: 'humidity',
             dataItemKeys: ['hu'],
+            showWithoutDatapoints: false,
+            label: 'Hu',
             template: {
                 name: $.t('Humidity'),
                 color: 'limegreen',
@@ -132,6 +219,8 @@ define(['app', 'RefreshingChart', 'log/factories'], function (app, RefreshingCha
         return {
             id: 'chill',
             dataItemKeys: ['ch'],
+            showWithoutDatapoints: false,
+            label: 'Ch',
             template: {
                 name: $.t('Chill'),
                 color: 'red',
@@ -139,7 +228,6 @@ define(['app', 'RefreshingChart', 'log/factories'], function (app, RefreshingCha
                 zIndex: 1,
                 tooltip: {
                     valueSuffix: ' ' + degreeSuffix,
-                    valueDecimals: 1
                 }
             }
         };
@@ -149,6 +237,8 @@ define(['app', 'RefreshingChart', 'log/factories'], function (app, RefreshingCha
         return {
             id: 'setpoint',
             dataItemKeys: ['se'],
+            showWithoutDatapoints: false,
+            label: 'Se',
             template: {
                 name: $.t('Set Point'),
                 color: 'blue',
@@ -166,14 +256,14 @@ define(['app', 'RefreshingChart', 'log/factories'], function (app, RefreshingCha
         return {
             id: 'temperature',
             dataItemKeys: ['te'],
+            label: 'Te',
             template: {
                 name: $.t('Temperature'),
                 color: 'yellow',
                 yAxis: 0,
-                step: deviceType === 'Thermostat' ? 'left' : undefined,
+                step: deviceType === 'Setpoint' ? 'left' : undefined,
                 tooltip: {
                     valueSuffix: ' ' + degreeSuffix,
-                    valueDecimals: 1
                 }
             }
         };
@@ -183,9 +273,11 @@ define(['app', 'RefreshingChart', 'log/factories'], function (app, RefreshingCha
         return {
             id: 'chillmin',
             dataItemKeys: ['cm'],
-            dataItemIsValid: function (dataItem) {
+            dataItemIsComplete: function (dataItem) {
                 return dataItem.ch !== undefined;
             },
+            showWithoutDatapoints: false,
+            label: 'Cm',
             template: {
                 name: $.t('Chill') + ' ' + $.t('Minimum'),
                 color: 'rgba(255,127,39,0.8)',
@@ -193,7 +285,6 @@ define(['app', 'RefreshingChart', 'log/factories'], function (app, RefreshingCha
                 zIndex: 1,
                 tooltip: {
                     valueSuffix: ' ' + degreeSuffix,
-                    valueDecimals: 1
                 },
                 yAxis: 0
             }
@@ -204,6 +295,8 @@ define(['app', 'RefreshingChart', 'log/factories'], function (app, RefreshingCha
         return {
             id: 'setpointavg',
             dataItemKeys: ['se'],
+            showWithoutDatapoints: false,
+            label: 'Sa',
             template: {
                 name: $.t('Set Point') + ' ' + $.t('Average'),
                 color: 'blue',
@@ -222,9 +315,11 @@ define(['app', 'RefreshingChart', 'log/factories'], function (app, RefreshingCha
         return {
             id: 'setpointrange',
             dataItemKeys: ['sm', 'sx'],
-            dataItemIsValid: function (dataItem) {
+            dataItemIsComplete: function (dataItem) {
                 return dataItem.se !== undefined;
             },
+            showWithoutDatapoints: false,
+            label: 'Sr',
             template: {
                 name: $.t('Set Point') + ' ' + $.t('Range'),
                 color: 'rgba(164,75,148,1.0)',
@@ -247,6 +342,8 @@ define(['app', 'RefreshingChart', 'log/factories'], function (app, RefreshingCha
             id: 'prev_setpoint',
             dataItemKeys: ['se'],
             useDataItemsFromPrevious: true,
+            showWithoutDatapoints: false,
+            label: 'Sp',
             template: {
                 name: $.t('Past') + ' ' + $.t('Set Point'),
                 color: 'rgba(223,212,246,0.8)',
@@ -265,9 +362,10 @@ define(['app', 'RefreshingChart', 'log/factories'], function (app, RefreshingCha
         return {
             id: 'temperature_avg',
             dataItemKeys: ['ta'],
-            dataItemIsValid: function (dataItem) {
+            dataItemIsComplete: function (dataItem) {
                 return dataItem.te !== undefined && dataItem.ta !== undefined;
             },
+            label: 'Ta',
             template: {
                 name: $.t('Temperature') + ' ' + $.t('Average'),
                 color: 'yellow',
@@ -286,9 +384,10 @@ define(['app', 'RefreshingChart', 'log/factories'], function (app, RefreshingCha
         return {
             id: 'temperature',
             dataItemKeys: ['tm', 'te'],
-            dataItemIsValid: function (dataItem) {
+            dataItemIsComplete: function (dataItem) {
                 return dataItem.te !== undefined;
             },
+            label: 'Tr',
             template: {
                 name: $.t('Temperature') + ' ' + $.t('Range'),
                 color: 'rgba(3,190,252,1.0)',
@@ -300,7 +399,6 @@ define(['app', 'RefreshingChart', 'log/factories'], function (app, RefreshingCha
                 yAxis: 0,
                 tooltip: {
                     valueSuffix: ' ' + degreeSuffix,
-                    valueDecimals: 1
                 }
             }
         };
@@ -311,6 +409,8 @@ define(['app', 'RefreshingChart', 'log/factories'], function (app, RefreshingCha
             id: 'prev_temperature',
             dataItemKeys: ['ta'],
             useDataItemsFromPrevious: true,
+            showWithoutDatapoints: false,
+            label: 'Tp',
             template: {
                 name: $.t('Past') + ' ' + $.t('Temperature'),
                 color: 'rgba(224,224,230,0.8)',
@@ -329,10 +429,10 @@ define(['app', 'RefreshingChart', 'log/factories'], function (app, RefreshingCha
         return {
             id: 'temp_trendline',
             dataItemKeys: ['ta'],
-            dataItemIsValid: function (dataItem) {
+            dataItemIsComplete: function (dataItem) {
                 return dataItem.te !== undefined && dataItem.ta !== undefined;
             },
-            aggregateDatapoints: function (datapoints) {
+            postprocessDatapoints: function (datapoints) {
                 const trendline = CalculateTrendLine(datapoints);
                 datapoints.length = 0;
                 if (trendline !== undefined) {
@@ -340,12 +440,12 @@ define(['app', 'RefreshingChart', 'log/factories'], function (app, RefreshingCha
                     datapoints.push([trendline.x1, trendline.y1]);
                 }
             },
+            label: 'Tt',
             template: {
                 name: $.t('Trendline') + ' ' + $.t('Temperature'),
                 zIndex: 1,
                 tooltip: {
                     valueSuffix: ' ' + degreeSuffix,
-                    valueDecimals: 1
                 },
                 color: 'rgba(255,3,3,0.8)',
                 dashStyle: 'LongDash',
@@ -380,9 +480,10 @@ define(['app', 'RefreshingChart', 'log/factories'], function (app, RefreshingCha
         return {
             highchartTemplate: {
                 chart: {
-                    type: ctrl.device.Type === 'Thermostat' ? 'line' : undefined
+                    type: ctrl.device.Type === 'Setpoint' ? 'line' : undefined
                 }
             },
+            ctrl: ctrl,
             range: ctrl.range,
             device: ctrl.device,
             sensorType: ctrl.sensorType,
